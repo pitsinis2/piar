@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Manager SaaS Preview</title>
+    <link rel="stylesheet" href="src/styles/app.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="login-layout" id="login-screen">
+        <div class="hero">
+          <p class="eyebrow">Project Manager SaaS</p>
+          <h1>Simple worksite control for service teams.</h1>
+          <p>Workers open projects, select an area, upload photos/files/notes, and every company keeps a clean project archive.</p>
+          <div class="hero-pills">
+            <span>Magic-link login</span>
+            <span>Google Drive archive</span>
+            <span>Manual user licenses</span>
+          </div>
+        </div>
+
+        <form class="login-card" id="login-form">
+          <p class="eyebrow">First preview</p>
+          <h2>Login with email</h2>
+          <p class="muted">This is a static preview. Supabase magic-link login comes next.</p>
+          <label>
+            Email
+            <input type="email" value="owner@example.com" aria-label="Email">
+          </label>
+          <button class="primary-btn" type="submit">Send magic link</button>
+          <small>For now this button opens the demo workspace.</small>
+        </form>
+      </section>
+
+      <section id="workspace-screen" hidden>
+        <header class="workspace-header">
+          <div>
+            <p class="eyebrow">Company workspace</p>
+            <h1 id="workspace-title">Worker projects</h1>
+          </div>
+          <div class="header-actions">
+            <button class="chip active" id="worker-view" type="button">Worker view</button>
+            <button class="chip" id="admin-view" type="button">Admin view</button>
+            <button class="ghost-btn" id="logout-btn" type="button">Logout</button>
+          </div>
+        </header>
+
+        <div class="worker-layout" id="worker-layout">
+          <section class="project-list" id="projects">
+            <div class="section-title">
+              <h2>Projects</h2>
+              <span>2 active</span>
+            </div>
+            <button class="project-card selected" type="button" style="--project-color:#d8664c">
+              <span class="project-number">0001</span>
+              <strong>Bathroom renovation</strong>
+              <small>Client 1 · 1st floor · Bathroom</small>
+              <em>Today</em>
+            </button>
+            <button class="project-card" type="button" style="--project-color:#0d7a73">
+              <span class="project-number">0002</span>
+              <strong>Kitchen wiring</strong>
+              <small>Client 2 · Ground floor · Kitchen</small>
+              <em>Tomorrow</em>
+            </button>
+          </section>
+
+          <section class="work-panel">
+            <div class="project-strip" style="--project-color:#d8664c">
+              <span class="project-number">0001</span>
+              <div>
+                <h2>Bathroom renovation</h2>
+                <p>1st floor · Bathroom · Plumbers</p>
+              </div>
+            </div>
+
+            <div class="action-grid" id="upload">
+              <button type="button">Add photo</button>
+              <button type="button">Add file</button>
+              <button type="button">Add note</button>
+            </div>
+
+            <section class="chat-card" id="chat">
+              <div class="section-title">
+                <h2>Project chat</h2>
+                <span>Important messages can become notes</span>
+              </div>
+              <article class="message important">
+                <strong>Admin</strong>
+                <p>Please upload photos before closing the wall.</p>
+                <span>Important</span>
+              </article>
+              <article class="message">
+                <strong>Worker</strong>
+                <p>Bathroom pipes are ready for inspection.</p>
+              </article>
+            </section>
+
+            <section class="drive-card" id="drive">
+              <div>
+                <h2>Google Drive archive</h2>
+                <p>Company root → Project folder → Floor → Area → Photos / Files / Notes</p>
+              </div>
+              <button type="button">Connect later</button>
+            </section>
+          </section>
+        </div>
+
+        <div class="admin-layout" id="admin-layout" hidden>
+          <section class="project-list">
+            <div class="section-title">
+              <h2>Projects</h2>
+              <span>2 active</span>
+            </div>
+            <button class="project-card selected" type="button" style="--project-color:#d8664c">
+              <span class="project-number">0001</span>
+              <strong>Bathroom renovation</strong>
+              <small>Client 1 · 1st floor · Bathroom</small>
+              <em>Today</em>
+            </button>
+          </section>
+
+          <section class="work-panel">
+            <div class="stats-grid">
+              <article><strong>10</strong><span>License seats</span></article>
+              <article><strong>6</strong><span>Active users</span></article>
+              <article><strong>2</strong><span>Projects</span></article>
+              <article><strong>Drive</strong><span>Not connected yet</span></article>
+            </div>
+            <section class="admin-card">
+              <h2>Next setup steps</h2>
+              <ol>
+                <li>Connect Supabase magic-link login.</li>
+                <li>Create company and license records.</li>
+                <li>Connect Google Drive wizard.</li>
+              </ol>
+            </section>
+          </section>
+        </div>
+
+        <nav class="bottom-tabs" aria-label="Mobile shortcuts">
+          <a href="#projects">Projects</a>
+          <a href="#upload">Upload</a>
+          <a href="#chat">Chat</a>
+          <a href="#drive">Drive</a>
+        </nav>
+      </section>
+    </main>
+
+    <script>
+      const login = document.getElementById("login-screen");
+      const workspace = document.getElementById("workspace-screen");
+      const workerLayout = document.getElementById("worker-layout");
+      const adminLayout = document.getElementById("admin-layout");
+      const title = document.getElementById("workspace-title");
+      const workerBtn = document.getElementById("worker-view");
+      const adminBtn = document.getElementById("admin-view");
+
+      document.getElementById("login-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        login.hidden = true;
+        workspace.hidden = false;
+      });
+
+      document.getElementById("logout-btn").addEventListener("click", () => {
+        workspace.hidden = true;
+        login.hidden = false;
+      });
+
+      workerBtn.addEventListener("click", () => {
+        workerLayout.hidden = false;
+        adminLayout.hidden = true;
+        title.textContent = "Worker projects";
+        workerBtn.classList.add("active");
+        adminBtn.classList.remove("active");
+      });
+
+      adminBtn.addEventListener("click", () => {
+        workerLayout.hidden = true;
+        adminLayout.hidden = false;
+        title.textContent = "Admin dashboard";
+        adminBtn.classList.add("active");
+        workerBtn.classList.remove("active");
+      });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Manager Mobile Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #efe7db;
+      --panel: rgba(255, 255, 255, 0.86);
+      --line: rgba(31, 42, 42, 0.12);
+      --ink: #1f2a2a;
+      --muted: #647270;
+      --accent: #0d7a73;
+      --shadow: 0 20px 44px rgba(31, 42, 42, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(225, 131, 82, 0.18), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(13, 122, 115, 0.14), transparent 28%),
+        var(--bg);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .preview-shell {
+      width: min(100%, 520px);
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+    }
+
+    .preview-note {
+      width: min(100%, 460px);
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .preview-note strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+
+    .preview-note span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .phone-frame {
+      width: min(100%, 430px);
+      height: min(88vh, 932px);
+      padding: 14px;
+      border-radius: 34px;
+      background: linear-gradient(180deg, #20252b 0%, #12171a 100%);
+      box-shadow: 0 30px 60px rgba(31, 42, 42, 0.28);
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 24px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      .preview-note {
+        width: 100%;
+      }
+
+      .phone-frame {
+        width: 100%;
+        height: 92vh;
+        padding: 10px;
+        border-radius: 24px;
+      }
+
+      .phone-screen {
+        border-radius: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="preview-shell">
+    <section class="preview-note">
+      <strong>Mobile Preview</strong>
+      <span>Open this file next to <code>index.html</code> to compare desktop and phone layouts.</span>
+    </section>
+    <section class="phone-frame" aria-label="Phone preview frame">
+      <iframe class="phone-screen" src="./index.html" title="Project Manager mobile preview"></iframe>
+    </section>
+  </main>
+</body>
+</html>

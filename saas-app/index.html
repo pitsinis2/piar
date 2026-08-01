@@ -1,0 +1,2646 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Manager Workspace - Index V2</title>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("theme") === "futuristic") {
+        document.documentElement.classList.add("theme-futuristic");
+      }
+      if (params.get("demo") === "client" || params.get("mobile") === "1") {
+        document.documentElement.classList.add("mobile-preview-mode");
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="stylesback.css">
+  <link rel="stylesheet" href="styles-futuristic.css">
+</head>
+<body>
+  <details class="access-menu" id="access-menu">
+    <summary class="access-menu-trigger" aria-label="Open user menu">...</summary>
+    <div class="access-menu-panel">
+      <div class="access-banner-copy">
+        <p class="eyebrow">User Login</p>
+        <h2 id="access-banner-title">Current access</h2>
+        <p id="access-banner-description" class="muted">Check what the selected role can see and do.</p>
+      </div>
+      <div class="access-banner-controls">
+        <label>User login
+          <select id="current-user-select"></select>
+        </label>
+        <label id="developer-preview-label">Developer preview
+          <select id="access-preview-user"></select>
+        </label>
+        <button id="reset-access-preview-btn" class="ghost-btn" type="button">Back to Developer</button>
+      </div>
+      <div id="current-user-summary" class="session-summary muted"></div>
+      <button id="client-overview-btn" class="ghost-btn client-overview-btn" type="button">Client demo overview</button>
+    </div>
+  </details>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="rail-title" aria-hidden="true">Pi.AR</div>
+      <div class="sidebar-controls" role="toolbar" aria-label="Project controls">
+        <button id="project-rail-back-btn" class="rail-control-btn rail-control-back-btn" type="button" aria-label="Go back">
+          <span class="tool-icon" aria-hidden="true">&#8592;</span>
+        </button>
+        <button id="project-rail-collapse-btn" class="rail-control-btn project-rail-collapse-btn" type="button" aria-expanded="true" aria-controls="projects-page-rail" aria-label="Reduce project panels"></button>
+      </div>
+
+      <nav class="bookmark-nav" aria-label="Main sections">
+        <button class="bookmark-link active" data-view="projects" type="button">Projects</button>
+        <button class="bookmark-link" data-view="planner" type="button">Planner</button>
+        <button class="bookmark-link" data-view="daily-works" type="button">Daily Works</button>
+        <button class="bookmark-link" data-view="teams" type="button">Team Members</button>
+        <button class="bookmark-link" data-view="equipment" type="button">Equipment</button>
+        <button class="bookmark-link" data-view="clients" type="button">Clients</button>
+        <button class="bookmark-link" data-view="ai-assistant" type="button">AI Assistant</button>
+        <button class="bookmark-link" data-view="theme" type="button">Settings</button>
+        <button class="bookmark-link" data-view="audit" type="button">Audit Log</button>
+      </nav>
+    </aside>
+
+        <main class="main-area">
+          <div id="user-quick-nav" class="user-quick-nav hidden" aria-label="User navigation">
+            <button id="user-projects-btn" class="user-quick-nav-btn active" type="button">Projects</button>
+          </div>
+          <section id="projects-view" class="page-view active">
+            <div id="projects-page-layout" class="page-layout">
+              <section id="projects-page-rail" class="page-rail">
+              <section id="project-setup-panel" class="panel project-setup-panel popup-shell hidden">
+                <div class="panel-header">
+                  <h2>Project Setup</h2>
+                  <div class="project-setup-header-actions">
+                    <button id="project-save-btn" class="primary-btn project-save-btn" type="submit" form="project-form">Save project</button>
+                    <button id="close-project-setup-btn" class="icon-btn" type="button" aria-label="Close project setup">x</button>
+                    <button id="project-setup-toggle" class="icon-btn project-setup-toggle" type="button" aria-expanded="false" aria-controls="project-setup-advanced"></button>
+                  </div>
+                </div>
+                <form id="project-form" class="stack-form">
+                <label>Project name<input id="project-name" type="text" placeholder="New construction site"></label>
+                <label>Project manager<select id="project-manager-user"></select></label>
+                <label>Client
+                  <select id="project-client-select"></select>
+                </label>
+                <section class="project-contact-override">
+                  <label class="checkbox-row project-contact-toggle">
+                    <input id="project-address-different" type="checkbox">
+                    <span>Project address is different from client</span>
+                  </label>
+                  <label>Project address
+                    <textarea id="project-address" rows="2" placeholder="Inherited from selected client"></textarea>
+                  </label>
+                  <label class="checkbox-row project-contact-toggle">
+                    <input id="project-phone-different" type="checkbox">
+                    <span>Project telephone is different from client</span>
+                  </label>
+                  <label>Project telephone
+                    <input id="project-phone" type="tel" placeholder="Inherited from selected client">
+                  </label>
+                </section>
+                <div id="project-setup-advanced" class="project-setup-advanced hidden">
+                 <label>Start date<input id="project-start-date" type="date"></label>
+                 <label>End date<input id="project-end-date" type="date"></label>
+                 <div class="project-color-field">
+                  <label for="project-surface-color">Workspace color</label>
+                  <div id="project-setup-preview" class="project-setup-preview" aria-hidden="true">
+                    <div class="project-setup-preview-copy">
+                      <strong>Workspace preview</strong>
+                      <span>Choose from popular workspace colors or open more colors.</span>
+                    </div>
+                    <div id="project-color-palette" class="project-color-palette"></div>
+                    <div class="project-color-custom-row">
+                      <span>More colors</span>
+                      <input id="project-surface-color" type="color" value="#fffaf2">
+                    </div>
+                  </div>
+                 </div>
+                 <label>Project status
+                  <select id="project-lifecycle">
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </label>
+                 <button id="project-setup-lock" class="draft-lock-overlay hidden" type="button">You have to add name, project manager, and client first before editing.</button>
+                </div>
+                </form>
+              </section>
+
+              <section id="project-search-panel" class="panel project-search-panel">
+                <form id="project-search-form" class="project-search-form" role="search">
+                  <input id="project-search-input" type="search" placeholder="Search project">
+                  <button id="project-search-clear-btn" class="ghost-btn hidden" type="button" aria-label="Clear project search">Clear</button>
+                </form>
+              </section>
+
+              <section id="active-projects-panel" class="panel project-list-panel">
+                <div class="panel-header">
+                  <h2>Active Projects</h2>
+                  <button id="create-project-btn" class="secondary-btn member-add-toggle-btn project-create-btn hidden" type="button" aria-label="Create new project">+</button>
+                </div>
+                <div class="meta-row project-list-toolbar">
+                  <label class="tick-filter" for="assigned-projects-filter-btn">
+                    <input id="assigned-projects-filter-btn" type="checkbox">
+                    <span>My Projects</span>
+                  </label>
+                  <button id="toggle-active-projects-btn" class="ghost-btn hidden" type="button">Expand</button>
+                </div>
+                <div id="project-list" class="project-list project-list-scroll"></div>
+              </section>
+
+              <section id="completed-projects-panel" class="panel project-list-panel">
+                <div class="panel-header">
+                  <h2>Completed Projects</h2>
+                  <button id="toggle-completed-projects-btn" class="icon-btn panel-expand-toggle" type="button" aria-expanded="false" aria-label="Expand completed projects"></button>
+                </div>
+                <div id="completed-project-list" class="project-list project-list-scroll"></div>
+              </section>
+
+              <section id="archived-projects-panel" class="panel project-list-panel">
+                <div class="panel-header">
+                  <h2>Archived Projects</h2>
+                  <div class="meta-row">
+                    <button id="delete-archived-projects-btn" class="ghost-btn hidden" type="button">Delete Selected</button>
+                    <button id="toggle-archived-projects-btn" class="icon-btn panel-expand-toggle" type="button" aria-expanded="false" aria-label="Expand archived projects"></button>
+                  </div>
+                </div>
+                <div id="archived-project-list" class="project-list project-list-scroll"></div>
+              </section>
+
+          </section>
+
+            <section id="projects-workspace-column" class="workspace-column">
+            <section class="hero" id="workspace-hero">
+              <div class="hero-main">
+                <h2 id="workspace-title">Project Name</h2>
+                <p id="workspace-subtitle" class="muted">Address</p>
+                <p id="workspace-context" class="muted hero-context">Client and project context</p>
+                <div id="project-meta-bar" class="meta-row"></div>
+              </div>
+              <div class="hero-notifications">
+                <button id="project-ai-btn" class="ghost-btn" type="button" title="AI Assistant for this project">AI</button>
+                <button id="project-room-chat-btn" class="ghost-btn" type="button" title="Project Room Chat">Chat Room</button>
+                <button id="viber-room-btn" class="ghost-btn" type="button" title="Project Viber Room">Viber Room</button>
+                <button id="notifications-btn" class="icon-btn notification-bell-btn" type="button" aria-label="Notifications" title="Notifications">
+                  <span aria-hidden="true">🔔</span>
+                  <span id="notifications-count" class="notification-count hidden">0</span>
+                </button>
+                <div id="notifications-panel" class="notifications-panel hidden">
+                  <div class="notifications-panel-header"><strong>Notifications</strong></div>
+                  <div id="notifications-list" class="notifications-list"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="workspace-tabs-shell">
+              <div class="workspace-tabbar">
+                <div class="workspace-tabbar-group">
+                  <button id="workspace-back-button" class="workspace-back-button" type="button" aria-label="Go back">
+                    <span class="workspace-back-icon" aria-hidden="true">&#8592;</span>
+                    <span class="workspace-back-label">Projects</span>
+                  </button>
+                  <button id="folders-hub-tab" class="workspace-tab pinned active" type="button">Info</button>
+                </div>
+                <div id="folder-tab-list" class="workspace-tabbar-group"></div>
+                <button id="workspace-ai-voice-btn" class="ghost-btn hidden" type="button" aria-label="Start AI voice assistant" title="AI voice assistant">Voice</button>
+                <button id="workspace-area-filter-btn" class="ghost-btn hidden" type="button" aria-label="Filter areas" title="Filter areas">Filter</button>
+                <button id="workspace-show-archived-areas-btn" class="ghost-btn workspace-area-archived-toggle hidden" type="button">Show archived elements</button>
+              </div>
+              <div id="workspace-tab-content" class="workspace-tab-content">
+                <div id="folder-action-bar" class="folder-action-bar hidden">
+                  <div class="content-tab-group">
+                    <button id="add-note-btn" class="action-tab" disabled>Note</button>
+                    <button id="add-file-btn" class="action-tab" disabled>Files</button>
+                    <button id="add-task-btn" class="action-tab" disabled>Tasks</button>
+                    <button id="add-photo-btn" class="action-tab" disabled>Pics</button>
+                    <button id="add-chat-btn" class="action-tab" disabled>Chat</button>
+                  </div>
+                   <div class="folder-action-controls">
+                     <div id="section-view-toggle" class="segmented-toggle hidden" aria-label="Section view">
+                       <button id="view-boxes-btn" class="segmented-toggle-btn" type="button" aria-label="Box view" title="Box view">
+                         <span class="toggle-icon toggle-icon-grid" aria-hidden="true"></span>
+                       </button>
+                       <button id="view-list-btn" class="segmented-toggle-btn" type="button" aria-label="List view" title="List view">
+                         <span class="toggle-icon toggle-icon-list" aria-hidden="true"></span>
+                       </button>
+                     </div>
+                     <button id="toggle-archived-btn" class="ghost-btn" type="button">Show Archived</button>
+                     <button id="content-add-btn" class="ghost-btn" disabled>Add</button>
+                   </div>
+                  <button id="take-photo-btn" class="hidden" disabled>Take Photo</button>
+                </div>
+                <section id="folder-empty-state" class="empty-state">
+                  <h3>No Service Team selected</h3>
+                  <p>Create a Service Team and open it to begin building the project record.</p>
+                </section>
+
+                <section id="folder-detail" class="folder-detail hidden">
+                  <aside id="project-team-rail" class="project-team-rail hidden"></aside>
+                  <div id="folder-main" class="folder-main">
+                    <div id="folder-summary" class="folder-summary"></div>
+                    <div id="folder-items" class="item-grid"></div>
+                  </div>
+                </section>
+              </div>
+              <button id="workspace-lock-overlay" class="draft-lock-overlay workspace-lock-overlay hidden" type="button">You have to add name, project manager, and client first before editing.</button>
+            </section>
+            <section id="project-team-info-bar" class="project-team-info-bar hidden"></section>
+          </section>
+        </div>
+      </section>
+
+      <section id="planner-view" class="page-view hidden">
+        <section class="panel wide-panel planner-shell">
+          <div class="planner-static-shell">
+            <div class="planner-minimal-header">
+              <div class="planner-minimal-title">Planner</div>
+              <div class="planner-static-controls" aria-label="Planner controls">
+                <button id="planner-static-undo-btn" class="icon-btn" type="button" aria-label="Undo" title="Undo">&#8630;</button>
+                <button id="planner-static-redo-btn" class="icon-btn" type="button" aria-label="Redo" title="Redo">&#8631;</button>
+                <button id="planner-static-prev-week-btn" class="ghost-btn" type="button" aria-label="Previous week" title="Previous week">&#8592;</button>
+                <button id="planner-static-today-btn" class="ghost-btn" type="button">Today</button>
+                <button id="planner-static-next-week-btn" class="ghost-btn" type="button" aria-label="Next week" title="Next week">&#8594;</button>
+              </div>
+              <div class="planner-static-right">
+                <div class="planner-mini-calendar-shell compact" id="planner-static-mini-calendar">
+                  <div class="planner-mini-calendar-top">
+                    <div class="planner-mini-calendar-title" id="planner-static-mini-calendar-title">April 2026</div>
+                    <div class="planner-mini-calendar-nav">
+                      <button class="icon-btn" id="planner-static-mini-prev-btn" type="button" aria-label="Previous month">&#8249;</button>
+                      <button class="icon-btn" id="planner-static-mini-next-btn" type="button" aria-label="Next month">&#8250;</button>
+                    </div>
+                  </div>
+                  <div class="planner-mini-calendar-weekdays">
+                    <span class="weekno"></span><span>M</span><span>D</span><span>M</span><span>D</span><span>F</span><span>S</span><span>S</span>
+                  </div>
+                  <div class="planner-mini-calendar-days" id="planner-static-mini-calendar-days"></div>
+                </div>
+                <button id="planner-static-unavailable-btn" class="ghost-btn planner-static-unavailable-btn" type="button">Not working days</button>
+                <button id="planner-static-week-toggle" class="ghost-btn planner-static-week-toggle" type="button">7 days week</button>
+              </div>
+            </div>
+            <div class="planner-static-selected-week">
+              <div class="planner-static-selected-week-label">Selected week</div>
+              <div id="planner-static-selected-week-range" class="planner-static-selected-week-range">CW 16 - 13 Apr 2026 - 19 Apr 2026</div>
+              <div id="planner-static-selected-week-days" class="planner-static-week-days"></div>
+            </div>
+            <dialog id="planner-static-unavailable-dialog" class="modal">
+              <div class="modal-form planner-static-unavailable-form">
+                <div class="modal-header">
+                  <div>
+                    <p class="eyebrow">Planner</p>
+                    <h3>Not working days</h3>
+                    <p class="muted">Click a date to toggle. Click a weekday letter to toggle all of that weekday.</p>
+                  </div>
+                  <button id="planner-static-unavailable-close" class="icon-btn" type="button" aria-label="Close not working days">x</button>
+                </div>
+                <div class="planner-unavailable-calendar">
+                  <div class="planner-mini-calendar-top">
+                    <div class="planner-mini-calendar-title" id="planner-static-unavail-title">April 2026</div>
+                    <div class="planner-mini-calendar-nav">
+                      <button class="icon-btn" id="planner-static-unavail-prev" type="button" aria-label="Previous month">&#8249;</button>
+                      <button class="icon-btn" id="planner-static-unavail-next" type="button" aria-label="Next month">&#8250;</button>
+                    </div>
+                  </div>
+                  <div class="planner-unavailable-weekday-toggles" id="planner-static-unavail-weekdays">
+                    <button type="button" class="planner-unavail-wday" data-wday="1">M</button>
+                    <button type="button" class="planner-unavail-wday" data-wday="2">D</button>
+                    <button type="button" class="planner-unavail-wday" data-wday="3">M</button>
+                    <button type="button" class="planner-unavail-wday" data-wday="4">D</button>
+                    <button type="button" class="planner-unavail-wday" data-wday="5">F</button>
+                    <button type="button" class="planner-unavail-wday" data-wday="6">S</button>
+                    <button type="button" class="planner-unavail-wday" data-wday="0">S</button>
+                  </div>
+                  <div class="planner-mini-calendar-weekdays">
+                    <span class="weekno"></span><span>M</span><span>D</span><span>M</span><span>D</span><span>F</span><span>S</span><span>S</span>
+                  </div>
+                  <div class="planner-mini-calendar-days" id="planner-static-unavail-days"></div>
+                </div>
+                <div class="modal-actions">
+                  <button id="planner-static-unavailable-done" class="primary-btn" type="button">Close</button>
+                </div>
+              </div>
+            </dialog>
+            <dialog id="planner-static-project-dialog" class="modal">
+              <div class="modal-form planner-static-project-dialog-form">
+                <div class="modal-header">
+                  <div>
+                    <p class="eyebrow">Add Project</p>
+                    <h3 id="planner-static-project-dialog-title">Select project for date</h3>
+                  </div>
+                  <button id="planner-static-project-dialog-close" class="icon-btn" type="button" aria-label="Close project planner dialog">x</button>
+                </div>
+                <div class="planner-static-project-date-row">
+                  <label>Start date<input id="planner-static-start-date" type="date"></label>
+                  <label>End date<input id="planner-static-end-date" type="date"></label>
+                </div>
+                <section class="planner-static-project-picker">
+                  <h4>Active projects</h4>
+                  <div id="planner-static-project-list" class="planner-static-project-list"></div>
+                </section>
+                <section class="planner-static-team-picker">
+                  <h4>Available teams</h4>
+                  <div id="planner-static-team-list" class="planner-static-team-list"></div>
+                </section>
+                <div class="modal-actions">
+                  <button id="planner-static-project-dialog-cancel" class="ghost-btn" type="button">Cancel</button>
+                  <button id="planner-static-project-dialog-delete" class="ghost-btn hidden" type="button">Delete</button>
+                  <button id="planner-static-project-dialog-save" class="primary-btn" type="button">Add to calendar</button>
+                </div>
+              </div>
+            </dialog>
+          </div>
+          <div class="planner-toolbar">
+            <div class="planner-toolbar-copy">
+              <p class="eyebrow">Team Scheduling</p>
+              <h2>Planner</h2>
+              <p class="muted">Use real dates to keep free teams at the top and assign them into open projects below.</p>
+            </div>
+            <div class="planner-toolbar-actions">
+              <div class="planner-date-nav" role="group" aria-label="Change planner date">
+                <button id="planner-prev-btn" class="ghost-btn" type="button" aria-label="Previous period">&#8592;</button>
+                <button id="planner-today-btn" class="ghost-btn" type="button">Today</button>
+                <button id="planner-next-btn" class="ghost-btn" type="button" aria-label="Next period">&#8594;</button>
+              </div>
+              <div class="segmented-toggle planner-mode-toggle" aria-label="Planner view mode">
+                <button id="planner-week-btn" class="segmented-toggle-btn" type="button">Week</button>
+                <button id="planner-day-btn" class="segmented-toggle-btn" type="button">Day</button>
+              </div>
+              <div class="segmented-toggle planner-slot-toggle" aria-label="Planner slot size">
+                <button id="planner-hourly-btn" class="segmented-toggle-btn" type="button">Hourly</button>
+                <button id="planner-2h-btn" class="segmented-toggle-btn" type="button">2h</button>
+                <button id="planner-4h-btn" class="segmented-toggle-btn" type="button">4h</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="planner-statusbar">
+            <div>
+              <h3 id="planner-range-label">This Week</h3>
+              <p id="planner-summary" class="muted">Loading planner data...</p>
+            </div>
+            <div id="planner-selection-bar" class="planner-selection-bar hidden"></div>
+          </div>
+
+          <div id="planner-board" class="planner-board"></div>
+        </section>
+      </section>
+
+      <section id="daily-works-view" class="page-view hidden">
+        <section class="panel wide-panel daily-works-shell">
+          <div class="planner-minimal-header daily-works-header">
+            <div>
+              <p class="eyebrow">Small Jobs</p>
+              <div class="planner-minimal-title">Daily Works</div>
+              <p class="muted">Plan short visits, repairs, and one-day works without creating a full project.</p>
+            </div>
+            <div class="planner-static-controls" aria-label="Daily works controls">
+              <button id="daily-works-prev-week-btn" class="ghost-btn" type="button" aria-label="Previous week">&#8592;</button>
+              <button id="daily-works-today-btn" class="ghost-btn" type="button">Today</button>
+              <button id="daily-works-next-week-btn" class="ghost-btn" type="button" aria-label="Next week">&#8594;</button>
+            </div>
+          </div>
+
+          <div class="planner-static-selected-week daily-works-week-header">
+            <div class="planner-static-selected-week-label">Selected week</div>
+            <div id="daily-works-week-range" class="planner-static-selected-week-range">This week</div>
+          </div>
+
+          <div id="daily-works-board" class="daily-works-board"></div>
+          <section class="daily-work-contacts-panel">
+            <div class="panel-header">
+              <h3>Daily Work Contacts</h3>
+              <span id="daily-work-contacts-count" class="meta-pill">0</span>
+            </div>
+            <div id="daily-work-contacts-list" class="daily-work-contacts-list"></div>
+          </section>
+
+          <dialog id="daily-work-dialog" class="modal">
+            <form id="daily-work-form" class="modal-form daily-work-form">
+              <div class="modal-header">
+                <div>
+                  <p class="eyebrow">Daily Work</p>
+                  <h3 id="daily-work-dialog-title">Add daily work</h3>
+                  <p class="muted">For short works that do not need a full project.</p>
+                </div>
+                <button id="close-daily-work-btn" class="icon-btn" type="button" aria-label="Close daily work dialog">x</button>
+              </div>
+
+              <label>Title<input id="daily-work-title" type="text" placeholder="Repair, inspection, emergency visit" required></label>
+              <div class="inline-form daily-work-time-row">
+                <label>Date<input id="daily-work-date" type="date" required></label>
+                <label>Start<input id="daily-work-start" type="time" step="900" required></label>
+                <label>End<input id="daily-work-end" type="time" step="900" required></label>
+              </div>
+              <div class="inline-form daily-work-meta-row">
+                <label>Last Name<input id="daily-work-last-name" type="text" placeholder="Brown" list="daily-work-contact-suggestions"></label>
+                <label>Name<input id="daily-work-first-name" type="text" placeholder="Peter" list="daily-work-contact-suggestions"></label>
+                <label>Client / note<input id="daily-work-client" type="text" placeholder="Optional client or contact"></label>
+                <label class="daily-work-address-field">Address<input id="daily-work-address" type="text" placeholder="Optional address" list="daily-work-address-suggestions"></label>
+                <label>Telephone<input id="daily-work-phone" type="tel" placeholder="+43 ..." list="daily-work-contact-suggestions"></label>
+                <div class="daily-work-map-field">
+                  <label>Google Maps link<input id="daily-work-map-link" type="url" placeholder="https://maps.google.com/..."></label>
+                  <button id="daily-work-map-open-btn" class="ghost-btn" type="button">Go to</button>
+                </div>
+              </div>
+              <datalist id="daily-work-contact-suggestions"></datalist>
+              <datalist id="daily-work-address-suggestions"></datalist>
+              <div id="daily-work-contact-shortcuts" class="daily-work-form-shortcuts hidden"></div>
+
+              <section class="link-box daily-work-member-box">
+                <h4>Assigned persons</h4>
+                <p class="muted">Select one or two people.</p>
+                <div id="daily-work-member-links" class="link-list service-team-member-list"></div>
+              </section>
+
+              <label>Notes<textarea id="daily-work-notes" rows="3" placeholder="Short information for the work"></textarea></label>
+              <label>Status
+                <select id="daily-work-status">
+                  <option value="planned">Planned</option>
+                  <option value="done">Done</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+
+              <div class="modal-actions">
+                <button id="delete-daily-work-btn" class="ghost-btn hidden" type="button">Delete</button>
+                <button id="cancel-daily-work-btn" class="ghost-btn" type="button">Cancel</button>
+                <button id="save-daily-work-btn" class="primary-btn" type="submit">Save work</button>
+              </div>
+            </form>
+          </dialog>
+        </section>
+      </section>
+
+      <section id="teams-view" class="page-view hidden">
+          <section class="wide-panel panel">
+            <div class="panel-header">
+              <h2>Team Members</h2>
+              <button id="toggle-member-form-btn" class="secondary-btn member-add-toggle-btn" type="button" aria-label="Add new member">+</button>
+            </div>
+            <div class="segmented-toggle team-top-tabs" aria-label="Team members sections">
+              <button id="teams-members-tab-btn" class="segmented-toggle-btn active team-top-tab-btn" type="button">Team Members</button>
+              <button id="teams-permissions-tab-btn" class="segmented-toggle-btn team-top-tab-btn" type="button">Permissions</button>
+            </div>
+            <p class="muted section-intro">Manage system users and project assignments for the currently selected project.</p>
+            <div id="teams-members-tab-panel" class="directory-detail-layout member-page-layout">
+              <section class="panel member-directory-panel">
+                <div class="panel-header">
+                  <h3>Members</h3>
+                  <div class="dashboard-section-actions member-directory-actions">
+                    <button id="toggle-members-list-panel-btn" class="icon-btn panel-expand-toggle expanded" type="button" aria-expanded="true" aria-label="Collapse members list"></button>
+                    <button id="toggle-archived-members-btn" class="ghost-btn" type="button">Show Archived</button>
+                  </div>
+                </div>
+                <form id="member-search-form" class="inline-form member-search-bar">
+                  <input id="member-search-input" type="search" placeholder="Search members">
+                  <select id="member-role-filter">
+                    <option value="all">All roles</option>
+                    <option value="admin">Admins</option>
+                    <option value="manager">Managers</option>
+                    <option value="user">Users</option>
+                    <option value="developer">Developers</option>
+                  </select>
+                  <select id="member-skill-filter">
+                    <option value="all">All experience</option>
+                    <option value="0">No experience</option>
+                    <option value="1">1 star+</option>
+                    <option value="2">2 stars+</option>
+                    <option value="3">3 stars</option>
+                  </select>
+                  <select id="member-workmode-filter">
+                    <option value="all">All positions</option>
+                    <option value="none">No position</option>
+                    <option value="office">&#128187; Office</option>
+                    <option value="operator">&#128119; Operator</option>
+                  </select>
+                  <button id="member-search-btn" class="secondary-btn" type="submit">Search</button>
+                  <button id="member-search-clear-btn" class="ghost-btn hidden" type="button">Clear</button>
+                </form>
+                <section id="member-form-shell" class="member-form-shell popup-shell hidden">
+                  <div class="panel-header"><h3 id="member-form-title">New Member</h3><button id="close-member-form-btn" class="icon-btn" type="button" aria-label="Close member form">x</button></div>
+                  <form id="member-form" class="inline-form member-edit-form">
+                    <label>Personal No<input id="member-personal-number" type="text" placeholder="Personal number" readonly></label>
+                    <label>Name<input id="member-name" type="text" placeholder="Name" required></label>
+                    <label>Surname<input id="member-surname" type="text" placeholder="Surname" required></label>
+                    <label>Telephone<input id="member-tel" type="text" placeholder="Telephone number" required></label>
+                    <label>Email<input id="member-email" type="email" placeholder="Email" required></label>
+                    <label>Experience
+                      <select id="member-qualification" class="member-qualification-select" aria-label="Experience">
+                        <option value="0">No experience</option>
+                        <option value="1">&#9733;</option>
+                        <option value="2">&#9733;&#9733;</option>
+                        <option value="3">&#9733;&#9733;&#9733;</option>
+                      </select>
+                    </label>
+                    <label>Position
+                      <select id="member-workmode" class="member-workmode-select" aria-label="Position">
+                        <option value="none">No position</option>
+                        <option value="office">&#128187; Office</option>
+                        <option value="operator">&#128119; Operator</option>
+                      </select>
+                    </label>
+                    <label>User type
+                      <select id="member-role" required>
+                        <option value="user">User</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                        <option value="developer">Developer</option>
+                      </select>
+                    </label>
+                    <button class="primary-btn" type="submit">Add</button>
+                  </form>
+                </section>
+                <div id="member-list" class="member-list member-directory-list member-master-list"></div>
+              </section>
+            <section class="panel directory-detail-panel member-detail-panel">
+                <div class="panel-header">
+                  <h3>Member Details</h3>
+                  <button id="toggle-members-detail-panel-btn" class="icon-btn panel-expand-toggle expanded" type="button" aria-expanded="true" aria-label="Collapse member details"></button>
+                </div>
+                <div id="member-detail-card" class="directory-detail-card"></div>
+              </section>
+            </div>
+            <section id="teams-permissions-tab-panel" class="panel member-permissions-panel hidden">
+              <div class="panel-header"><h3>Permission Matrix</h3></div>
+              <p class="muted section-intro">Admin can choose a user type first and then define the permissions in the matrix. Edited users are highlighted so extra rights are easy to spot.</p>
+              <div id="permission-matrix" class="permission-matrix"></div>
+            </section>
+            </section>
+          </section>
+
+      <section id="clients-view" class="page-view hidden">
+        <section class="panel wide-panel">
+          <div class="panel-header">
+            <h2>Client List</h2>
+            <button id="toggle-client-form-btn" class="secondary-btn" type="button">+ Client</button>
+          </div>
+          <p class="muted section-intro">Work with clients in one combined workspace. The selected client opens directly inside the same flow.</p>
+          <div class="directory-detail-layout client-page-layout">
+            <section class="panel client-directory-panel">
+              <div class="panel-header">
+                <h3>Clients</h3>
+                <div class="dashboard-section-actions">
+                  <button id="toggle-clients-list-panel-btn" class="icon-btn panel-expand-toggle expanded" type="button" aria-expanded="true" aria-label="Collapse clients list"></button>
+                  <button id="toggle-archived-clients-btn" class="ghost-btn" type="button">Show Archived</button>
+                </div>
+              </div>
+              <section id="client-form-shell" class="client-form-shell popup-shell hidden">
+                <div class="panel-header"><h3 id="client-form-title">New Client</h3><button id="close-client-form-btn" class="icon-btn" type="button" aria-label="Close client form">x</button></div>
+                <form id="client-form" class="stack-form">
+                  <label>Name<input id="client-name" type="text" placeholder="Julia"></label>
+                  <label>Surname<input id="client-surname" type="text" placeholder="Mayer"></label>
+                  <label>Company<input id="client-company" type="text" placeholder="Mayer Bau GmbH"></label>
+                  <label>UID Number<input id="client-uid" type="text" placeholder="ATU12345678"></label>
+                  <label>Address<textarea id="client-address" rows="3" placeholder="Street, ZIP, City"></textarea></label>
+                  <label>Email<input id="client-email" type="email" placeholder="office@example.com"></label>
+                  <label>Tel<input id="client-tel" type="text" placeholder="+43 ..."></label>
+                  <div class="panel-header"><h3>Responsible Persons</h3><button id="add-responsible-btn" class="secondary-btn" type="button">+</button></div>
+                  <div id="responsible-list" class="responsible-list"></div>
+                  <button id="client-save-btn" class="primary-btn" type="submit">Save client</button>
+                </form>
+              </section>
+              <form id="client-search-form" class="inline-form client-search-bar">
+                <select id="client-search-scope">
+                  <option value="all">All details</option>
+                  <option value="name">Name</option>
+                  <option value="company">Company</option>
+                  <option value="address">Address</option>
+                  <option value="email">Email</option>
+                  <option value="tel">Telephone</option>
+                  <option value="uid">UID</option>
+                  <option value="responsible">Responsible</option>
+                </select>
+                <input id="client-search-input" type="search" placeholder="Search clients from the first letter">
+                <button id="client-search-btn" class="secondary-btn" type="submit">Search</button>
+                <button id="client-search-clear-btn" class="ghost-btn hidden" type="button">Clear</button>
+              </form>
+              <div id="client-list" class="client-list client-directory-list client-master-list"></div>
+            </section>
+            <section class="panel directory-detail-panel client-detail-panel">
+              <div class="panel-header">
+                <h3>Client Details</h3>
+                <button id="toggle-clients-detail-panel-btn" class="icon-btn panel-expand-toggle expanded" type="button" aria-expanded="true" aria-label="Collapse client details"></button>
+              </div>
+              <div id="client-detail-card" class="directory-detail-card"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+
+      <section id="equipment-view" class="page-view hidden">
+        <section class="wide-panel panel">
+          <div class="panel-header">
+            <h2>Equipment</h2>
+            <button id="toggle-equipment-form-btn" class="secondary-btn member-add-toggle-btn" type="button" aria-label="Add new equipment">+</button>
+          </div>
+          <p class="muted section-intro">Create equipment entries for the team and group them into reusable categories.</p>
+          <div class="directory-detail-layout equipment-page-layout">
+            <section class="panel equipment-directory-panel">
+              <div class="panel-header">
+                <h3>Equipment List</h3>
+                <div class="dashboard-section-actions">
+                  <button id="toggle-equipment-list-panel-btn" class="icon-btn panel-expand-toggle expanded" type="button" aria-expanded="true" aria-label="Collapse equipment list"></button>
+                  <button id="toggle-archived-equipment-btn" class="ghost-btn" type="button">Show Archived</button>
+                </div>
+              </div>
+              <form id="equipment-search-form" class="inline-form client-search-bar">
+                <input id="equipment-search-input" type="search" placeholder="Search equipment">
+                <button id="equipment-search-btn" class="secondary-btn" type="submit">Search</button>
+                <button id="equipment-search-clear-btn" class="ghost-btn hidden" type="button">Clear</button>
+              </form>
+              <section class="equipment-categories-inline">
+                <div class="panel-header">
+                  <h3>Categories</h3>
+                  <button id="toggle-equipment-category-form-btn" class="secondary-btn member-add-toggle-btn" type="button" aria-label="Add new category">+</button>
+                </div>
+                <p class="muted section-intro">Select a category to filter the list. Admin can create or edit categories here.</p>
+                <section id="equipment-category-form-shell" class="equipment-category-form-shell popup-shell popup-shell-compact hidden">
+                  <div class="panel-header"><h3 id="equipment-category-form-title">New Category</h3><button id="close-equipment-category-form-btn" class="icon-btn" type="button" aria-label="Close category form">x</button></div>
+                  <form id="equipment-category-form" class="inline-form">
+                    <input id="equipment-category-name" type="text" placeholder="Plumbing tools" required>
+                    <button id="equipment-category-save-btn" class="primary-btn" type="submit">Save category</button>
+                  </form>
+                </section>
+                <div id="equipment-category-list" class="equipment-category-list"></div>
+              </section>
+              <section id="equipment-form-shell" class="equipment-form-shell popup-shell hidden">
+                <div class="panel-header"><h3 id="equipment-form-title">New Equipment</h3><button id="close-equipment-form-btn" class="icon-btn" type="button" aria-label="Close equipment form">x</button></div>
+                <form id="equipment-form" class="stack-form">
+                  <label>Name<input id="equipment-name" type="text" placeholder="Pipe cutter" required></label>
+                  <label>Category
+                    <select id="equipment-category-select"></select>
+                  </label>
+                  <div class="stack-field">
+                    <label for="equipment-icon">Icon</label>
+                    <input id="equipment-icon" type="hidden" value="none">
+                    <div id="equipment-icon-palette" class="equipment-icon-palette" aria-label="Equipment icon gallery"></div>
+                  </div>
+                  <label>Reference / ID<input id="equipment-reference" type="text" placeholder="EQ-024"></label>
+                  <label>Notes<textarea id="equipment-notes" rows="3" placeholder="Optional notes, condition, or usage details"></textarea></label>
+                  <button id="equipment-save-btn" class="primary-btn" type="submit">Save equipment</button>
+                </form>
+              </section>
+              <div id="equipment-list" class="equipment-directory-list equipment-master-list"></div>
+            </section>
+            <section class="panel directory-detail-panel equipment-detail-panel">
+              <div class="panel-header">
+                <h3>Equipment Details</h3>
+                <button id="toggle-equipment-detail-panel-btn" class="icon-btn panel-expand-toggle expanded" type="button" aria-expanded="true" aria-label="Collapse equipment details"></button>
+              </div>
+              <div id="equipment-detail-card" class="directory-detail-card"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+
+      <section id="ai-assistant-view" class="page-view hidden">
+        <section class="wide-panel panel ai-assistant-page">
+          <div class="panel-header">
+            <div>
+              <h2>AI Assistant</h2>
+              <p class="muted section-intro">Speech to editable project drafts.</p>
+            </div>
+            <div class="modal-actions">
+              <button id="ai-assistant-new-draft-btn" class="primary-btn" type="button">New draft</button>
+              <button id="ai-assistant-settings-btn" class="ghost-btn" type="button">Settings</button>
+            </div>
+          </div>
+          <div class="ai-mode-grid">
+            <article class="panel ai-mode-card">
+              <span class="meta-pill">Draft - needs review</span>
+              <h3>Offer draft from speech</h3>
+              <p>Turn spoken job notes into an editable offer draft before anything is sent.</p>
+              <button class="primary-btn" data-ai-mode-start="offer" type="button">Start</button>
+            </article>
+            <article class="panel ai-mode-card">
+              <span class="meta-pill">Editable note draft</span>
+              <h3>Voice note / project summary</h3>
+              <p>Summarize long spoken updates and save them to project notes or area notes.</p>
+              <button class="primary-btn" data-ai-mode-start="summary" type="button">Start</button>
+            </article>
+            <article class="panel ai-mode-card">
+              <span class="meta-pill">Needs check markers</span>
+              <h3>Material list from speech</h3>
+              <p>Capture material requests and keep unclear items marked as needs check.</p>
+              <button class="primary-btn" data-ai-mode-start="material" type="button">Start</button>
+            </article>
+            <article class="panel ai-mode-card">
+              <span class="meta-pill">Conversation summary</span>
+              <h3>Meeting / conversation</h3>
+              <p>Listen to a discussion and turn it into decisions, tasks, and next steps.</p>
+              <button class="primary-btn" data-ai-mode-start="conversation" type="button">Start</button>
+            </article>
+          </div>
+          <div class="ai-settings-summary">
+            <article><strong>Assistant language</strong><span id="ai-summary-language">English</span></article>
+            <article><strong>Voice control</strong><span id="ai-summary-pause">Start / Stop</span></article>
+            <article><strong>Review</strong><span id="ai-summary-magic">Reads draft aloud</span></article>
+          </div>
+          <section class="ai-saved-drafts-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Drafts of conversation with AI</h3>
+                <p class="muted section-intro">Saved AI chats that are not assigned to a project.</p>
+              </div>
+              <button id="ai-new-unassigned-chat-btn" class="secondary-btn" type="button">New AI chat</button>
+            </div>
+            <div id="ai-conversation-draft-list" class="ai-conversation-draft-list"></div>
+          </section>
+        </section>
+      </section>
+
+      <section id="theme-view" class="page-view hidden">
+        <section class="wide-panel panel">
+          <div class="panel-header">
+            <h2>Settings</h2>
+          </div>
+          <p class="muted section-intro">Manage global look and integrations.</p>
+          <div class="theme-studio-layout">
+            <section class="panel theme-studio-panel">
+              <div class="panel-header"><h3>Color Palettes</h3></div>
+              <p class="muted section-intro">Pick one of 20 ready-made combinations.</p>
+              <div id="theme-palette-list" class="theme-palette-list"></div>
+            </section>
+            <section class="panel theme-studio-panel">
+              <div class="panel-header"><h3>Typography</h3></div>
+              <form id="theme-settings-form" class="stack-form">
+                <label>Font family
+                  <select id="theme-font-family"></select>
+                </label>
+                <label>Font size
+                  <select id="theme-font-size"></select>
+                </label>
+              </form>
+              <div id="theme-preview-card" class="theme-preview-card">
+                <span class="meta-pill">Preview</span>
+                <h3>Project workspace style</h3>
+                <p>The quick brown fox jumps over the lazy dog. 1234567890</p>
+                <div class="meta-row">
+                  <span class="meta-pill">Palette</span>
+                  <span class="meta-pill">Font</span>
+                  <span class="meta-pill">Size</span>
+                </div>
+              </div>
+            </section>
+          </div>
+          <section class="panel drive-sync-panel">
+            <div class="panel-header">
+              <h3>Google Drive Sync</h3>
+            </div>
+            <p class="muted section-intro">Set the app timezone and schedule automatic Google Drive export twice per day (15-minute steps).</p>
+            <form id="drive-sync-form" class="stack-form">
+              <label class="inline-toggle">
+                <input id="drive-sync-enabled" type="checkbox">
+                <span>Enable automatic Drive export</span>
+              </label>
+              <label>App timezone
+                <input id="drive-sync-timezone" type="text" placeholder="Europe/Vienna">
+              </label>
+              <div class="form-grid-2">
+                <label>Time 1
+                  <select id="drive-sync-time1"></select>
+                </label>
+                <label>Time 2
+                  <select id="drive-sync-time2"></select>
+                </label>
+              </div>
+              <div class="modal-actions">
+                <button id="drive-sync-save-btn" class="primary-btn" type="submit">Save sync settings</button>
+              </div>
+            </form>
+          </section>
+        </section>
+      </section>
+
+      <section id="audit-view" class="page-view hidden">
+        <section class="wide-panel panel">
+          <div class="panel-header"><h2>Audit Log</h2></div>
+          <p class="muted section-intro">Track who changed what, when they did it, and whether it was archived, restored, or permanently deleted.</p>
+          <form id="audit-search-form" class="inline-form audit-search-bar">
+            <input id="audit-search-input" type="search" placeholder="Search audit log">
+            <button id="audit-search-btn" class="secondary-btn" type="submit">Search</button>
+            <button id="audit-search-clear-btn" class="ghost-btn hidden" type="button">Clear</button>
+          </form>
+          <div id="audit-log-list" class="audit-log-list"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <button id="mobile-fab" class="mobile-fab hidden" type="button" aria-label="Open quick actions">+</button>
+  <button id="ai-floating-btn" class="ai-floating-btn" type="button" aria-label="Open AI Assistant">AI</button>
+  <dialog id="ai-assistant-dialog" class="modal">
+    <div id="ai-listening-cue" class="ai-listening-cue hidden" aria-live="polite">
+      <span class="ai-listening-pulse" aria-hidden="true"></span>
+      <strong>Microphone on</strong>
+    </div>
+    <form id="ai-assistant-form" class="modal-form ai-assistant-form">
+      <div id="ai-thinking-overlay" class="ai-thinking-overlay hidden" aria-live="polite" aria-busy="true">
+        <div class="ai-thinking-card">
+          <span class="ai-thinking-spinner" aria-hidden="true"></span>
+          <strong>I am organizing your text now.</strong>
+        </div>
+      </div>
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">AI Assistant</p>
+          <h3 id="ai-assistant-dialog-title">Project assistant</h3>
+        </div>
+        <div class="modal-header-actions">
+          <button id="minimize-ai-assistant-btn" class="icon-btn" type="button" aria-label="Minimize AI Assistant">_</button>
+          <button id="close-ai-assistant-btn" class="icon-btn" type="button" aria-label="Close AI Assistant">x</button>
+        </div>
+      </div>
+      <section id="ai-draft-section" class="ai-draft-section">
+        <div class="ai-context-panel" aria-label="AI assistant project context">
+          <label>Project
+            <select id="ai-context-project"></select>
+          </label>
+          <label>Area
+            <select id="ai-context-area"></select>
+          </label>
+        </div>
+        <div id="ai-chat-log" class="ai-chat-log" aria-live="polite"></div>
+        <div id="ai-feedback-panel" class="ai-feedback-panel hidden" aria-live="polite"></div>
+        <div class="ai-speech-controls" aria-label="AI answer playback controls">
+          <button id="ai-read-play-btn" class="ghost-btn ai-speech-control-btn" type="button">Play</button>
+          <button id="ai-read-pause-btn" class="ghost-btn ai-speech-control-btn" type="button">Pause</button>
+          <button id="ai-read-stop-btn" class="ghost-btn ai-speech-control-btn" type="button">Stop</button>
+        </div>
+        <div class="ai-chat-composer">
+          <button id="ai-voice-talk-btn" class="primary-btn ai-mic-btn" type="button" aria-label="Start AI microphone">&#127908;</button>
+          <label class="ai-chat-input-label">Message
+            <textarea id="ai-chat-input" rows="5" placeholder="Write or speak what you want me to organize..."></textarea>
+          </label>
+          <button id="ai-send-message-btn" class="primary-btn" type="button">Send</button>
+        </div>
+        <div class="ai-listening-actions" aria-label="Voice send controls">
+          <button id="ai-answer-now-btn" class="ghost-btn" type="button">Send voice now</button>
+          <button id="ai-keep-listening-btn" class="ghost-btn" type="button">Wait</button>
+        </div>
+        <details class="ai-advanced-settings">
+          <summary>Voice settings</summary>
+          <div class="ai-quick-settings" aria-label="AI assistant quick settings">
+            <label>Language
+              <select id="ai-quick-language">
+                <option>English</option>
+                <option>German</option>
+                <option>Greek</option>
+                <option>Italian</option>
+              </select>
+            </label>
+            <label>Wait before answer (seconds)
+              <input id="ai-answer-delay-seconds" type="number" min="1" max="10" step="1" value="2">
+            </label>
+          </div>
+        </details>
+        <p id="ai-voice-status" class="muted ai-safety-note">AI organizes what you type or say into a note, list, or draft. Check important dates, costs, and commitments before saving.</p>
+        <select id="ai-assistant-mode" class="hidden" aria-hidden="true"><option value="summary">Chat</option></select>
+        <textarea id="ai-spoken-text" class="hidden" aria-hidden="true"></textarea>
+        <textarea id="ai-draft-text" class="hidden" aria-hidden="true"></textarea>
+        <select id="ai-save-target" class="hidden" aria-hidden="true"><option value="project-notes">Project notes</option></select>
+        <button id="ai-start-dialog-btn" class="hidden" type="button">Start dialog</button>
+      </section>
+      <section id="ai-settings-section" class="ai-settings-section hidden">
+        <div class="form-grid-2">
+          <label>Assistant language
+            <select id="ai-language">
+              <option>English</option>
+              <option>German</option>
+              <option>Greek</option>
+              <option>Italian</option>
+            </select>
+          </label>
+          <label>Default save target
+            <select id="ai-default-target">
+              <option value="project-notes">Project notes</option>
+              <option value="area-notes">Area notes</option>
+              <option value="material-list">Material list to order</option>
+              <option value="offer-draft">Offer draft</option>
+            </select>
+          </label>
+        </div>
+      </section>
+      <div class="modal-actions">
+        <button id="cancel-ai-assistant-btn" class="ghost-btn" type="button">Leave</button>
+        <button id="ai-start-new-section-btn" class="ghost-btn" type="button">New chat</button>
+        <button id="ai-read-note-bottom-btn" class="ghost-btn" type="button">Make resume</button>
+        <button id="ai-download-word-btn" class="ghost-btn hidden" type="button">Download Word</button>
+        <button id="save-ai-settings-btn" class="primary-btn hidden" type="button">Save settings</button>
+        <button id="save-ai-draft-btn" class="primary-btn" type="submit">Save conversation</button>
+      </div>
+    </form>
+  </dialog>
+  <button id="ai-minimized-bar" class="ai-minimized-bar hidden" type="button">AI Assistant - minimized</button>
+
+  <dialog id="action-sheet" class="modal action-sheet">
+    <div class="modal-form action-sheet-panel">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Quick Add</p>
+          <h3>What do you want to add?</h3>
+        </div>
+        <button id="close-action-sheet-btn" class="icon-btn" type="button">x</button>
+      </div>
+      <div class="action-sheet-grid">
+        <button id="sheet-note-btn" class="sheet-btn" type="button">Add Note</button>
+        <button id="sheet-file-btn" class="sheet-btn" type="button">Add File</button>
+        <button id="sheet-photo-btn" class="sheet-btn" type="button">Upload Photos</button>
+        <button id="sheet-camera-btn" class="sheet-btn" type="button">Take Photo</button>
+        <button id="sheet-task-btn" class="sheet-btn" type="button">Create Task</button>
+      </div>
+    </div>
+  </dialog>
+
+  <input id="file-input" type="file" class="hidden" multiple>
+  <input id="photo-input" type="file" class="hidden" accept="image/*" multiple>
+
+  <dialog id="photo-upload-options-dialog" class="modal">
+    <form id="photo-upload-options-form" class="modal-form">
+      <div class="modal-header">
+        <h3>Photo Upload</h3>
+        <button id="close-photo-upload-options-btn" class="icon-btn" type="button">x</button>
+      </div>
+      <p class="muted">Give a name or associate in an area before selecting photos.</p>
+      <label>
+        Picture group name (optional)
+        <input id="photo-upload-base-name" type="text" placeholder="Leave empty for default name">
+      </label>
+      <section class="link-box">
+        <div class="speech-header">
+          <div>
+            <h4>Associate With Area</h4>
+            <p class="muted">Tick one or more areas to connect uploaded photos with parts of the project.</p>
+          </div>
+        </div>
+        <div id="photo-upload-area-links" class="link-list service-team-member-list"></div>
+      </section>
+      <div class="modal-actions">
+        <button id="cancel-photo-upload-options-btn" class="ghost-btn" type="button">Cancel</button>
+        <button class="primary-btn" type="submit">Select photos</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="plans-add-dialog" class="modal app-message-modal">
+    <div id="plans-add-form" class="modal-form app-message-form plans-add-form" data-tone="info">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Add To Plans</p>
+          <h3 id="plans-add-title">Quick Add</h3>
+        </div>
+        <button id="close-plans-add-btn" class="icon-btn" type="button" aria-label="Close plans add dialog">x</button>
+      </div>
+      <p id="plans-add-body" class="app-message-body">Choose what you want to add.</p>
+      <div class="modal-actions plans-add-actions">
+        <button id="plans-add-note-btn" class="primary-btn" type="button" title="Information">Info</button>
+        <button id="plans-add-file-btn" class="secondary-btn" type="button" title="File">File</button>
+        <button id="plans-add-photo-btn" class="secondary-btn" type="button" title="Select picture">Select pic</button>
+        <button id="plans-add-camera-btn" class="secondary-btn" type="button" title="Take picture">Take pic</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="viber-room-dialog" class="modal app-message-modal">
+    <div class="modal-form app-message-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Project Communication</p>
+          <h3>Viber Room</h3>
+        </div>
+        <button id="close-viber-room-btn" class="icon-btn" type="button" aria-label="Close Viber room dialog">x</button>
+      </div>
+      <div class="stack-form">
+        <label>Active room
+          <select id="project-room-mode">
+            <option value="chat">Chat Room</option>
+            <option value="viber">Viber Room</option>
+          </select>
+        </label>
+        <label>Room status
+          <select id="viber-room-status">
+            <option value="not_created">Not created</option>
+            <option value="creating">Creating</option>
+            <option value="active">Active</option>
+            <option value="failed">Failed</option>
+          </select>
+        </label>
+        <label>Room link
+          <input id="viber-room-link" type="url" placeholder="https://invite.viber.com/...">
+        </label>
+        <label>Room id
+          <input id="viber-room-id" type="text" placeholder="VIBER-ROOM-...">
+        </label>
+        <section class="link-box">
+          <div class="speech-header"><h4>Member Phone Check</h4></div>
+          <div id="viber-room-members" class="link-list service-team-member-list"></div>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button id="open-viber-room-link-btn" class="ghost-btn" type="button">Open Room</button>
+        <button id="save-viber-room-btn" class="primary-btn" type="button">Save</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="note-dialog" class="modal">
+    <form id="note-form" class="modal-form note-modal-form">
+      <div class="modal-header"><h3 id="note-form-title">Create comment</h3><button id="close-note-btn" class="icon-btn" type="button">x</button></div>
+      <label>Note title<input id="note-title" type="text" required></label>
+      <div class="segmented-toggle note-style-toggle" id="note-style-toggle" aria-label="Note type">
+        <button class="segmented-toggle-btn active" type="button" data-style="text">Note</button>
+        <button class="segmented-toggle-btn" type="button" data-style="checklist">Checklist</button>
+      </div>
+      <input id="note-style" type="hidden" value="text">
+      <label>Content<textarea id="note-content" rows="10" placeholder="Write like OneNote..."></textarea></label>
+      <section class="link-box note-comment-box">
+        <label class="checkbox-row">
+          <input id="note-master-plan-visible" type="checkbox">
+          <span>Make this comment visible on the master plan</span>
+        </label>
+        <label>Picture
+          <input id="note-image" type="file" accept="image/*">
+        </label>
+        <div id="note-image-preview" class="note-image-preview hidden"></div>
+      </section>
+      <div class="modal-actions">
+        <button id="cancel-note-btn" class="ghost-btn" type="button">Cancel</button>
+        <button id="note-save-btn" class="primary-btn" type="submit">Save comment</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="task-dialog" class="modal">
+    <form id="task-form" class="modal-form">
+      <div class="modal-header"><h3>Create task</h3><button id="close-task-btn" class="icon-btn" type="button">x</button></div>
+      <label>Task title<input id="task-title" type="text" required></label>
+      <label>Assigned member<select id="task-member" required></select></label>
+      <label id="task-area-label" class="hidden"><span>Where (Area)</span><select id="task-area"></select></label>
+      <label>Due date<input id="task-date" type="date" required></label>
+      <label>Status
+        <select id="task-status">
+          <option value="Open">Open</option>
+          <option value="Started">Started</option>
+          <option value="Paused">Paused</option>
+          <option value="Done">Done</option>
+        </select>
+      </label>
+      <label>Notes<textarea id="task-notes" rows="4" placeholder="Optional task details"></textarea></label>
+      <section class="link-box">
+        <div class="speech-header">
+          <div>
+            <h4>Linked Service Team</h4>
+            <p class="muted">Connect this task with one or more Service Team entries.</p>
+          </div>
+        </div>
+        <div id="task-folder-links" class="link-list"></div>
+      </section>
+      <section class="link-box">
+        <div class="speech-header">
+          <div>
+            <h4>Linked pictures</h4>
+            <p class="muted">Connect this task with project pictures.</p>
+          </div>
+        </div>
+        <div id="task-photo-links" class="link-list"></div>
+      </section>
+      <section id="speech-assist-box" class="speech-box">
+        <div class="speech-header">
+          <div>
+            <h4>Greek speech assist</h4>
+            <p class="muted">Speak in Greek. Finish with the magic words "Ready over" so I know your speech is ready.</p>
+          </div>
+          <button
+            id="speech-btn"
+            class="ghost-btn"
+            type="button"
+            data-lang="el-GR"
+            data-idle-label="Start listening"
+            data-listening-label="Listening..."
+            data-ready-phrase="Ready over"
+          >Start listening</button>
+        </div>
+        <p id="speech-status" class="speech-status">Magic word: "Ready over". Say it when your speech is ready.</p>
+        <textarea id="speech-transcript" rows="4" placeholder="Greek transcript appears here"></textarea>
+        <div id="speech-summary-shell" class="speech-summary-shell hidden">
+          <p class="muted speech-summary-label">Bullet summary</p>
+          <ul id="speech-summary-list" class="speech-summary-list"></ul>
+        </div>
+        <button id="parse-speech-btn" class="secondary-btn" type="button" disabled>Use transcript and summary</button>
+      </section>
+      <div class="modal-actions">
+        <button id="cancel-task-btn" class="ghost-btn" type="button">Cancel</button>
+        <button class="primary-btn" type="submit">Save task</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="service-team-dialog" class="modal">
+    <form id="service-team-form" class="modal-form service-team-modal-form">
+      <div class="modal-header service-team-modal-header">
+        <div class="service-team-modal-header-left">
+          <button id="service-team-info-toggle" class="icon-btn panel-expand-toggle expanded" type="button" aria-expanded="true" aria-controls="service-team-info-panel" aria-label="Collapse service team info"></button>
+          <div class="service-team-modal-title">
+            <h3>Service Team</h3>
+            <p id="service-team-compact-summary" class="muted service-team-compact-summary">New team</p>
+          </div>
+        </div>
+        <button id="close-service-team-btn" class="icon-btn" type="button" aria-label="Close service team dialog">x</button>
+      </div>
+
+      <section id="service-team-info-panel" class="service-team-info-panel">
+        <label>Service Team name<input id="service-team-name" type="text" required></label>
+        <section class="link-box service-team-color-box">
+          <div class="speech-header">
+            <div>
+              <h4>Team Color</h4>
+              <p class="muted">Choose a strong color for this team.</p>
+            </div>
+          </div>
+          <input id="service-team-color" type="hidden" value="#0d7a73">
+          <div id="service-team-color-palette" class="project-color-palette service-team-color-palette"></div>
+        </section>
+        <section class="link-box">
+          <div class="speech-header">
+            <div>
+              <h4>Team Members</h4>
+              <p class="muted">Select one or more members. Use Position and Experience to filter the list.</p>
+            </div>
+          </div>
+          <div class="inline-form service-team-member-filters">
+            <select id="service-team-position-filter" aria-label="Position filter">
+              <option value="all">All positions</option>
+              <option value="none">No position</option>
+              <option value="office">&#128187; Office</option>
+              <option value="operator">&#128119; Operator</option>
+            </select>
+            <select id="service-team-experience-filter" aria-label="Experience filter">
+              <option value="all">All experience</option>
+              <option value="0">No experience</option>
+              <option value="1">1 star+</option>
+              <option value="2">2 stars+</option>
+              <option value="3">3 stars</option>
+            </select>
+          </div>
+          <div id="service-team-member-links" class="link-list service-team-member-list"></div>
+        </section>
+        <section class="link-box service-team-assigned-areas-box">
+          <div class="speech-header">
+            <div>
+              <h4>Assigned Areas</h4>
+              <p class="muted">Select the areas where this Service Team is working.</p>
+            </div>
+          </div>
+          <div id="service-team-area-links" class="link-list service-team-area-list"></div>
+        </section>
+      </section>
+
+      <section class="service-team-assets-intro">
+        <div>
+          <h4>Photos, Files, Notes</h4>
+          <p class="muted">Keep the team record together without leaving this popup.</p>
+        </div>
+        <p id="service-team-assets-save-hint" class="muted service-team-assets-hint hidden">Save the Service Team first to add notes, files, or photos.</p>
+      </section>
+
+      <div class="service-team-assets-layout">
+        <section class="link-box service-team-assets-section">
+          <div class="service-team-assets-panel-header">
+            <div>
+              <h4>Photos</h4>
+              <p class="muted">Site snapshots and proof photos.</p>
+            </div>
+            <button id="service-team-add-photo-btn" class="secondary-btn" type="button">+ Add photos</button>
+          </div>
+          <p id="service-team-assets-photos-empty" class="muted service-team-assets-empty">No photos yet.</p>
+          <div id="service-team-assets-photos-grid" class="item-grid service-team-assets-grid"></div>
+        </section>
+
+        <section class="link-box service-team-assets-section">
+          <div class="service-team-assets-panel-header">
+            <div>
+              <h4>Files</h4>
+              <p class="muted">Upload PDFs, docs, and reference images.</p>
+            </div>
+            <button id="service-team-add-file-btn" class="secondary-btn" type="button">+ Upload</button>
+          </div>
+          <p id="service-team-assets-files-empty" class="muted service-team-assets-empty">No files yet.</p>
+          <div id="service-team-assets-files-grid" class="item-grid service-team-assets-grid"></div>
+        </section>
+
+        <section class="link-box service-team-assets-section">
+          <div class="service-team-assets-panel-header">
+            <div>
+              <h4>Notes</h4>
+              <p class="muted">Quick comments tied to this Service Team.</p>
+            </div>
+            <button id="service-team-add-note-btn" class="secondary-btn" type="button">+ Add note</button>
+          </div>
+          <p id="service-team-assets-notes-empty" class="muted service-team-assets-empty">No notes yet.</p>
+          <div id="service-team-assets-notes-grid" class="item-grid service-team-assets-grid"></div>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button id="cancel-service-team-btn" class="ghost-btn" type="button">Cancel</button>
+        <button class="primary-btn" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="planner-assignment-dialog" class="modal">
+    <form id="planner-assignment-form" class="modal-form planner-assignment-form">
+      <div class="modal-header">
+        <h3 id="planner-assignment-title">Schedule Team</h3>
+        <button id="close-planner-assignment-btn" class="icon-btn" type="button">x</button>
+      </div>
+      <label>Team<select id="planner-assignment-team" required></select></label>
+      <label>Project<select id="planner-assignment-project" required></select></label>
+      <div class="inline-form planner-assignment-datetime">
+        <label>Date<input id="planner-assignment-date" type="date" required></label>
+        <label>Start<input id="planner-assignment-start" type="time" step="3600" required></label>
+        <label>End<input id="planner-assignment-end" type="time" step="3600" required></label>
+      </div>
+      <label>Note<textarea id="planner-assignment-notes" rows="3" placeholder="Optional planning note"></textarea></label>
+      <div class="modal-actions">
+        <button id="planner-assignment-delete-btn" class="ghost-btn hidden" type="button">Delete</button>
+        <button id="cancel-planner-assignment-btn" class="ghost-btn" type="button">Cancel</button>
+        <button id="planner-assignment-save-btn" class="primary-btn" type="submit">Save assignment</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="area-dialog" class="modal">
+    <form id="area-form" class="modal-form">
+      <div class="modal-header"><h3 id="area-dialog-title">Create areas</h3><button id="close-area-btn" class="icon-btn" type="button">x</button></div>
+      <label class="area-single-field">Area name<input id="area-name" type="text" required></label>
+      <div class="area-floor-row area-single-field">
+        <label>Floor
+          <select id="area-floor"></select>
+        </label>
+        <button id="area-floor-add-btn" class="secondary-btn" type="button" aria-label="Add floor" title="Add floor">+</button>
+      </div>
+      <section class="link-box area-icon-box area-single-field">
+        <div class="speech-header">
+          <div>
+            <h4>Area Icon</h4>
+          </div>
+        </div>
+        <input id="area-icon" type="hidden" value="none">
+        <div id="area-icon-palette" class="area-icon-palette"></div>
+      </section>
+      <details id="area-bulk-section" class="area-bulk-section" open>
+        <summary>Create many areas</summary>
+        <p class="muted area-bulk-hint">Add one area per row. Leave empty rows unused.</p>
+        <div class="area-bulk-table-wrap">
+          <table class="area-bulk-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Floor</th>
+                <th>Icon</th>
+              </tr>
+            </thead>
+            <tbody id="area-bulk-rows"></tbody>
+          </table>
+        </div>
+        <div class="modal-actions compact-actions">
+          <button id="area-bulk-add-row-btn" class="ghost-btn" type="button">Add row</button>
+          <button id="area-bulk-create-btn" class="secondary-btn" type="button">Create areas</button>
+        </div>
+      </details>
+      <div class="modal-actions area-single-actions">
+        <button id="cancel-area-btn" class="ghost-btn" type="button">Cancel</button>
+        <button class="primary-btn" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="area-filter-dialog" class="modal">
+    <form class="modal-form" id="area-filter-form">
+      <div class="modal-header"><h3>Filter Areas</h3><button id="close-area-filter-btn" class="icon-btn" type="button">x</button></div>
+      <label>Floor
+        <select id="area-filter-floor"></select>
+      </label>
+      <label>Search areas
+        <input id="area-filter-query" type="text" placeholder="Bathroom, balcony...">
+      </label>
+      <div class="modal-actions">
+        <button id="clear-area-filter-btn" class="ghost-btn" type="button">Clear</button>
+        <button id="apply-area-filter-btn" class="primary-btn" type="button">Apply</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="camera-dialog" class="modal camera-modal">
+    <div class="modal-form">
+      <div class="modal-header"><h3>Take photo</h3><button id="close-camera-btn" class="icon-btn" type="button">x</button></div>
+      <label>Photo name<input id="camera-photo-name" type="text" placeholder="Inspection"></label>
+      <video id="camera-stream" autoplay playsinline></video>
+      <canvas id="camera-canvas" class="hidden"></canvas>
+      <div class="modal-actions">
+        <button id="capture-btn" class="primary-btn" type="button">Capture</button>
+        <button id="cancel-camera-btn" class="ghost-btn" type="button">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="app-message-dialog" class="modal app-message-modal">
+    <div id="app-message-form" class="modal-form app-message-form" data-tone="info">
+      <div class="modal-header">
+        <div>
+          <p id="app-message-eyebrow" class="eyebrow">Notice</p>
+          <h3 id="app-message-title">Message</h3>
+        </div>
+        <button id="close-app-message-btn" class="icon-btn" type="button" aria-label="Close message">x</button>
+      </div>
+      <p id="app-message-body" class="app-message-body"></p>
+      <div class="modal-actions">
+        <button id="app-message-ok-btn" class="primary-btn" type="button">OK</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="app-confirm-dialog" class="modal app-confirm-modal">
+    <div id="app-confirm-form" class="modal-form app-message-form app-confirm-form" data-tone="warning">
+      <div class="modal-header">
+        <div>
+          <p id="app-confirm-eyebrow" class="eyebrow">Confirm</p>
+          <h3 id="app-confirm-title">Are you sure?</h3>
+        </div>
+        <button id="close-app-confirm-btn" class="icon-btn" type="button" aria-label="Close confirmation">x</button>
+      </div>
+      <p id="app-confirm-body" class="app-message-body"></p>
+      <div class="modal-actions">
+        <button id="app-confirm-cancel-btn" class="ghost-btn" type="button">No</button>
+        <button id="app-confirm-ok-btn" class="primary-btn destructive-btn" type="button">Yes</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="permission-member-dialog" class="modal">
+    <div class="modal-form permission-member-modal-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Member Details</p>
+          <h3 id="permission-member-title">Member</h3>
+        </div>
+        <button id="close-permission-member-btn" class="icon-btn" type="button" aria-label="Close member details">x</button>
+      </div>
+      <div id="permission-member-body" class="permission-member-body"></div>
+      <div class="modal-actions">
+        <button id="permission-member-ok-btn" class="primary-btn" type="button">Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="area-browser-dialog" class="modal area-browser-modal">
+    <div class="modal-form area-browser-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Area Explorer</p>
+          <h3 id="area-browser-title">Area</h3>
+          <p id="area-browser-meta" class="muted">Open files and pictures from this area in one place.</p>
+        </div>
+        <button id="close-area-browser-btn" class="icon-btn" type="button" aria-label="Close area explorer">x</button>
+      </div>
+      <div id="area-browser-stats" class="area-browser-stats"></div>
+      <div class="area-browser-controls">
+        <div class="segmented-toggle inline-section-view-toggle" aria-label="Area explorer view mode">
+          <button id="area-browser-view-grid-btn" class="segmented-toggle-btn" type="button" aria-label="Grid view" title="Grid view">
+            <span class="toggle-icon toggle-icon-grid" aria-hidden="true"></span>
+          </button>
+          <button id="area-browser-view-list-btn" class="segmented-toggle-btn" type="button" aria-label="List view" title="List view">
+            <span class="toggle-icon toggle-icon-list" aria-hidden="true"></span>
+          </button>
+        </div>
+        <select id="area-browser-sort-filter" aria-label="Sort area uploads">
+          <option value="time">Sort: Upload time</option>
+          <option value="team">Sort: Team</option>
+        </select>
+        <select id="area-browser-team-filter" aria-label="Filter by team">
+          <option value="all">All teams</option>
+        </select>
+        <select id="area-browser-type-filter" aria-label="Filter by type">
+          <option value="all">All types</option>
+          <option value="photo">Photos</option>
+          <option value="file">Files</option>
+          <option value="note">Notes</option>
+        </select>
+      </div>
+      <div class="area-browser-sections area-browser-single-section">
+        <section class="area-browser-section">
+          <div class="panel-header">
+            <h4>Area Uploads</h4>
+            <span id="area-browser-result-count" class="meta-pill">0</span>
+          </div>
+          <div id="area-browser-results" class="item-grid area-browser-item-grid"></div>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button id="area-browser-close-btn" class="primary-btn" type="button">Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="image-preview-dialog" class="modal image-preview-modal">
+    <div class="modal-form image-preview-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Preview</p>
+          <h3 id="image-preview-title">Image preview</h3>
+          <p id="image-preview-meta" class="muted image-preview-meta"></p>
+        </div>
+        <button id="close-image-preview-btn" class="icon-btn" type="button" aria-label="Close image preview">x</button>
+      </div>
+      <div class="image-preview-stage">
+        <button id="image-preview-prev-btn" class="image-preview-nav prev" type="button" aria-label="Previous image">&lt;</button>
+        <div class="image-preview-frame">
+          <img id="image-preview-img" alt="Preview image">
+        </div>
+        <button id="image-preview-next-btn" class="image-preview-nav next" type="button" aria-label="Next image">&gt;</button>
+      </div>
+      <div class="modal-actions image-preview-actions">
+        <span id="image-preview-counter" class="meta-pill">1 / 1</span>
+        <button id="image-preview-close-btn" class="primary-btn" type="button">Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <template id="responsible-person-template">
+    <div class="responsible-card">
+      <label>Name<input data-field="name" type="text" placeholder="Name"></label>
+      <label>Surname<input data-field="surname" type="text" placeholder="Surname"></label>
+      <label>Tel<input data-field="tel" type="text" placeholder="+43 ..."></label>
+      <label>Email<input data-field="email" type="email" placeholder="person@example.com"></label>
+      <button class="ghost-btn remove-responsible-btn" type="button">Remove</button>
+    </div>
+  </template>
+
+  <template id="item-card-template"><article class="item-card"></article></template>
+  <dialog id="client-overview-dialog" class="modal app-message-modal client-overview-dialog">
+    <div class="modal-header">
+      <div>
+        <p class="eyebrow">Client Presentation</p>
+        <h2>Project Manager overview</h2>
+      </div>
+      <button id="close-client-overview-btn" class="icon-btn" type="button" aria-label="Close client overview">x</button>
+    </div>
+    <div class="client-overview-grid">
+      <article>
+        <strong>1. Project structure</strong>
+        <p>Projects contain floors, areas, service teams, plans, files, photos, notes, chat, archive, and audit history.</p>
+      </article>
+      <article>
+        <strong>2. Field-team workflow</strong>
+        <p>Workers open a project, select the correct area, and upload photos, files, or notes from phone or PC.</p>
+      </article>
+      <article>
+        <strong>3. Management control</strong>
+        <p>The company owner and project manager can see all areas, assigned teams, archived elements, planner, clients, equipment, and reports.</p>
+      </article>
+      <article>
+        <strong>4. SaaS next phase</strong>
+        <p>The production version adds real login, company licenses, Supabase database, Google Drive archive, and automatic backup/sync.</p>
+      </article>
+    </div>
+    <div class="client-overview-actions">
+      <button id="client-overview-projects-btn" class="primary-btn" type="button">Open projects</button>
+      <button id="client-overview-planner-btn" class="ghost-btn" type="button">Open planner</button>
+      <button id="client-overview-daily-btn" class="ghost-btn" type="button">Open daily works</button>
+    </div>
+  </dialog>
+  <dialog id="mention-suggest" class="mention-suggest hidden"></dialog>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const isDemo = params.get("demo") === "client";
+      window.addEventListener("error", function (event) {
+        window.__pmBootError = event.message || "Unknown JavaScript error";
+      });
+      window.addEventListener("unhandledrejection", function (event) {
+        window.__pmBootError = event.reason?.message || String(event.reason || "Unhandled JavaScript error");
+      });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        if (isDemo) {
+          const badge = document.createElement("div");
+          badge.id = "demo-status-badge";
+          badge.className = "demo-status-badge";
+          badge.textContent = "Demo loading...";
+          document.body.append(badge);
+          window.setTimeout(function () {
+            const info = window.__pmDebugState;
+            const error = window.__pmBootError;
+            badge.textContent = error
+              ? "Demo error: " + String(error).slice(0, 120)
+              : `Demo loaded: ${info?.projects ?? 0} project(s), ${info?.users ?? 0} user(s)`;
+            badge.classList.toggle("has-error", Boolean(error));
+          }, 900);
+        }
+      });
+    })();
+  </script>
+  <script src="appback.js?v=project-specific-contact-75"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const overviewBtn = document.getElementById("client-overview-btn");
+      const overviewDialog = document.getElementById("client-overview-dialog");
+      const closeBtn = document.getElementById("close-client-overview-btn");
+      const accessMenu = document.getElementById("access-menu");
+
+      function openView(view) {
+        const target = document.querySelector('.bookmark-link[data-view="' + view + '"]');
+        if (target) target.click();
+        if (overviewDialog && overviewDialog.open) overviewDialog.close();
+        if (accessMenu && accessMenu.open) accessMenu.open = false;
+      }
+
+      overviewBtn?.addEventListener("click", function () {
+        if (overviewDialog && !overviewDialog.open) overviewDialog.showModal();
+      });
+      closeBtn?.addEventListener("click", function () {
+        if (overviewDialog && overviewDialog.open) overviewDialog.close();
+      });
+      overviewDialog?.addEventListener("click", function (event) {
+        if (event.target === overviewDialog) overviewDialog.close();
+      });
+      document.getElementById("client-overview-projects-btn")?.addEventListener("click", function () { openView("projects"); });
+      document.getElementById("client-overview-planner-btn")?.addEventListener("click", function () { openView("planner"); });
+      document.getElementById("client-overview-daily-btn")?.addEventListener("click", function () { openView("daily-works"); });
+    });
+  </script>
+  <script>
+    (function () {
+      const shell = document.getElementById("planner-static-mini-calendar");
+      const title = document.getElementById("planner-static-mini-calendar-title");
+      const days = document.getElementById("planner-static-mini-calendar-days");
+      const prevBtn = document.getElementById("planner-static-mini-prev-btn");
+      const nextBtn = document.getElementById("planner-static-mini-next-btn");
+      const selectedWeekRange = document.getElementById("planner-static-selected-week-range");
+      const selectedWeekDays = document.getElementById("planner-static-selected-week-days");
+      const weekToggle = document.getElementById("planner-static-week-toggle");
+      const unavailableBtn = document.getElementById("planner-static-unavailable-btn");
+      const unavailableDialog = document.getElementById("planner-static-unavailable-dialog");
+      const unavailableClose = document.getElementById("planner-static-unavailable-close");
+      const unavailableDone = document.getElementById("planner-static-unavailable-done");
+      const unavailTitle = document.getElementById("planner-static-unavail-title");
+      const unavailPrev = document.getElementById("planner-static-unavail-prev");
+      const unavailNext = document.getElementById("planner-static-unavail-next");
+      const unavailDays = document.getElementById("planner-static-unavail-days");
+      const unavailWeekdays = document.getElementById("planner-static-unavail-weekdays");
+      const undoBtn = document.getElementById("planner-static-undo-btn");
+      const redoBtn = document.getElementById("planner-static-redo-btn");
+      const prevWeekBtn = document.getElementById("planner-static-prev-week-btn");
+      const todayBtn = document.getElementById("planner-static-today-btn");
+      const nextWeekBtn = document.getElementById("planner-static-next-week-btn");
+      const projectDialog = document.getElementById("planner-static-project-dialog");
+      const projectDialogTitle = document.getElementById("planner-static-project-dialog-title");
+      const projectDialogClose = document.getElementById("planner-static-project-dialog-close");
+      const projectDialogCancel = document.getElementById("planner-static-project-dialog-cancel");
+      const projectDialogDelete = document.getElementById("planner-static-project-dialog-delete");
+      const projectDialogSave = document.getElementById("planner-static-project-dialog-save");
+      const startDateInput = document.getElementById("planner-static-start-date");
+      const endDateInput = document.getElementById("planner-static-end-date");
+      const projectList = document.getElementById("planner-static-project-list");
+      const teamList = document.getElementById("planner-static-team-list");
+      if (!shell || !title || !days || !prevBtn || !nextBtn || !selectedWeekRange || !selectedWeekDays) return;
+
+      const STATE_STORAGE_KEY = "project-manager-web-state-v3";
+      const PLANNER_ASSIGNMENTS_KEY = "planner-static-assignments-v1";
+      const PLANNER_UNAVAILABLE_KEY = "planner-static-unavailable-v2";
+      let activeMonth = new Date(2026, 3, 1, 12, 0, 0, 0);
+      let selectedDate = new Date(2026, 3, 18, 12, 0, 0, 0);
+      let weekDayCount = 7;
+      let pendingDateIso = "";
+      let pendingSelectedProjectId = "";
+      let pendingEditAssignmentId = "";
+      let dragAssignmentId = "";
+      let assignments = loadAssignments();
+      let unavailableMonth = new Date(activeMonth);
+      let unavailableState = loadUnavailableState();
+      const historyPast = [];
+      const historyFuture = [];
+
+      function toIsoDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return year + "-" + month + "-" + day;
+      }
+
+      function parseIsoDate(value) {
+        if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+        const parts = value.split("-").map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+      }
+
+      function sanitizeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function formatCardDate(iso) {
+        const date = parseIsoDate(iso);
+        if (!date) return iso || "";
+        return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+      }
+
+      function loadUnavailableState() {
+        try {
+          const rawV2 = localStorage.getItem(PLANNER_UNAVAILABLE_KEY);
+          const rawV1 = localStorage.getItem("planner-static-unavailable-v1");
+          const raw = rawV2 || rawV1;
+          const data = raw ? JSON.parse(raw) : null;
+          const dateOverrides = data && typeof data.dateOverrides === "object" && data.dateOverrides ? data.dateOverrides : (data && data.dates ? data.dates : {});
+          const weekdays = data && typeof data.weekdays === "object" && data.weekdays ? data.weekdays : {};
+          const weeks = data && typeof data.weeks === "object" && data.weeks ? data.weeks : {};
+          // Normalize overrides to booleans only.
+          Object.keys(dateOverrides || {}).forEach(function (key) {
+            if (dateOverrides[key] !== true && dateOverrides[key] !== false) delete dateOverrides[key];
+          });
+          return { dateOverrides: dateOverrides || {}, weekdays: weekdays || {}, weeks: weeks || {} };
+        } catch (error) {
+          return { dateOverrides: {}, weekdays: {}, weeks: {} };
+        }
+      }
+
+      function saveUnavailableState() {
+        localStorage.setItem(PLANNER_UNAVAILABLE_KEY, JSON.stringify(unavailableState));
+      }
+
+      function getIsoWeekKey(date) {
+        const utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const day = utc.getUTCDay() || 7;
+        utc.setUTCDate(utc.getUTCDate() + 4 - day);
+        const weekYear = utc.getUTCFullYear();
+        const yearStart = new Date(Date.UTC(weekYear, 0, 1));
+        const weekNo = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+        return weekYear + "-" + String(weekNo).padStart(2, "0");
+      }
+
+      function isUnavailableIso(iso) {
+        const date = parseIsoDate(iso);
+        if (!date) return false;
+        if (unavailableState.dateOverrides && (unavailableState.dateOverrides[iso] === true || unavailableState.dateOverrides[iso] === false)) {
+          return unavailableState.dateOverrides[iso] === true;
+        }
+        const weekKey = getIsoWeekKey(date);
+        if (unavailableState.weeks && unavailableState.weeks[weekKey]) return true;
+        const day = String(date.getDay()); // 0=Sun ... 6=Sat
+        return !!(unavailableState.weekdays && unavailableState.weekdays[day]);
+      }
+
+      function nextIsoDay(iso, deltaDays) {
+        const date = parseIsoDate(iso);
+        if (!date) return iso;
+        date.setDate(date.getDate() + deltaDays);
+        return toIsoDate(date);
+      }
+
+      function confirmIfUnavailable(iso) {
+        if (!isUnavailableIso(iso)) return true;
+        return window.confirm("You are about to plan in a day that is unavailable. Continue?");
+      }
+
+      function isPastIso(iso) {
+        const date = parseIsoDate(iso);
+        if (!date) return false;
+        const today = new Date();
+        today.setHours(12, 0, 0, 0);
+        return date < today;
+      }
+
+      function ensureNotPast(iso) {
+        if (!isPastIso(iso)) return true;
+        window.alert("The past days are already planned you cannot unplanned them.");
+        return false;
+      }
+
+      function isAssignmentLocked(assignment) {
+        if (!assignment) return false;
+        // Lock anything that starts in the past: visible but immutable.
+        return isPastIso(assignment.startDate);
+      }
+
+      function loadAssignments() {
+        try {
+          const raw = localStorage.getItem(PLANNER_ASSIGNMENTS_KEY);
+          const data = raw ? JSON.parse(raw) : [];
+          return Array.isArray(data) ? data : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function saveAssignments() {
+        localStorage.setItem(PLANNER_ASSIGNMENTS_KEY, JSON.stringify(assignments));
+      }
+
+      function updateHistoryButtons() {
+        if (undoBtn) undoBtn.disabled = historyPast.length <= 1;
+        if (redoBtn) redoBtn.disabled = historyFuture.length === 0;
+      }
+
+      function recordHistorySnapshot() {
+        historyPast.push(JSON.stringify(assignments));
+        historyFuture.length = 0;
+        updateHistoryButtons();
+      }
+
+      function restoreAssignmentsFromSnapshot(snapshot) {
+        try {
+          const data = JSON.parse(snapshot || "[]");
+          assignments = Array.isArray(data) ? data : [];
+          saveAssignments();
+          renderSelectedWeek();
+        } catch (error) {
+          // ignore
+        }
+        updateHistoryButtons();
+      }
+
+      function shiftSelectedDateByDays(daysDelta) {
+        const next = new Date(selectedDate);
+        next.setDate(next.getDate() + daysDelta);
+        next.setHours(12, 0, 0, 0);
+        selectedDate = next;
+        activeMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12, 0, 0, 0);
+        renderMonth();
+      }
+
+      function loadPlannerState() {
+        try {
+          const raw = localStorage.getItem(STATE_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function getUserDisplayName(user) {
+        if (!user) return "Unknown";
+        const name = String(user.name || "").trim();
+        const surname = String(user.surname || "").trim();
+        const full = (name + " " + surname).trim();
+        return full || String(user.email || "").trim() || "Unknown";
+      }
+
+      function buildPeopleIndex(appState) {
+        const users = Array.isArray(appState && appState.users) ? appState.users : [];
+        const projects = Array.isArray(appState && appState.projects) ? appState.projects : [];
+        const userNameById = new Map();
+        users.forEach(function (user) {
+          if (!user || !user.id) return;
+          userNameById.set(user.id, getUserDisplayName(user));
+        });
+        const projectById = new Map();
+        projects.forEach(function (project) {
+          if (!project || !project.id) return;
+          const folders = Array.isArray(project.folders) ? project.folders : [];
+          const folderById = new Map();
+          folders.forEach(function (folder) {
+            if (!folder || !folder.id) return;
+            folderById.set(folder.id, {
+              id: folder.id,
+              name: folder.name || "Team",
+              memberIds: Array.isArray(folder.memberIds) ? folder.memberIds : []
+            });
+          });
+          projectById.set(project.id, { id: project.id, name: project.name || "Project", folderById: folderById });
+        });
+        return { userNameById: userNameById, projectById: projectById };
+      }
+
+      function warnPeopleDoubleBooked(projectId, teamIds, startIso, endIso, ignoreAssignmentId) {
+        const appState = loadPlannerState();
+        if (!appState) return;
+        const index = buildPeopleIndex(appState);
+        const project = index.projectById.get(projectId);
+        if (!project) return;
+        const start = parseIsoDate(startIso);
+        const end = parseIsoDate(endIso);
+        if (!start || !end) return;
+        const warnings = [];
+        const seen = new Set();
+
+        const loopDate = new Date(start);
+        while (loopDate <= end) {
+          const dayIso = toIsoDate(loopDate);
+
+          const personToTeamName = new Map();
+          const personToTeamNames = new Map();
+          const selectedTeams = (teamIds || []).map(function (teamId) { return project.folderById.get(teamId); }).filter(Boolean);
+          selectedTeams.forEach(function (team) {
+            team.memberIds.forEach(function (personId) {
+              if (!personId) return;
+              if (!personToTeamName.has(personId)) personToTeamName.set(personId, team.name);
+              const list = personToTeamNames.get(personId) || [];
+              list.push(team.name);
+              personToTeamNames.set(personId, list);
+            });
+          });
+
+          // Same person selected in more than one team (same day).
+          personToTeamNames.forEach(function (teamNames, personId) {
+            if (!Array.isArray(teamNames) || teamNames.length <= 1) return;
+            const key = "multi-team|" + dayIso + "|" + personId;
+            if (seen.has(key)) return;
+            seen.add(key);
+            const name = index.userNameById.get(personId) || "Unknown person";
+            warnings.push("Attention: " + name + " is involved in the team " + teamNames[0] + " and in the team " + teamNames[1] + ".");
+          });
+
+          const newPeople = new Set(personToTeamName.keys());
+          if (!newPeople.size) {
+            loopDate.setDate(loopDate.getDate() + 1);
+            continue;
+          }
+
+          // Check other planner assignments that overlap this day.
+          assignments.forEach(function (assignment) {
+            if (!assignment || assignment.id === ignoreAssignmentId) return;
+            if (assignment.startDate > dayIso || assignment.endDate < dayIso) return;
+            const otherProject = index.projectById.get(assignment.projectId);
+            if (!otherProject) return;
+            const otherTeamIds = Array.isArray(assignment.teamIds) ? assignment.teamIds : [];
+            otherTeamIds.forEach(function (otherTeamId) {
+              const otherTeam = otherProject.folderById.get(otherTeamId);
+              if (!otherTeam) return;
+              otherTeam.memberIds.forEach(function (personId) {
+                if (!newPeople.has(personId)) return;
+                const key = "other|" + dayIso + "|" + personId + "|" + assignment.id;
+                if (seen.has(key)) return;
+                seen.add(key);
+                const name = index.userNameById.get(personId) || "Unknown person";
+                const teamName = personToTeamName.get(personId) || "Team";
+                warnings.push("Attention: " + name + " is involved in the team (" + teamName + ") and in the Project (" + (assignment.projectName || otherProject.name || "Project") + ").");
+              });
+            });
+          });
+
+          loopDate.setDate(loopDate.getDate() + 1);
+        }
+
+        if (warnings.length) {
+          window.alert(warnings.join("\\n"));
+        }
+      }
+
+      function getActiveProjects() {
+        const appState = loadPlannerState();
+        const projects = Array.isArray(appState && appState.projects) ? appState.projects : [];
+        return projects
+          .filter(function (project) {
+            return project && !project.archivedAt && String(project.lifecycle || "active") === "active";
+          })
+          .map(function (project) {
+            return {
+              id: project.id || "",
+              name: project.name || "Unnamed project",
+              color: project.surfaceColor || project.color || project.tabColor || "#0d7a73",
+              teams: (Array.isArray(project.folders) ? project.folders : [])
+                .filter(function (team) { return team && !team.archivedAt; })
+                .map(function (team) {
+                  return {
+                    id: team.id || "",
+                    name: team.name || "Unnamed team",
+                    color: team.tabColor || "#0d7a73"
+                  };
+                })
+            };
+          });
+      }
+
+      function closeProjectDialog() {
+        if (!projectDialog) return;
+        pendingEditAssignmentId = "";
+        if (projectDialog.open && typeof projectDialog.close === "function") {
+          projectDialog.close();
+          return;
+        }
+        projectDialog.removeAttribute("open");
+      }
+
+      function renderTeamsForProject(project, selectedTeamIds) {
+        if (!teamList) return;
+        if (!project || !project.teams || !project.teams.length) {
+          teamList.innerHTML = '<p class="muted">No teams available for this project.</p>';
+          return;
+        }
+        teamList.innerHTML = project.teams.map(function (team) {
+          const isChecked = selectedTeamIds.includes(team.id) ? " checked" : "";
+          return ''
+            + '<label class="planner-static-team-option" style="--team-color:' + sanitizeHtml(team.color) + ';">'
+            + '<input type="checkbox" value="' + sanitizeHtml(team.id) + '"' + isChecked + '>'
+            + '<span class="planner-static-team-color" style="background:' + sanitizeHtml(team.color) + ';"></span>'
+            + '<span>' + sanitizeHtml(team.name) + '</span>'
+            + '</label>';
+        }).join("");
+      }
+
+      function renderProjectsList(activeProjects, selectedProjectId, selectedTeamIds) {
+        if (!projectList || !teamList) return;
+        if (!activeProjects.length) {
+          projectList.innerHTML = '<p class="muted">No active projects available.</p>';
+          teamList.innerHTML = '<p class="muted">Select a project to view teams.</p>';
+          return;
+        }
+        projectList.innerHTML = activeProjects.map(function (project) {
+          const checked = selectedProjectId && project.id === selectedProjectId ? " checked" : "";
+          return ''
+            + '<label class="planner-static-project-option" style="--project-color:' + sanitizeHtml(project.color) + ';">'
+            + '<input type="radio" name="planner-static-project" value="' + sanitizeHtml(project.id) + '"' + checked + '>'
+            + '<span class="planner-static-project-color" style="background:' + sanitizeHtml(project.color) + ';"></span>'
+            + '<strong>' + sanitizeHtml(project.name) + '</strong>'
+            + '</label>';
+        }).join("");
+
+        const initialProject = activeProjects.find(function (project) {
+          return project.id === selectedProjectId;
+        });
+        if (initialProject) {
+          renderTeamsForProject(initialProject, selectedTeamIds || []);
+        } else {
+          teamList.innerHTML = '<p class="muted">Select a project to view teams.</p>';
+        }
+
+        projectList.querySelectorAll('input[name="planner-static-project"]').forEach(function (radio) {
+          radio.addEventListener("change", function () {
+            pendingSelectedProjectId = radio.value;
+            const selectedProject = activeProjects.find(function (project) { return project.id === radio.value; });
+            renderTeamsForProject(selectedProject, []);
+          });
+        });
+      }
+
+      function openProjectDialogForDate(dateIso, editAssignment) {
+        if (!projectDialog || !projectList || !teamList || !startDateInput || !endDateInput || !projectDialogSave) return;
+        // Allow opening past assignments for viewing, but block creating new plans in the past.
+        if (!editAssignment && !ensureNotPast(dateIso)) return;
+        if (!confirmIfUnavailable(dateIso)) return;
+        pendingDateIso = dateIso;
+        pendingEditAssignmentId = editAssignment && editAssignment.id ? editAssignment.id : "";
+        pendingSelectedProjectId = editAssignment && editAssignment.projectId ? editAssignment.projectId : "";
+        startDateInput.value = editAssignment && editAssignment.startDate ? editAssignment.startDate : dateIso;
+        endDateInput.value = editAssignment && editAssignment.endDate ? editAssignment.endDate : dateIso;
+
+        const locked = isAssignmentLocked(editAssignment);
+        if (projectDialogTitle) {
+          projectDialogTitle.textContent = pendingEditAssignmentId
+            ? (locked ? "Planned (read-only) " + (editAssignment.startDate || dateIso) : "Edit assignment for " + dateIso)
+            : "Select project for " + dateIso;
+        }
+        projectDialogSave.textContent = pendingEditAssignmentId ? "Save and add to calendar" : "Add to calendar";
+        if (projectDialogDelete) {
+          projectDialogDelete.classList.toggle("hidden", !pendingEditAssignmentId);
+        }
+        projectDialogSave.disabled = locked;
+        if (projectDialogDelete) projectDialogDelete.disabled = locked;
+        startDateInput.disabled = locked;
+        endDateInput.disabled = locked;
+        projectList.classList.toggle("planner-static-readonly", locked);
+        teamList.classList.toggle("planner-static-readonly", locked);
+
+        const activeProjects = getActiveProjects();
+        const preselectedTeamIds = editAssignment && Array.isArray(editAssignment.teamIds) ? editAssignment.teamIds : [];
+        renderProjectsList(activeProjects, pendingSelectedProjectId, preselectedTeamIds);
+
+        // In readonly mode, disable all inputs inside the lists.
+        if (locked) {
+          projectList.querySelectorAll("input, button, select, textarea").forEach(function (el) { el.disabled = true; });
+          teamList.querySelectorAll("input, button, select, textarea").forEach(function (el) { el.disabled = true; });
+        }
+
+        if (typeof projectDialog.showModal === "function") {
+          if (!projectDialog.open) projectDialog.showModal();
+        } else {
+          projectDialog.setAttribute("open", "open");
+        }
+      }
+
+      function collectSelectedTeamIds() {
+        if (!teamList) return [];
+        return Array.from(teamList.querySelectorAll('input[type="checkbox"]:checked'))
+          .map(function (checkbox) { return checkbox.value; });
+      }
+
+      function addPlannerAssignment() {
+        if (pendingEditAssignmentId) {
+          const existing = assignments.find(function (entry) { return entry && entry.id === pendingEditAssignmentId; });
+          if (isAssignmentLocked(existing)) {
+            window.alert("The past days are already planned you cannot unplanned them.");
+            return;
+          }
+        }
+        const activeProjects = getActiveProjects();
+        const selectedProject = activeProjects.find(function (project) {
+          return project.id === pendingSelectedProjectId;
+        });
+        if (!selectedProject) {
+          window.alert("Select a project first.");
+          return;
+        }
+        const selectedTeamIds = collectSelectedTeamIds();
+        const selectedTeams = selectedProject.teams
+          .filter(function (team) { return selectedTeamIds.includes(team.id); })
+          .map(function (team) {
+            return { id: team.id, name: team.name, color: team.color || "#0d7a73" };
+          });
+        const startIso = startDateInput && startDateInput.value ? startDateInput.value : pendingDateIso;
+        const endIso = endDateInput && endDateInput.value ? endDateInput.value : startIso;
+        if (!ensureNotPast(startIso)) return;
+        if (!confirmIfUnavailable(startIso)) return;
+        const start = parseIsoDate(startIso);
+        const end = parseIsoDate(endIso);
+        if (!start || !end) {
+          window.alert("Select valid start and end dates.");
+          return;
+        }
+        const finalStart = start <= end ? start : end;
+        const finalEnd = start <= end ? end : start;
+        const conflictingTeamNames = new Set();
+        const editingAssignmentId = pendingEditAssignmentId;
+        const loopDate = new Date(finalStart);
+        while (loopDate <= finalEnd) {
+          const dayIso = toIsoDate(loopDate);
+          const usedTeamIds = new Set();
+          assignments.forEach(function (assignment) {
+            if (editingAssignmentId && assignment.id === editingAssignmentId) return;
+            if (!assignment || assignment.projectId !== selectedProject.id) return;
+            if (assignment.startDate <= dayIso && assignment.endDate >= dayIso) {
+              const existingTeamIds = Array.isArray(assignment.teamIds) ? assignment.teamIds : [];
+              existingTeamIds.forEach(function (teamId) { usedTeamIds.add(teamId); });
+            }
+          });
+          selectedTeams.forEach(function (team) {
+            if (usedTeamIds.has(team.id)) conflictingTeamNames.add(team.name);
+          });
+          loopDate.setDate(loopDate.getDate() + 1);
+        }
+        if (conflictingTeamNames.size) {
+          window.alert("These teams are already assigned for this project in the selected day range: " + Array.from(conflictingTeamNames).join(", "));
+          return;
+        }
+        warnPeopleDoubleBooked(selectedProject.id, selectedTeamIds, toIsoDate(finalStart), toIsoDate(finalEnd), editingAssignmentId || "");
+        recordHistorySnapshot();
+        const assignmentPayload = {
+          id: editingAssignmentId || ("plan-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7)),
+          projectId: selectedProject.id,
+          projectName: selectedProject.name,
+          projectColor: selectedProject.color,
+          startDate: toIsoDate(finalStart),
+          endDate: toIsoDate(finalEnd),
+          teamIds: selectedTeamIds,
+          teamNames: selectedTeams.map(function (team) { return team.name; }),
+          teamItems: selectedTeams
+        };
+        if (editingAssignmentId) {
+          assignments = assignments.map(function (assignment) {
+            return assignment && assignment.id === editingAssignmentId ? assignmentPayload : assignment;
+          });
+        } else {
+          assignments.push(assignmentPayload);
+        }
+        saveAssignments();
+        closeProjectDialog();
+        renderSelectedWeek();
+      }
+
+      function deletePlannerAssignment(assignmentId, withConfirm) {
+        if (!assignmentId) return;
+        const existing = assignments.find(function (entry) { return entry && entry.id === assignmentId; });
+        if (isAssignmentLocked(existing)) {
+          window.alert("The past days are already planned you cannot unplanned them.");
+          return;
+        }
+        if (withConfirm && !window.confirm("Delete this assignment?")) return;
+        recordHistorySnapshot();
+        assignments = assignments.filter(function (assignment) {
+          return !assignment || assignment.id !== assignmentId;
+        });
+        saveAssignments();
+        closeProjectDialog();
+        renderSelectedWeek();
+      }
+
+      function moveAssignmentToDate(assignmentId, targetStartIso) {
+        const assignment = assignments.find(function (entry) {
+          return entry && entry.id === assignmentId;
+        });
+        if (!assignment) return;
+        if (isAssignmentLocked(assignment)) {
+          window.alert("The past days are already planned you cannot unplanned them.");
+          return;
+        }
+        const currentStart = parseIsoDate(assignment.startDate);
+        const currentEnd = parseIsoDate(assignment.endDate);
+        const targetStart = parseIsoDate(targetStartIso);
+        if (!currentStart || !currentEnd || !targetStart) return;
+
+        const durationDays = Math.round((currentEnd - currentStart) / 86400000);
+        const targetEnd = new Date(targetStart);
+        targetEnd.setDate(targetEnd.getDate() + durationDays);
+        const nextStartIso = toIsoDate(targetStart);
+        const nextEndIso = toIsoDate(targetEnd);
+        if (!ensureNotPast(nextStartIso)) return;
+
+        const teamIds = Array.isArray(assignment.teamIds) ? assignment.teamIds : [];
+        const conflictingTeamNames = new Set();
+        const loopDate = new Date(targetStart);
+        while (loopDate <= targetEnd) {
+          const dayIso = toIsoDate(loopDate);
+          const usedTeamIds = new Set();
+          assignments.forEach(function (entry) {
+            if (!entry || entry.id === assignment.id || entry.projectId !== assignment.projectId) return;
+            if (entry.startDate <= dayIso && entry.endDate >= dayIso) {
+              const existingTeamIds = Array.isArray(entry.teamIds) ? entry.teamIds : [];
+              existingTeamIds.forEach(function (teamId) { usedTeamIds.add(teamId); });
+            }
+          });
+          teamIds.forEach(function (teamId) {
+            if (usedTeamIds.has(teamId)) conflictingTeamNames.add(teamId);
+          });
+          loopDate.setDate(loopDate.getDate() + 1);
+        }
+        if (conflictingTeamNames.size) {
+          window.alert("Move blocked: team conflict in target day range.");
+          return;
+        }
+
+        warnPeopleDoubleBooked(assignment.projectId, teamIds, nextStartIso, nextEndIso, assignment.id);
+        recordHistorySnapshot();
+        assignments = assignments.map(function (entry) {
+          if (!entry || entry.id !== assignment.id) return entry;
+          return Object.assign({}, entry, {
+            startDate: nextStartIso,
+            endDate: nextEndIso
+          });
+        });
+        saveAssignments();
+        renderSelectedWeek();
+      }
+
+      function getIsoWeek(date) {
+        const utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const day = utc.getUTCDay() || 7;
+        utc.setUTCDate(utc.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+        return Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+      }
+
+      function getWeekStart(date) {
+        const monday = new Date(date);
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        return monday;
+      }
+
+      function renderSelectedWeek() {
+        const weekStart = getWeekStart(selectedDate);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + (weekDayCount - 1));
+        const weekStartIso = toIsoDate(weekStart);
+        const weekEndIso = toIsoDate(weekEnd);
+        const cw = getIsoWeek(weekStart);
+        selectedWeekRange.textContent = "CW " + cw + " - "
+          + weekStart.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+          + " - "
+          + weekEnd.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+        // Build stable "lanes" so multi-day projects stay on the same row across the week.
+        const relevantAssignments = assignments
+          .filter(function (assignment) {
+            return assignment && assignment.startDate <= weekEndIso && assignment.endDate >= weekStartIso;
+          })
+          .map(function (assignment) {
+            const start = parseIsoDate(assignment.startDate);
+            const end = parseIsoDate(assignment.endDate);
+            return Object.assign({}, assignment, {
+              _start: start,
+              _end: end,
+              _startIso: assignment.startDate,
+              _endIso: assignment.endDate
+            });
+          })
+          .filter(function (assignment) { return assignment._start && assignment._end; })
+          .sort(function (a, b) {
+            // Stable ordering for lane assignment: earlier start first, longer duration first.
+            if (a._startIso !== b._startIso) return String(a._startIso).localeCompare(String(b._startIso));
+            const aDur = Math.round((a._end - a._start) / 86400000);
+            const bDur = Math.round((b._end - b._start) / 86400000);
+            if (bDur !== aDur) return bDur - aDur;
+            return String(a.projectName || "").localeCompare(String(b.projectName || ""));
+          });
+
+        const laneEnds = [];
+        const assignmentLane = new Map();
+        relevantAssignments.forEach(function (assignment) {
+          let laneIndex = -1;
+          for (let i = 0; i < laneEnds.length; i += 1) {
+            // Inclusive ranges: next start must be after the current lane end.
+            if (assignment._start > laneEnds[i]) {
+              laneIndex = i;
+              break;
+            }
+          }
+          if (laneIndex === -1) {
+            laneIndex = laneEnds.length;
+            laneEnds.push(assignment._end);
+          } else {
+            laneEnds[laneIndex] = assignment._end;
+          }
+          assignmentLane.set(assignment.id, laneIndex);
+        });
+        const laneCount = laneEnds.length;
+
+        const dayParts = [];
+        for (let i = 0; i < weekDayCount; i += 1) {
+          const day = new Date(weekStart);
+          day.setDate(day.getDate() + i);
+          const dayIso = toIsoDate(day);
+          const dayUnavailable = isUnavailableIso(dayIso);
+          const dayPast = isPastIso(dayIso);
+          const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+          const classes = ["planner-static-week-day", isWeekend ? "weekend" : "", dayUnavailable ? "unavailable" : "", dayPast ? "past" : ""].filter(Boolean).join(" ");
+
+          const entriesToday = relevantAssignments.filter(function (assignment) {
+            return assignment._startIso <= dayIso && assignment._endIso >= dayIso && !isUnavailableIso(dayIso);
+          });
+
+          const laneSlots = new Array(laneCount).fill(null);
+          entriesToday.forEach(function (entry) {
+            const laneIndex = assignmentLane.get(entry.id);
+            if (laneIndex === undefined || laneIndex === null) return;
+            laneSlots[laneIndex] = entry;
+          });
+
+          const entryHtml = entriesToday.length ? laneSlots.map(function (entry) {
+            if (!entry) return '<div class="planner-static-assignment-placeholder" aria-hidden="true"></div>';
+            const teamItems = Array.isArray(entry.teamItems) ? entry.teamItems : [];
+            const fallbackTeamNames = Array.isArray(entry.teamNames) ? entry.teamNames : [];
+            const teamPills = (teamItems.length
+              ? teamItems.map(function (team) {
+                return {
+                  name: team && team.name ? team.name : "Team",
+                  color: team && team.color ? team.color : "#9aa7b6"
+                };
+              })
+              : fallbackTeamNames.map(function (name) {
+                return { name: name || "Team", color: "#9aa7b6" };
+              })
+            );
+            const teamDisplay = teamPills.length ? teamPills.slice(0, 2) : [{ name: "No team", color: "#9aa7b6" }];
+            const moreCount = teamPills.length > 2 ? (teamPills.length - 2) : 0;
+            const teamHtml = teamDisplay.map(function (team) {
+              return ''
+                + '<span class="planner-static-team-pill">'
+                + '<i class="planner-static-team-bullet" style="background:' + sanitizeHtml(team.color) + ';"></i>'
+                + '<span class="planner-static-team-name">' + sanitizeHtml(team.name) + '</span>'
+                + '</span>';
+            }).join("") + (moreCount ? (
+              '<span class="planner-static-team-pill more">'
+              + '<i class="planner-static-team-bullet" style="background:#9aa7b6;"></i>'
+              + '<span class="planner-static-team-name">+' + moreCount + '</span>'
+              + '</span>'
+            ) : "");
+            const dateText = entry.startDate === entry.endDate
+              ? formatCardDate(entry.startDate)
+              : (formatCardDate(entry.startDate) + " - " + formatCardDate(entry.endDate));
+
+            const continuesPrev = dayIso !== weekStartIso && entry.startDate < dayIso;
+            const continuesNext = dayIso !== weekEndIso && entry.endDate > dayIso;
+            const prevWorking = !isUnavailableIso(nextIsoDay(dayIso, -1));
+            const nextWorking = !isUnavailableIso(nextIsoDay(dayIso, 1));
+            const continuationClass = [
+              (continuesPrev && prevWorking) ? "continues-prev" : "",
+              (continuesNext && nextWorking) ? "continues-next" : ""
+            ].filter(Boolean).join(" ");
+            return ''
+              + '<article class="planner-static-assignment-card ' + continuationClass + '" style="--conn-color:' + sanitizeHtml(entry.projectColor || "#0d7a73") + ';" draggable="true" data-assignment-id="' + sanitizeHtml(entry.id || "") + '">'
+              + '<span class="planner-static-assignment-color" style="background:' + sanitizeHtml(entry.projectColor || "#0d7a73") + ';"></span>'
+              + '<div class="planner-static-assignment-copy">'
+              + '<div class="planner-static-assignment-line">'
+              + '<div class="planner-static-assignment-top">'
+              + '<strong>' + sanitizeHtml(entry.projectName) + '</strong>'
+              + '<small>' + sanitizeHtml(dateText) + '</small>'
+              + '</div>'
+              + '<div class="planner-static-assignment-teams">' + teamHtml + '</div>'
+              + '</div>'
+              + '</div>'
+              + '</article>';
+          }).join("") : '<p class="planner-static-assignment-empty">No projects</p>';
+          dayParts.push(
+            '<div class="' + classes + '">'
+            + '<div class="planner-static-week-day-head">'
+            + '<div class="planner-static-week-day-heading-copy">'
+            + '<span>' + day.toLocaleDateString("en-GB", { weekday: "short" }) + '</span>'
+            + '<strong>' + String(day.getDate()).padStart(2, "0") + '-' + day.toLocaleDateString("en-GB", { month: "short" }) + '</strong>'
+            + '</div>'
+            + '<button type="button" class="planner-static-day-add-btn" data-day="' + dayIso + '">+</button>'
+            + '</div>'
+            + '<div class="planner-static-week-day-body" data-day="' + dayIso + '">' + entryHtml + '</div>'
+            + '</div>'
+          );
+        }
+        selectedWeekDays.innerHTML = dayParts.join("");
+        selectedWeekDays.querySelectorAll(".planner-static-assignment-card").forEach(function (card) {
+          card.addEventListener("click", function (event) {
+            if (event.target && event.target.closest && event.target.closest(".planner-static-day-add-btn")) return;
+            const assignmentId = card.dataset.assignmentId || "";
+            const assignment = assignments.find(function (entry) { return entry && entry.id === assignmentId; });
+            if (!assignment) return;
+            openProjectDialogForDate(assignment.startDate || toIsoDate(selectedDate), assignment);
+          });
+          card.addEventListener("dragstart", function (event) {
+            const assignmentId = card.dataset.assignmentId || "";
+            const assignment = assignments.find(function (entry) { return entry && entry.id === assignmentId; });
+            if (isAssignmentLocked(assignment)) {
+              event.preventDefault();
+              return;
+            }
+            dragAssignmentId = assignmentId;
+            card.classList.add("is-dragging");
+            if (event.dataTransfer) {
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", assignmentId);
+            }
+          });
+          card.addEventListener("dragend", function () {
+            dragAssignmentId = "";
+            card.classList.remove("is-dragging");
+            selectedWeekDays.querySelectorAll(".planner-static-week-day-body.drop-hover").forEach(function (body) {
+              body.classList.remove("drop-hover");
+            });
+          });
+        });
+        selectedWeekDays.querySelectorAll(".planner-static-week-day-body").forEach(function (body) {
+          body.addEventListener("dragover", function (event) {
+            if (!dragAssignmentId) return;
+            event.preventDefault();
+            body.classList.add("drop-hover");
+          });
+          body.addEventListener("dragleave", function () {
+            body.classList.remove("drop-hover");
+          });
+          body.addEventListener("drop", function (event) {
+            if (!dragAssignmentId) return;
+            event.preventDefault();
+            body.classList.remove("drop-hover");
+            const targetIso = body.dataset.day || "";
+            if (!targetIso) return;
+            if (!confirmIfUnavailable(targetIso)) return;
+            moveAssignmentToDate(dragAssignmentId, targetIso);
+          });
+        });
+        selectedWeekDays.querySelectorAll(".planner-static-day-add-btn").forEach(function (button) {
+          button.addEventListener("click", function () {
+            const iso = button.dataset.day || toIsoDate(selectedDate);
+            if (!ensureNotPast(iso)) return;
+            openProjectDialogForDate(iso);
+          });
+        });
+        if (weekToggle) {
+          weekToggle.textContent = weekDayCount === 7 ? "7 days week" : "5 days week";
+        }
+      }
+
+      function renderMonth() {
+        title.textContent = activeMonth.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        const monthStart = new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1, 12, 0, 0, 0);
+        const gridStart = new Date(monthStart);
+        gridStart.setDate(gridStart.getDate() - ((gridStart.getDay() + 6) % 7));
+        const parts = [];
+
+        for (let row = 0; row < 6; row += 1) {
+          const rowStart = new Date(gridStart);
+          rowStart.setDate(rowStart.getDate() + (row * 7));
+          parts.push('<span class="planner-mini-weekno">' + getIsoWeek(rowStart) + '</span>');
+          for (let col = 0; col < 7; col += 1) {
+            const day = new Date(rowStart);
+            day.setDate(day.getDate() + col);
+            const classNames = ["planner-mini-day"];
+            if (day.getMonth() !== activeMonth.getMonth()) classNames.push("outside");
+            const iso = toIsoDate(day);
+            if (isUnavailableIso(iso)) classNames.push("unavailable");
+            if (
+              day.getFullYear() === selectedDate.getFullYear()
+              && day.getMonth() === selectedDate.getMonth()
+              && day.getDate() === selectedDate.getDate()
+            ) classNames.push("selected");
+            parts.push('<button type="button" class="' + classNames.join(" ") + '" data-year="' + day.getFullYear() + '" data-month="' + day.getMonth() + '" data-day="' + day.getDate() + '">' + day.getDate() + '</button>');
+          }
+        }
+
+        days.innerHTML = parts.join("");
+        days.querySelectorAll(".planner-mini-day").forEach(function (button) {
+          button.addEventListener("click", function () {
+            selectedDate = new Date(
+              Number(button.dataset.year),
+              Number(button.dataset.month),
+              Number(button.dataset.day),
+              12, 0, 0, 0
+            );
+            activeMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12, 0, 0, 0);
+            renderMonth();
+          });
+        });
+        renderSelectedWeek();
+      }
+
+      function renderUnavailablePicker() {
+        if (!unavailTitle || !unavailDays) return;
+        unavailTitle.textContent = unavailableMonth.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        const monthStart = new Date(unavailableMonth.getFullYear(), unavailableMonth.getMonth(), 1, 12, 0, 0, 0);
+        const gridStart = new Date(monthStart);
+        gridStart.setDate(gridStart.getDate() - ((gridStart.getDay() + 6) % 7));
+        const parts = [];
+        for (let row = 0; row < 6; row += 1) {
+          const rowStart = new Date(gridStart);
+          rowStart.setDate(rowStart.getDate() + (row * 7));
+          const weekKey = getIsoWeekKey(rowStart);
+          const weekActive = !!(unavailableState.weeks && unavailableState.weeks[weekKey]);
+          parts.push('<button type="button" class="planner-mini-weekno planner-unavail-weekno' + (weekActive ? " active" : "") + '" data-week="' + weekKey + '">' + getIsoWeek(rowStart) + '</button>');
+          for (let col = 0; col < 7; col += 1) {
+            const day = new Date(rowStart);
+            day.setDate(day.getDate() + col);
+            const iso = toIsoDate(day);
+            const classNames = ["planner-mini-day"];
+            if (day.getMonth() !== unavailableMonth.getMonth()) classNames.push("outside");
+            if (isUnavailableIso(iso)) classNames.push("unavailable");
+            if (unavailableState.dateOverrides && unavailableState.dateOverrides[iso] === false) classNames.push("override-working");
+            parts.push('<button type="button" class="' + classNames.join(" ") + '" data-iso="' + iso + '">' + day.getDate() + '</button>');
+          }
+        }
+        unavailDays.innerHTML = parts.join("");
+        unavailDays.querySelectorAll(".planner-unavail-weekno").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const weekKey = btn.dataset.week || "";
+            if (!weekKey) return;
+            if (!unavailableState.weeks) unavailableState.weeks = {};
+            unavailableState.weeks[weekKey] = !unavailableState.weeks[weekKey];
+            if (!unavailableState.weeks[weekKey]) delete unavailableState.weeks[weekKey];
+            saveUnavailableState();
+            renderMonth();
+            renderUnavailablePicker();
+          });
+        });
+        unavailDays.querySelectorAll(".planner-mini-day").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const iso = btn.dataset.iso || "";
+            if (!iso) return;
+            if (!unavailableState.dateOverrides) unavailableState.dateOverrides = {};
+            const isDateOverride = unavailableState.dateOverrides[iso] === true || unavailableState.dateOverrides[iso] === false;
+            const currentlyUnavailable = isUnavailableIso(iso);
+            if (!isDateOverride) {
+              // First click sets an override that flips the current state.
+              unavailableState.dateOverrides[iso] = !currentlyUnavailable;
+            } else {
+              // Second click removes the override and returns to weekday/week rule.
+              delete unavailableState.dateOverrides[iso];
+            }
+            saveUnavailableState();
+            renderMonth();
+            renderUnavailablePicker();
+          });
+        });
+        if (unavailWeekdays) {
+          unavailWeekdays.querySelectorAll(".planner-unavail-wday").forEach(function (btn) {
+            const wday = btn.dataset.wday;
+            const active = !!(unavailableState.weekdays && unavailableState.weekdays[String(wday)]);
+          btn.classList.toggle("active", active);
+        });
+      }
+      }
+
+      function openUnavailableDialog() {
+        if (!unavailableDialog) return;
+        unavailableMonth = new Date(activeMonth);
+        renderUnavailablePicker();
+        if (typeof unavailableDialog.showModal === "function") {
+          if (!unavailableDialog.open) unavailableDialog.showModal();
+        } else {
+          unavailableDialog.setAttribute("open", "open");
+        }
+      }
+
+      function closeUnavailableDialog() {
+        if (!unavailableDialog) return;
+        if (unavailableDialog.open && typeof unavailableDialog.close === "function") {
+          unavailableDialog.close();
+          return;
+        }
+        unavailableDialog.removeAttribute("open");
+      }
+
+      prevBtn.addEventListener("click", function () {
+        activeMonth = new Date(activeMonth.getFullYear(), activeMonth.getMonth() - 1, 1, 12, 0, 0, 0);
+        renderMonth();
+      });
+
+      nextBtn.addEventListener("click", function () {
+        activeMonth = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + 1, 1, 12, 0, 0, 0);
+        renderMonth();
+      });
+
+      if (weekToggle) {
+        weekToggle.addEventListener("click", function () {
+          weekDayCount = weekDayCount === 7 ? 5 : 7;
+          renderSelectedWeek();
+        });
+      }
+
+      if (unavailableBtn) unavailableBtn.addEventListener("click", openUnavailableDialog);
+      if (unavailableClose) unavailableClose.addEventListener("click", closeUnavailableDialog);
+      if (unavailableDone) unavailableDone.addEventListener("click", closeUnavailableDialog);
+      if (unavailPrev) {
+        unavailPrev.addEventListener("click", function () {
+          unavailableMonth = new Date(unavailableMonth.getFullYear(), unavailableMonth.getMonth() - 1, 1, 12, 0, 0, 0);
+          renderUnavailablePicker();
+        });
+      }
+      if (unavailNext) {
+        unavailNext.addEventListener("click", function () {
+          unavailableMonth = new Date(unavailableMonth.getFullYear(), unavailableMonth.getMonth() + 1, 1, 12, 0, 0, 0);
+          renderUnavailablePicker();
+        });
+      }
+      if (unavailWeekdays) {
+        unavailWeekdays.querySelectorAll(".planner-unavail-wday").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const wday = btn.dataset.wday;
+            if (!unavailableState.weekdays) unavailableState.weekdays = {};
+            const key = String(wday);
+            unavailableState.weekdays[key] = !unavailableState.weekdays[key];
+            if (!unavailableState.weekdays[key]) delete unavailableState.weekdays[key];
+            saveUnavailableState();
+            renderMonth();
+            renderUnavailablePicker();
+          });
+        });
+      }
+
+      if (projectDialogClose) projectDialogClose.addEventListener("click", closeProjectDialog);
+      if (projectDialogCancel) projectDialogCancel.addEventListener("click", closeProjectDialog);
+      if (projectDialogSave) projectDialogSave.addEventListener("click", addPlannerAssignment);
+      if (projectDialogDelete) {
+        projectDialogDelete.addEventListener("click", function () {
+          if (!pendingEditAssignmentId) return;
+          deletePlannerAssignment(pendingEditAssignmentId, true);
+        });
+      }
+      if (projectDialog) {
+        projectDialog.addEventListener("cancel", function (event) {
+          event.preventDefault();
+          closeProjectDialog();
+        });
+        projectDialog.addEventListener("click", function (event) {
+          if (event.target === projectDialog) closeProjectDialog();
+        });
+      }
+
+      if (undoBtn) {
+        undoBtn.addEventListener("click", function () {
+          if (historyPast.length <= 1) return;
+          const current = historyPast.pop();
+          historyFuture.push(current);
+          restoreAssignmentsFromSnapshot(historyPast[historyPast.length - 1]);
+        });
+      }
+
+      if (redoBtn) {
+        redoBtn.addEventListener("click", function () {
+          if (!historyFuture.length) return;
+          const next = historyFuture.pop();
+          historyPast.push(next);
+          restoreAssignmentsFromSnapshot(next);
+        });
+      }
+
+      if (prevWeekBtn) prevWeekBtn.addEventListener("click", function () { shiftSelectedDateByDays(-7); });
+      if (nextWeekBtn) nextWeekBtn.addEventListener("click", function () { shiftSelectedDateByDays(7); });
+      if (todayBtn) {
+        todayBtn.addEventListener("click", function () {
+          selectedDate = new Date();
+          selectedDate.setHours(12, 0, 0, 0);
+          activeMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12, 0, 0, 0);
+          renderMonth();
+        });
+      }
+
+      // Initialize history with current state.
+      recordHistorySnapshot();
+      renderMonth();
+    })();
+  </script>
+</body>
+</html>

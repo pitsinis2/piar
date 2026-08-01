@@ -1,0 +1,386 @@
+html.theme-futuristic {
+  --bg: #dce8f6;
+  --panel: rgba(229, 241, 252, 0.78);
+  --panel-strong: rgba(244, 250, 255, 0.92);
+  --rail-surface: rgba(204, 228, 245, 0.76);
+  --rail-line: rgba(31, 82, 118, 0.2);
+  --workspace-surface: rgba(226, 239, 249, 0.82);
+  --workspace-soft: rgba(214, 232, 245, 0.78);
+  --workspace-frame: rgba(71, 145, 191, 0.48);
+  --workspace-card: rgba(214, 232, 245, 0.22);
+  --workspace-card-strong: rgba(214, 232, 245, 0.34);
+  --project-nav-surface: rgba(231, 243, 252, 0.82);
+  --project-nav-soft: rgba(219, 236, 248, 0.76);
+  --project-nav-frame: rgba(71, 145, 191, 0.48);
+  --project-nav-card: rgba(214, 232, 245, 0.2);
+  --project-nav-card-strong: rgba(214, 232, 245, 0.32);
+  --ink: #10202c;
+  --muted: #4d6677;
+  --line: rgba(16, 32, 44, 0.14);
+  --accent: #0aa3d8;
+  --accent-strong: #076c92;
+  --accent-soft: rgba(10, 163, 216, 0.16);
+  --archive-accent: #c15548;
+  --archive-accent-strong: #96382f;
+  --archive-soft: rgba(193, 85, 72, 0.16);
+  --archive-surface: rgba(255, 240, 236, 0.82);
+  --archive-frame: rgba(193, 85, 72, 0.36);
+  --shadow: 0 26px 54px rgba(23, 56, 82, 0.16);
+  --radius-xl: 10px;
+  --radius-lg: 8px;
+}
+
+html.theme-futuristic body {
+  position: relative;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 14% 18%, rgba(98, 186, 232, 0.3), transparent 28%),
+    radial-gradient(circle at 85% 20%, rgba(143, 230, 240, 0.34), transparent 24%),
+    radial-gradient(circle at 76% 78%, rgba(107, 150, 232, 0.18), transparent 24%),
+    linear-gradient(180deg, #edf5fc 0%, #d9e6f2 100%);
+}
+
+html.theme-futuristic body::before,
+html.theme-futuristic body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+html.theme-futuristic body::before {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 88%);
+  opacity: 0.45;
+}
+
+html.theme-futuristic body::after {
+  inset: 16px;
+  border: 1px solid rgba(90, 165, 212, 0.24);
+  clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 28px 100%, 0 calc(100% - 28px));
+  opacity: 0.78;
+}
+
+html.theme-futuristic .access-menu,
+html.theme-futuristic .app-shell {
+  position: relative;
+  z-index: 1;
+}
+
+html.theme-futuristic h1,
+html.theme-futuristic h2,
+html.theme-futuristic h3,
+html.theme-futuristic .bookmark-link,
+html.theme-futuristic .workspace-tab,
+html.theme-futuristic .action-tab,
+html.theme-futuristic .rail-title,
+html.theme-futuristic .panel-header strong {
+  font-family: "Orbitron", "Space Grotesk", sans-serif;
+  letter-spacing: 0.05em;
+}
+
+html.theme-futuristic .panel,
+html.theme-futuristic .modal-form,
+html.theme-futuristic .hero,
+html.theme-futuristic .empty-state,
+html.theme-futuristic .folder-summary,
+html.theme-futuristic .wide-panel,
+html.theme-futuristic .workspace-tabs-shell,
+html.theme-futuristic .summary-card,
+html.theme-futuristic .item-card,
+html.theme-futuristic .project-chat-rail,
+html.theme-futuristic .project-chat-pane,
+html.theme-futuristic .area-browser-stat-card,
+html.theme-futuristic .image-preview-frame {
+  position: relative;
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.82) 68%);
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.98) 0%, rgba(229, 241, 252, 0.92) 46%, rgba(212, 228, 242, 0.92) 100%);
+  box-shadow:
+    0 30px 50px rgba(26, 61, 89, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1px 0 rgba(79, 147, 186, 0.12);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+html.theme-futuristic .panel::before,
+html.theme-futuristic .modal-form::before,
+html.theme-futuristic .hero::before,
+html.theme-futuristic .empty-state::before,
+html.theme-futuristic .folder-summary::before,
+html.theme-futuristic .wide-panel::before,
+html.theme-futuristic .workspace-tabs-shell::before,
+html.theme-futuristic .summary-card::before,
+html.theme-futuristic .item-card::before,
+html.theme-futuristic .project-chat-rail::before,
+html.theme-futuristic .project-chat-pane::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  clip-path: inherit;
+  pointer-events: none;
+}
+
+html.theme-futuristic .sidebar {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  border-color: rgba(71, 145, 191, 0.28);
+  background:
+    linear-gradient(180deg, rgba(236, 246, 254, 0.92) 0%, rgba(217, 232, 245, 0.9) 100%);
+  box-shadow:
+    0 22px 38px rgba(23, 56, 82, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html.theme-futuristic .rail-title {
+  color: #0c648b;
+  text-shadow: 0 0 18px rgba(10, 163, 216, 0.2);
+}
+
+html.theme-futuristic .bookmark-link,
+html.theme-futuristic .workspace-tab,
+html.theme-futuristic .action-tab,
+html.theme-futuristic .primary-btn,
+html.theme-futuristic .secondary-btn,
+html.theme-futuristic .ghost-btn,
+html.theme-futuristic .icon-btn,
+html.theme-futuristic .project-chat-channel-btn,
+html.theme-futuristic .chat-attachment-thumb,
+html.theme-futuristic .chat-attachment-file {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+html.theme-futuristic .bookmark-link,
+html.theme-futuristic .workspace-tab,
+html.theme-futuristic .action-tab {
+  border: 1px solid rgba(71, 145, 191, 0.22);
+  background:
+    linear-gradient(180deg, rgba(247, 251, 255, 0.98) 0%, rgba(219, 236, 248, 0.88) 100%);
+  box-shadow:
+    0 14px 24px rgba(25, 57, 84, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html.theme-futuristic .bookmark-link.active,
+html.theme-futuristic .workspace-tab.active,
+html.theme-futuristic .action-tab.active,
+html.theme-futuristic .project-chat-channel-btn.active {
+  border-color: rgba(10, 163, 216, 0.46);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(193, 234, 250, 0.94) 100%);
+  box-shadow:
+    0 0 0 1px rgba(10, 163, 216, 0.18),
+    0 18px 28px rgba(18, 78, 113, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.94);
+}
+
+html.theme-futuristic .primary-btn {
+  background:
+    linear-gradient(135deg, #1fd3ff 0%, #0a7fac 45%, #095a78 100%);
+  color: #f5fdff;
+  border: 1px solid rgba(5, 94, 126, 0.4);
+  box-shadow:
+    0 16px 28px rgba(10, 102, 136, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+html.theme-futuristic .secondary-btn {
+  background:
+    linear-gradient(135deg, rgba(240, 248, 255, 0.98) 0%, rgba(202, 224, 241, 0.92) 100%);
+  color: #085e80;
+  border: 1px solid rgba(71, 145, 191, 0.26);
+}
+
+html.theme-futuristic .ghost-btn,
+html.theme-futuristic .icon-btn {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(232, 243, 251, 0.88) 100%);
+  border: 1px solid rgba(71, 145, 191, 0.18);
+}
+
+html.theme-futuristic input,
+html.theme-futuristic textarea,
+html.theme-futuristic select {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  border: 1px solid rgba(71, 145, 191, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(232, 243, 251, 0.88) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 10px 18px rgba(25, 57, 84, 0.04);
+}
+
+html.theme-futuristic input:focus,
+html.theme-futuristic textarea:focus,
+html.theme-futuristic select:focus {
+  outline: none;
+  border-color: rgba(10, 163, 216, 0.52);
+  box-shadow:
+    0 0 0 3px rgba(10, 163, 216, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
+html.theme-futuristic .project-setup-panel,
+html.theme-futuristic .project-setup-preview,
+html.theme-futuristic .folder-detail,
+html.theme-futuristic .folder-detail.tone-project-details,
+html.theme-futuristic .folder-detail.tone-note,
+html.theme-futuristic .folder-detail.tone-file,
+html.theme-futuristic .folder-detail.tone-photo,
+html.theme-futuristic .folder-detail.tone-task,
+html.theme-futuristic .folder-detail.tone-chat {
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.96) 0%, rgba(219, 236, 248, 0.88) 100%),
+    var(--panel);
+}
+
+html.theme-futuristic .project-setup-panel,
+html.theme-futuristic .project-setup-preview {
+  border-color: rgba(71, 145, 191, 0.3);
+}
+
+html.theme-futuristic .item-card,
+html.theme-futuristic .summary-card,
+html.theme-futuristic .area-browser-stat-card,
+html.theme-futuristic .project-team-rail-item,
+html.theme-futuristic .project-team-rail-button,
+html.theme-futuristic .project-chat-message-bubble,
+html.theme-futuristic .chat-attachment-thumb,
+html.theme-futuristic .chat-attachment-file {
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.98) 0%, rgba(227, 240, 250, 0.92) 52%, rgba(213, 230, 243, 0.9) 100%);
+  border-color: rgba(71, 145, 191, 0.18);
+  box-shadow:
+    0 18px 32px rgba(25, 57, 84, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html.theme-futuristic .meta-pill,
+html.theme-futuristic .connection-pill,
+html.theme-futuristic .project-chat-message-avatar {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  background:
+    linear-gradient(180deg, rgba(242, 249, 255, 0.98) 0%, rgba(216, 236, 247, 0.92) 100%);
+  border: 1px solid rgba(71, 145, 191, 0.18);
+  color: #164059;
+}
+
+html.theme-futuristic .project-chat-message-list {
+  background:
+    radial-gradient(circle at top left, rgba(134, 210, 236, 0.18), transparent 32%),
+    linear-gradient(180deg, rgba(248, 252, 255, 0.92) 0%, rgba(229, 241, 252, 0.92) 100%);
+}
+
+html.theme-futuristic .project-chat-pane-header,
+html.theme-futuristic .project-chat-composer {
+  background:
+    linear-gradient(180deg, rgba(251, 254, 255, 0.94) 0%, rgba(223, 238, 248, 0.84) 100%);
+  border-color: rgba(71, 145, 191, 0.14);
+}
+
+html.theme-futuristic .project-chat-input {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(236, 246, 253, 0.92) 100%);
+  border-color: rgba(71, 145, 191, 0.24);
+}
+
+html.theme-futuristic .chat-attachment-thumb img,
+html.theme-futuristic .image-preview-frame img,
+html.theme-futuristic .note-image-preview-card img {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+html.theme-futuristic .dashboard-section-header,
+html.theme-futuristic .project-details-panel > .dashboard-section-header,
+html.theme-futuristic .project-details-layout > .dashboard-section > .dashboard-section-header {
+  border-bottom-color: rgba(71, 145, 191, 0.18);
+}
+
+html.theme-futuristic .project-chat-channel-label,
+html.theme-futuristic .project-chat-message-meta strong,
+html.theme-futuristic .summary-card strong,
+html.theme-futuristic .item-card h4 {
+  color: #0d3650;
+}
+
+html.theme-futuristic .bookmark-link,
+html.theme-futuristic .workspace-tab,
+html.theme-futuristic .action-tab,
+html.theme-futuristic .project-chat-channel-label,
+html.theme-futuristic .panel-header h2,
+html.theme-futuristic .dashboard-section-header h3 {
+  text-transform: uppercase;
+}
+
+html.theme-futuristic .project-list-scroll,
+html.theme-futuristic .project-chat-message-list,
+html.theme-futuristic .area-browser-item-grid {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(10, 163, 216, 0.5) rgba(211, 229, 241, 0.46);
+}
+
+html.theme-futuristic .project-list-scroll::-webkit-scrollbar,
+html.theme-futuristic .project-chat-message-list::-webkit-scrollbar,
+html.theme-futuristic .area-browser-item-grid::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html.theme-futuristic .project-list-scroll::-webkit-scrollbar-thumb,
+html.theme-futuristic .project-chat-message-list::-webkit-scrollbar-thumb,
+html.theme-futuristic .area-browser-item-grid::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(10, 163, 216, 0.78) 0%, rgba(7, 108, 146, 0.78) 100%);
+  border-radius: 999px;
+}
+
+html.theme-futuristic .project-list-scroll::-webkit-scrollbar-track,
+html.theme-futuristic .project-chat-message-list::-webkit-scrollbar-track,
+html.theme-futuristic .area-browser-item-grid::-webkit-scrollbar-track {
+  background: rgba(211, 229, 241, 0.52);
+}
+
+@media (max-width: 760px) {
+  html.theme-futuristic body::after {
+    inset: 8px;
+  }
+
+  html.theme-futuristic .panel,
+  html.theme-futuristic .modal-form,
+  html.theme-futuristic .hero,
+  html.theme-futuristic .empty-state,
+  html.theme-futuristic .folder-summary,
+  html.theme-futuristic .wide-panel,
+  html.theme-futuristic .workspace-tabs-shell,
+  html.theme-futuristic .summary-card,
+  html.theme-futuristic .item-card,
+  html.theme-futuristic .project-chat-rail,
+  html.theme-futuristic .project-chat-pane {
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  }
+}
+
+@media (max-width: 640px) {
+  html.theme-futuristic .bookmark-link,
+  html.theme-futuristic .workspace-tab,
+  html.theme-futuristic .action-tab,
+  html.theme-futuristic .primary-btn,
+  html.theme-futuristic .secondary-btn,
+  html.theme-futuristic .ghost-btn,
+  html.theme-futuristic .icon-btn,
+  html.theme-futuristic input,
+  html.theme-futuristic textarea,
+  html.theme-futuristic select {
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  }
+}

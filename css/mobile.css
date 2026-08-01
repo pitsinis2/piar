@@ -1,0 +1,9 @@
+﻿/* Mobile CSS entry point.
+   Keep this file small. Add new mobile styling in the module files below. */
+@import url("./mobile/legacy.css");
+@import url("./mobile/shell.css");
+@import url("./mobile/navigation.css");
+@import url("./mobile/projects.css");
+@import url("./mobile/planner.css");
+@import url("./mobile/modals.css");
+@import url("./mobile/overrides.css");

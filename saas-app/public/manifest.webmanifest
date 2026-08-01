@@ -1,0 +1,11 @@
+{
+  "name": "Project Manager",
+  "short_name": "Projects",
+  "description": "Project management for service teams.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffaf2",
+  "theme_color": "#0d7a73",
+  "icons": []
+}
+
