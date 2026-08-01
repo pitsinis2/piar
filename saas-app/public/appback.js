@@ -607,7 +607,7 @@ let pendingCameraAreaIds = new Set();
 let pendingAreaTaskId = null;
 let pendingProjectTaskMode = false;
 let editingNoteId = null;
-let pendingNoteImageDataUrl = "";
+let pendingNoteImage = { imageStoragePath: "", imageUrl: "" };
 let pendingNoteImageName = "";
 let noteStyleMode = "text";
 let pendingFocusedItemId = "";
@@ -1721,6 +1721,7 @@ function normalizeProject(project, rootState) {
               mimeType: String(attachment?.mimeType || "application/octet-stream"),
               size: Number.isFinite(Number(attachment?.size)) ? Number(attachment.size) : 0,
               dataUrl: String(attachment?.dataUrl || ""),
+              storagePath: String(attachment?.storagePath || ""),
               isImage: Boolean(attachment?.isImage),
             }))
           : [],
@@ -1852,6 +1853,7 @@ function normalizeContainer(container) {
       archivedByUserId: item.archivedByUserId || null,
       showOnMasterPlan: Boolean(item.showOnMasterPlan),
       imageUrl: item.imageUrl || "",
+      imageStoragePath: item.imageStoragePath || "",
       imageName: item.imageName || "",
       showOriginalName: Boolean(item.showOriginalName),
     })),
@@ -5783,6 +5785,7 @@ renderEquipmentIconPalette();
 ensureProjectExists();
 ensureResponsiblePersonRow();
 render();
+migrateLegacyAssetsToStorage();
 
 function bindEvents() {
   document.addEventListener("click", onDocumentClick);
@@ -8079,14 +8082,15 @@ function getNoteTarget() {
 
 function renderNoteImagePreview() {
   if (!els.noteImagePreview) return;
-  if (!pendingNoteImageDataUrl) {
+  const previewSrc = getAssetUrl(pendingNoteImage);
+  if (!previewSrc) {
     els.noteImagePreview.innerHTML = "";
     els.noteImagePreview.classList.add("hidden");
     return;
   }
   els.noteImagePreview.innerHTML = `
     <div class="note-image-preview-card">
-      <img src="${pendingNoteImageDataUrl}" alt="${escapeHtml(pendingNoteImageName || "Comment picture")}">
+      <img src="${previewSrc}" alt="${escapeHtml(pendingNoteImageName || "Comment picture")}">
       <div class="muted">${escapeHtml(pendingNoteImageName || "Comment picture")}</div>
     </div>
   `;
@@ -8096,12 +8100,13 @@ function renderNoteImagePreview() {
 async function onNoteImageChange() {
   const file = els.noteImage?.files?.[0];
   if (!file) {
-    pendingNoteImageDataUrl = "";
+    pendingNoteImage = { imageStoragePath: "", imageUrl: "" };
     pendingNoteImageName = "";
     renderNoteImagePreview();
     return;
   }
-  pendingNoteImageDataUrl = await readAsDataUrl(file);
+  const storagePath = await uploadAssetToStorage(file, crypto.randomUUID(), getFileExtension(file));
+  pendingNoteImage = { imageStoragePath: storagePath, imageUrl: "" };
   pendingNoteImageName = file.name || "Comment picture";
   renderNoteImagePreview();
 }
@@ -8136,7 +8141,7 @@ function openNoteDialog(noteId = null) {
       els.noteContent.value = note?.content || "";
     }
   }
-  pendingNoteImageDataUrl = note?.imageUrl || "";
+  pendingNoteImage = { imageStoragePath: note?.imageStoragePath || "", imageUrl: note?.imageStoragePath ? "" : (note?.imageUrl || "") };
   pendingNoteImageName = note?.imageName || "";
   if (els.noteImage) els.noteImage.value = "";
   renderNoteImagePreview();
@@ -8459,7 +8464,8 @@ async function onNoteSave(event) {
     : rawContent;
   const selectedFile = els.noteImage?.files?.[0];
   if (selectedFile) {
-    pendingNoteImageDataUrl = await readAsDataUrl(selectedFile);
+    const storagePath = await uploadAssetToStorage(selectedFile, crypto.randomUUID(), getFileExtension(selectedFile));
+    pendingNoteImage = { imageStoragePath: storagePath, imageUrl: "" };
     pendingNoteImageName = selectedFile.name || "Comment picture";
   }
   if (editingNoteId) {
@@ -8471,7 +8477,8 @@ async function onNoteSave(event) {
     existing.noteStyle = style;
     if (style === "checklist") existing.checklist = checklist;
     else delete existing.checklist;
-    existing.imageUrl = pendingNoteImageDataUrl || "";
+    existing.imageStoragePath = pendingNoteImage.imageStoragePath || "";
+    existing.imageUrl = pendingNoteImage.imageUrl || "";
     existing.imageName = pendingNoteImageName || "";
     logAudit("Note Updated", {
       objectType: "note",
@@ -8491,7 +8498,8 @@ async function onNoteSave(event) {
       showOnMasterPlan,
       noteStyle: style,
       checklist: style === "checklist" ? checklist : undefined,
-      imageUrl: pendingNoteImageDataUrl || "",
+      imageStoragePath: pendingNoteImage.imageStoragePath || "",
+      imageUrl: pendingNoteImage.imageUrl || "",
       imageName: pendingNoteImageName || "",
       createdAt: new Date().toISOString(),
       createdByUserId: state.currentUserId,
@@ -9288,16 +9296,19 @@ async function onCapturePhoto() {
   canvas.width = video.videoWidth || 1280;
   canvas.height = video.videoHeight || 720;
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const previewUrl = canvas.toDataURL("image/jpeg", 0.92);
   const shouldSave = window.confirm("Are you happy with the picture? Save Y/N?");
   if (!shouldSave) return;
+  const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+  const id = crypto.randomUUID();
+  const storagePath = await uploadAssetToStorage(blob, id, "jpg");
   const selectedAreaIds = [...pendingCameraAreaIds];
   const capturedPhoto = {
-    id: crypto.randomUUID(),
+    id,
     type: "photo",
     title: createSequencedName(sanitizeName(rawName), 0, formatDateStamp(new Date())),
     mimeType: "image/jpeg",
-    previewUrl,
+    storagePath,
+    previewUrl: "",
     createdAt: new Date().toISOString(),
     createdByUserId: state.currentUserId,
     source: "camera",
@@ -9869,13 +9880,15 @@ function getProjectChatMessages(project = getCurrentProject(), channelId = "") {
 }
 
 async function createChatAttachmentFromFile(file) {
-  const dataUrl = await readAsDataUrl(file);
+  const id = crypto.randomUUID();
+  const storagePath = await uploadAssetToStorage(file, id, getFileExtension(file));
   return {
-    id: crypto.randomUUID(),
+    id,
     name: file?.name || "Attachment",
     mimeType: file?.type || "application/octet-stream",
     size: Number(file?.size) || 0,
-    dataUrl,
+    storagePath,
+    dataUrl: "",
     isImage: String(file?.type || "").toLowerCase().startsWith("image/"),
   };
 }
@@ -9887,10 +9900,10 @@ function buildChatAttachmentGalleryEntries(messages = [], channelTitle = "") {
     const senderLabel = sender ? getMemberDisplayName(sender) : "Team member";
     const createdLabel = message.createdAt ? new Date(message.createdAt).toLocaleString() : "";
     for (const attachment of message.attachments || []) {
-      if (!attachment.isImage || !attachment.dataUrl) continue;
+      if (!attachment.isImage || !(attachment.storagePath || attachment.dataUrl)) continue;
       entries.push({
         key: `chat:${message.id}:${attachment.id}`,
-        src: attachment.dataUrl,
+        src: getAssetUrl(attachment),
         title: attachment.name || "Chat image",
         meta: [channelTitle, senderLabel, createdLabel].filter(Boolean).join(" | "),
       });
@@ -14336,7 +14349,7 @@ function createTaskDetails(task) {
     linkedPhotoSection.innerHTML = `
       <span class="task-entry-detail-label">Linked Pictures</span>
       <div class="progress-strip task-entry-photo-strip">
-        ${linkedPhotos.slice(0, 4).map((photo) => `<img src="${photo.previewUrl}" alt="${escapeHtml(photo.title)}">`).join("")}
+        ${linkedPhotos.slice(0, 4).map((photo) => `<img src="${getAssetUrl(photo)}" alt="${escapeHtml(photo.title)}">`).join("")}
       </div>
       <div class="meta-row"><span class="meta-pill">${linkedPhotos.length} picture(s)</span></div>
       <div class="meta-row">${linkedPhotos.map((photo) => buildPhotoConnectionPillMarkup(photo, canManageProject(getCurrentProject()) ? {
@@ -14462,9 +14475,9 @@ function getSelectedAreaFilter(project = getCurrentProject()) {
 
 function buildGalleryEntryKey(item) {
   if (!item?.id) return "";
-  if (item.type === "photo" && item.previewUrl) return `photo:${item.id}`;
-  if (item.type === "file" && String(item.mimeType || "").toLowerCase().startsWith("image/") && item.objectUrl) return `file:${item.id}`;
-  if (item.type === "note" && item.imageUrl) return `note:${item.id}`;
+  if (item.type === "photo" && (item.storagePath || item.previewUrl)) return `photo:${item.id}`;
+  if (item.type === "file" && String(item.mimeType || "").toLowerCase().startsWith("image/") && (item.storagePath || item.objectUrl)) return `file:${item.id}`;
+  if (item.type === "note" && (item.imageStoragePath || item.imageUrl)) return `note:${item.id}`;
   return "";
 }
 
@@ -14474,28 +14487,28 @@ function buildGalleryEntriesFromItems(items = [], options = {}) {
   for (const item of items) {
     if (!item) continue;
     const createdLabel = item.createdAt ? new Date(item.createdAt).toLocaleString() : "";
-    if (item.type === "photo" && item.previewUrl) {
+    if (item.type === "photo" && (item.storagePath || item.previewUrl)) {
       entries.push({
         key: `photo:${item.id}`,
-        src: item.previewUrl,
+        src: getAssetUrl(item),
         title: item.title || "Photo",
         meta: [locationLabel, item.source || "upload", createdLabel].filter(Boolean).join(" | "),
       });
       continue;
     }
-    if (item.type === "file" && String(item.mimeType || "").toLowerCase().startsWith("image/") && item.objectUrl) {
+    if (item.type === "file" && String(item.mimeType || "").toLowerCase().startsWith("image/") && (item.storagePath || item.objectUrl)) {
       entries.push({
         key: `file:${item.id}`,
-        src: item.objectUrl,
+        src: getAssetUrl(item),
         title: item.originalName || item.title || "Image file",
         meta: [locationLabel, item.mimeType || "image", createdLabel].filter(Boolean).join(" | "),
       });
       continue;
     }
-    if (item.type === "note" && item.imageUrl) {
+    if (item.type === "note" && (item.imageStoragePath || item.imageUrl)) {
       entries.push({
         key: `note:${item.id}`,
-        src: item.imageUrl,
+        src: getAssetUrl(item),
         title: item.imageName || item.title || "Comment image",
         meta: [locationLabel, "Comment", createdLabel].filter(Boolean).join(" | "),
       });
@@ -14804,7 +14817,7 @@ function buildCollectedCommentEntry(comment, project) {
       <span class="muted">${escapeHtml(sourceLabel)} • ${escapeHtml(new Date(comment.createdAt).toLocaleString())}</span>
       ${snippet ? `<p>${escapeHtml(snippet.length > 180 ? `${snippet.slice(0, 177)}...` : snippet)}</p>` : '<p class="muted">No text yet.</p>'}
     </div>
-    ${comment.imageUrl ? `<div class="collected-comment-thumb"><img src="${comment.imageUrl}" alt="${escapeHtml(comment.imageName || comment.title || "Comment image")}"></div>` : ""}
+    ${(comment.imageStoragePath || comment.imageUrl) ? `<div class="collected-comment-thumb"><img src="${getAssetUrl(comment)}" alt="${escapeHtml(comment.imageName || comment.title || "Comment image")}"></div>` : ""}
   `;
   button.addEventListener("click", () => jumpToCollectedComment(project, comment));
   return button;
@@ -14830,7 +14843,7 @@ function buildAreaCommentPreview(areaNotes, galleryEntries = []) {
         ${note.showOnMasterPlan ? '<span class="meta-pill">Master plan</span>' : ""}
         <span class="meta-pill">${escapeHtml(new Date(note.createdAt).toLocaleString())}</span>
       </div>
-      ${note.imageUrl ? `<button class="area-comment-preview-thumb image-open-trigger" type="button" aria-label="Open ${escapeHtml(note.imageName || note.title || "Comment image")}"><img src="${note.imageUrl}" alt="${escapeHtml(note.imageName || note.title || "Comment image")}"></button>` : ""}
+      ${(note.imageStoragePath || note.imageUrl) ? `<button class="area-comment-preview-thumb image-open-trigger" type="button" aria-label="Open ${escapeHtml(note.imageName || note.title || "Comment image")}"><img src="${getAssetUrl(note)}" alt="${escapeHtml(note.imageName || note.title || "Comment image")}"></button>` : ""}
     `;
     preview.querySelector(".image-open-trigger")?.addEventListener("click", () => openImagePreviewForItem(note, galleryEntries));
     wrap.append(preview);
@@ -15275,7 +15288,7 @@ function buildProjectDetailsAreasSection(project, canManage, canWork, areaFilter
         } : {})).join("")
         : `<span class="meta-pill">${canManage ? "Drop a Service Team here" : "No linked team"}</span>`;
       const progressStrip = areaPhotos.length
-        ? `<div class="progress-strip">${areaPhotos.slice(0, 3).map((photo) => `<button class="progress-strip-preview-btn" type="button" data-gallery-key="photo:${escapeHtml(photo.id)}" aria-label="Open ${escapeHtml(photo.title)}"><img src="${photo.previewUrl}" alt="${escapeHtml(photo.title)}"></button>`).join("")}</div>`
+        ? `<div class="progress-strip">${areaPhotos.slice(0, 3).map((photo) => `<button class="progress-strip-preview-btn" type="button" data-gallery-key="photo:${escapeHtml(photo.id)}" aria-label="Open ${escapeHtml(photo.title)}"><img src="${getAssetUrl(photo)}" alt="${escapeHtml(photo.title)}"></button>`).join("")}</div>`
         : "";
       const completedLabel = area.completedAt
         ? `<span class="area-complete-badge"><span class="area-complete-badge-icon">&#10003;</span>Completed</span>`
@@ -15449,7 +15462,7 @@ function buildProjectDetailsTeamsSection(project, canManage, areaFilter = null) 
       const canSeeUploads = canAccessTeamFolder(team, project);
       const canAddToTeam = canSeeUploads && canWorkInProject(project);
       const previewFiles = files.slice(0, 3).map((item) => `<span class="meta-pill">${escapeHtml(item.title)}</span>`).join("");
-      const previewPhotos = photos.slice(0, 3).map((item) => `<img src="${item.previewUrl}" alt="${escapeHtml(item.title)}">`).join("");
+      const previewPhotos = photos.slice(0, 3).map((item) => `<img src="${getAssetUrl(item)}" alt="${escapeHtml(item.title)}">`).join("");
       card.innerHTML = `
         <div class="team-overview-header">
           <span class="team-overview-swatch" aria-hidden="true"></span>
@@ -15612,7 +15625,7 @@ function createProjectChatMessageElement(message, galleryEntries, channelTitle =
         button.type = "button";
         button.className = "chat-attachment-thumb";
         button.setAttribute("aria-label", `Open ${attachment.name}`);
-        button.innerHTML = `<img src="${attachment.dataUrl}" alt="${escapeHtml(attachment.name)}"><span>${escapeHtml(attachment.name)}</span>`;
+        button.innerHTML = `<img src="${getAssetUrl(attachment)}" alt="${escapeHtml(attachment.name)}"><span>${escapeHtml(attachment.name)}</span>`;
         button.addEventListener("click", () => {
           const key = `chat:${message.id}:${attachment.id}`;
           const index = galleryEntries.findIndex((entry) => entry.key === key);
@@ -15625,7 +15638,7 @@ function createProjectChatMessageElement(message, galleryEntries, channelTitle =
 
       const link = document.createElement("a");
       link.className = "chat-attachment-file";
-      link.href = attachment.dataUrl;
+      link.href = getAssetUrl(attachment);
       link.download = attachment.name || "attachment";
       link.innerHTML = `
         <span class="chat-attachment-file-name">${escapeHtml(attachment.name || "Attachment")}</span>
@@ -16190,7 +16203,7 @@ function renderItem(item, options = {}) {
       <span class="item-type">Note</span>
       <h3>${escapeHtml(item.title)}</h3>
       ${bodyMarkup}
-      ${item.imageUrl ? `<button class="note-item-image image-open-trigger" type="button" aria-label="Open ${escapeHtml(item.imageName || item.title || "Comment image")}"><img src="${item.imageUrl}" alt="${escapeHtml(item.imageName || item.title || "Comment image")}"></button>` : ""}
+      ${(item.imageStoragePath || item.imageUrl) ? `<button class="note-item-image image-open-trigger" type="button" aria-label="Open ${escapeHtml(item.imageName || item.title || "Comment image")}"><img src="${getAssetUrl(item)}" alt="${escapeHtml(item.imageName || item.title || "Comment image")}"></button>` : ""}
       <div class="meta-row">${archiveBadge}${item.showOnMasterPlan ? '<span class="meta-pill">Master plan</span>' : ""}<span class="meta-pill">${escapeHtml(dateLabel)}</span></div>
     `;
     wrapper.querySelector(".image-open-trigger")?.addEventListener("click", () => openImagePreviewForItem(item, galleryEntries));
@@ -16226,14 +16239,14 @@ function renderItem(item, options = {}) {
     wrapper.innerHTML = `
       <div class="file-item-main">
         <span class="item-type">File</span>
-        <h3><a class="file-link file-title-link" href="${item.objectUrl}" download="${escapeHtml(item.originalName)}">${escapeHtml(visibleName)}</a></h3>
+        <h3><a class="file-link file-title-link" href="${getAssetUrl(item)}" download="${escapeHtml(item.originalName)}">${escapeHtml(visibleName)}</a></h3>
         ${item.showOriginalName ? `<div class="file-original-name">${escapeHtml(item.originalName)}</div>` : ""}
         <div class="meta-row">${archiveBadge}${item.shortcut ? `<span class="meta-pill">Shortcut: ${escapeHtml(item.shortcutAreaName || "")}</span>` : ""}<span class="meta-pill">${escapeHtml(item.mimeType || "file")}</span><span class="meta-pill">${escapeHtml(dateLabel)}</span></div>
         <div class="meta-row">${buildUploadMetaMarkup()}</div>
       </div>
       ${isImageFile ? `
         <button class="file-thumb-preview image-open-trigger" type="button" title="Open image preview" aria-label="Open ${escapeHtml(item.originalName || item.title || "Image preview")}">
-          <img src="${item.objectUrl}" alt="${escapeHtml(item.originalName || item.title || "Image preview")}">
+          <img src="${getAssetUrl(item)}" alt="${escapeHtml(item.originalName || item.title || "Image preview")}">
         </button>
       ` : ""}
     `;
@@ -16248,7 +16261,7 @@ function renderItem(item, options = {}) {
     wrapper.innerHTML = `
       <h3>${escapeHtml(item.title)}</h3>
       <button class="photo-item-preview image-open-trigger" type="button" aria-label="Open ${escapeHtml(item.title)}">
-        <img src="${item.previewUrl}" alt="${escapeHtml(item.title)}">
+        <img src="${getAssetUrl(item)}" alt="${escapeHtml(item.title)}">
         <span class="photo-item-preview-icon" aria-hidden="true"></span>
       </button>
       <div class="meta-row">${archiveBadge}${item.shortcut ? `<span class="meta-pill">Shortcut: ${escapeHtml(item.shortcutAreaName || "")}</span>` : ""}<span class="meta-pill">${escapeHtml(dateLabel)}</span>${buildUploadMetaMarkup()}</div>
@@ -17715,13 +17728,114 @@ function getDefaultAssetBaseName(file, type) {
   return "File";
 }
 
+function getFileExtension(file) {
+  const fromName = String(file?.name || "").match(/\.([a-z0-9]{1,8})$/i);
+  if (fromName) return fromName[1].toLowerCase();
+  const mime = String(file?.type || "").toLowerCase();
+  if (mime === "image/jpeg") return "jpg";
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  return "bin";
+}
+
+async function uploadAssetToStorage(blob, assetId, extension) {
+  const projectId = state.selectedProjectId || "no-project";
+  const path = `${window.getTenantId()}/${projectId}/${assetId}.${extension}`;
+
+  const { error } = await window.supabase.storage
+    .from(window.STORAGE_BUCKET)
+    .upload(path, blob, {
+      contentType: blob.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (error) throw error;
+  return path;
+}
+
+// THE resolver. Every render point (photos, files, chat attachments, note images) goes through this.
+function getAssetUrl(item) {
+  if (!item) return "";
+  const storagePath = item.storagePath || item.imageStoragePath;
+  if (storagePath) {
+    return window.supabase.storage
+      .from(window.STORAGE_BUCKET)
+      .getPublicUrl(storagePath).data.publicUrl;
+  }
+  // legacy base64, still valid until migrated
+  return item.previewUrl || item.objectUrl || item.dataUrl || item.imageUrl || "";
+}
+
+async function migrateLegacyAssetsToStorage() {
+  if (state.assetsMigratedAt) return;
+  const pending = [];
+
+  for (const project of state.projects || []) {
+    for (const folder of getAllProjectFolders(project) || []) {
+      for (const item of folder.items || []) {
+        if (item.type === "note") {
+          if (String(item.imageUrl || "").startsWith("data:") && !item.imageStoragePath) {
+            pending.push({ kind: "note", item });
+          }
+          continue;
+        }
+        const legacy = item.previewUrl || item.objectUrl || "";
+        if (legacy.startsWith("data:") && !item.storagePath) pending.push({ kind: "asset", item });
+      }
+    }
+    for (const message of project.chatMessages || []) {
+      for (const attachment of message.attachments || []) {
+        if (String(attachment.dataUrl || "").startsWith("data:") && !attachment.storagePath) {
+          pending.push({ kind: "attachment", item: attachment });
+        }
+      }
+    }
+  }
+
+  if (!pending.length) {
+    state.assetsMigratedAt = new Date().toISOString();
+    persist();
+    return;
+  }
+
+  showAppMessage(`Moving ${pending.length} files to cloud storage...`, "info", "Migration");
+
+  for (const { kind, item } of pending) {
+    try {
+      const legacy = kind === "note" ? item.imageUrl : kind === "attachment" ? item.dataUrl : (item.previewUrl || item.objectUrl);
+      const blob = await (await fetch(legacy)).blob();
+      const ext = (blob.type.split("/")[1] || "bin").replace("jpeg", "jpg");
+      const storagePath = await uploadAssetToStorage(blob, item.id, ext);
+      if (kind === "note") {
+        item.imageStoragePath = storagePath;
+        item.imageUrl = "";
+      } else if (kind === "attachment") {
+        item.storagePath = storagePath;
+        item.dataUrl = "";
+      } else {
+        item.storagePath = storagePath;
+        item.previewUrl = "";
+        item.objectUrl = "";
+      }
+    } catch (error) {
+      console.error("Migration failed for asset", item.id, error);
+      // leave the legacy data URL in place; getAssetUrl still resolves it
+    }
+  }
+
+  state.assetsMigratedAt = new Date().toISOString();
+  persist();
+  showAppMessage("Migration finished.", "success", "Migration");
+}
+
 async function toStoredAsset(file, type, baseName, index, dateStamp) {
-  const dataUrl = await readAsDataUrl(file);
+  const id = crypto.randomUUID();
+  const storagePath = await uploadAssetToStorage(file, id, getFileExtension(file));
   const normalizedName = createSequencedName(baseName, index, dateStamp);
   if (type === "photo") {
-    return { id: crypto.randomUUID(), type: "photo", title: normalizedName, previewUrl: dataUrl, mimeType: file.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, source: "upload", archivedAt: null, archivedByUserId: null, showOriginalName: false };
+    return { id, type: "photo", title: normalizedName, storagePath, previewUrl: "", mimeType: file.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, source: "upload", archivedAt: null, archivedByUserId: null, showOriginalName: false };
   }
-  return { id: crypto.randomUUID(), type: "file", title: normalizedName, objectUrl: dataUrl, mimeType: file.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, archivedAt: null, archivedByUserId: null, showOriginalName: false };
+  return { id, type: "file", title: normalizedName, storagePath, objectUrl: "", mimeType: file.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, archivedAt: null, archivedByUserId: null, showOriginalName: false };
 }
 
 function readAsDataUrl(file) {
@@ -18117,7 +18231,7 @@ function closeNoteDialog(forceClose = false) {
   }
   setNoteStyle("text");
   if (els.noteImage) els.noteImage.value = "";
-  pendingNoteImageDataUrl = "";
+  pendingNoteImage = { imageStoragePath: "", imageUrl: "" };
   pendingNoteImageName = "";
   renderNoteImagePreview();
   pendingAssetTarget = null;
