@@ -4,23 +4,12 @@
 
 create extension if not exists pgcrypto;
 
--- Ensure team_members has unique constraint for FK references
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conname = 'unique_org_user'
-  ) then
-    alter table team_members add constraint unique_org_user unique(org_code, supabase_user_id);
-  end if;
-end $$;
-
 -- Projects table
 create table if not exists projects (
   id uuid primary key default gen_random_uuid(),
   org_code text not null references org_codes(org_code) on delete cascade,
   name text not null,
-  manager_user_id uuid references team_members(supabase_user_id),
+  manager_user_id uuid,
   client_id uuid,
   address text,
   start_date date,
@@ -66,7 +55,7 @@ create table if not exists notes (
   image_storage_path text,
   image_name text,
   show_on_master_plan boolean default false,
-  created_by_user_id uuid not null references team_members(supabase_user_id),
+  created_by_user_id uuid not null,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   archived_at timestamptz,
@@ -83,9 +72,9 @@ create table if not exists tasks (
   area_id uuid references areas(id) on delete set null,
   title text not null,
   status text default 'open' check (status in ('open', 'started', 'paused', 'done')),
-  assigned_member_id uuid references team_members(supabase_user_id),
+  assigned_member_id uuid,
   due_date date,
-  created_by_user_id uuid not null references team_members(supabase_user_id),
+  created_by_user_id uuid not null,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   archived_at timestamptz
