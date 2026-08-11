@@ -17669,6 +17669,99 @@ function createClientPreviewState() {
   };
 }
 
+// Step 2: Auth and tenant separation
+let isLoggedIn = false;
+let currentUserId = null;
+let currentUsername = null;
+let currentOrgCode = null;
+let currentRole = 'worker';
+
+async function loginWithOrgCodeAndPin(orgCode, username, pin) {
+  if (!/^P\d{8}$/.test(orgCode)) {
+    throw new Error("Org code must be format P12345678");
+  }
+  if (!/^\d{6}$/.test(pin)) {
+    throw new Error("PIN must be 6 digits");
+  }
+
+  const syntheticEmail = `${username}@${orgCode.toLowerCase()}.internal`;
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: syntheticEmail,
+      password: pin,
+    });
+
+    if (error) throw error;
+
+    const user = data.user;
+    const { data: member, error: memberError } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('org_code', orgCode)
+      .eq('username', username)
+      .eq('supabase_user_id', user.id)
+      .single();
+
+    if (memberError || !member) {
+      await supabase.auth.signOut();
+      throw new Error("Member not found or org code mismatch");
+    }
+
+    currentUserId = user.id;
+    currentUsername = member.username;
+    currentOrgCode = orgCode;
+    currentRole = member.role;
+    isLoggedIn = true;
+
+    persist();
+    return { user, member };
+  } catch (error) {
+    console.error("Login failed:", error);
+    throw error;
+  }
+}
+
+async function logout() {
+  await supabase.auth.signOut();
+  currentUserId = null;
+  currentUsername = null;
+  currentOrgCode = null;
+  currentRole = 'worker';
+  isLoggedIn = false;
+  persist();
+}
+
+function getCurrentSession() {
+  try {
+    const session = supabase.auth.getSession?.()?.data?.session;
+    return session || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function initializeAuthState() {
+  try {
+    const session = await supabase.auth.getSession();
+    if (session?.data?.session) {
+      const user = session.data.session.user;
+      const orgCode = user.user_metadata?.org_code;
+      if (orgCode) {
+        currentOrgCode = orgCode;
+        currentUserId = user.id;
+        currentUsername = user.user_metadata?.username;
+        currentRole = user.user_metadata?.role || 'worker';
+        isLoggedIn = true;
+        return true;
+      }
+    }
+  } catch (e) {
+    console.error("Auth init failed:", e);
+  }
+  return false;
+}
+
 function persist() {
   const persistedState = structuredClone(state);
   persistedState.projects = (persistedState.projects || []).filter((project) => !project.isDraft);
@@ -18331,3 +18424,37 @@ function selectProject(projectId, rerender = true, skipUnsavedCheck = false) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 }
+
+// Step 2: Initialize auth on page load
+document.addEventListener('DOMContentLoaded', async function() {
+  const loginModal = document.getElementById('login-modal');
+  const loginForm = document.getElementById('login-form');
+  const loginError = document.getElementById('login-error');
+
+  // Try to restore existing session
+  const sessionRestored = await initializeAuthState();
+  if (sessionRestored) {
+    loginModal.close();
+    render();
+    return;
+  }
+
+  // Wire up login form
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      loginError.textContent = '';
+      const orgCode = document.getElementById('login-orgCode').value.toUpperCase().trim();
+      const username = document.getElementById('login-username').value.trim();
+      const pin = document.getElementById('login-pin').value.trim();
+
+      try {
+        await loginWithOrgCodeAndPin(orgCode, username, pin);
+        loginModal.close();
+        render();
+      } catch (error) {
+        loginError.textContent = error.message || 'Login failed';
+      }
+    });
+  }
+});
