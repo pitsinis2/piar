@@ -17715,6 +17715,10 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
     isLoggedIn = true;
 
     persist();
+
+    // Step 3: Load org data from Postgres
+    await loadOrgData();
+
     return { user, member };
   } catch (error) {
     console.error("Login failed:", error);
@@ -17753,6 +17757,8 @@ async function initializeAuthState() {
         currentUsername = user.user_metadata?.username;
         currentRole = user.user_metadata?.role || 'worker';
         isLoggedIn = true;
+        // Load org data on session restore
+        await loadOrgData();
         return true;
       }
     }
@@ -17760,6 +17766,330 @@ async function initializeAuthState() {
     console.error("Auth init failed:", e);
   }
   return false;
+}
+
+// Step 3: Load org data from Postgres tables
+async function loadOrgData() {
+  if (!currentOrgCode) {
+    console.warn("loadOrgData: no currentOrgCode set");
+    return;
+  }
+
+  try {
+    const [projectsRes, areasRes, notesRes, tasksRes] = await Promise.all([
+      supabase.from('projects').select('*').eq('org_code', currentOrgCode),
+      supabase.from('areas').select('*').eq('org_code', currentOrgCode),
+      supabase.from('notes').select('*').eq('org_code', currentOrgCode),
+      supabase.from('tasks').select('*').eq('org_code', currentOrgCode),
+    ]);
+
+    if (projectsRes.error) throw projectsRes.error;
+    if (areasRes.error) throw areasRes.error;
+    if (notesRes.error) throw notesRes.error;
+    if (tasksRes.error) throw tasksRes.error;
+
+    // Map Postgres schema to state schema
+    state.projects = (projectsRes.data || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      managerUserId: p.manager_user_id,
+      clientId: p.client_id,
+      address: p.address,
+      startDate: p.start_date,
+      endDate: p.end_date,
+      lifecycle: p.status === 'archived' ? 'archived' : p.status === 'completed' ? 'completed' : 'active',
+      color: p.color || '#fffaf2',
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+      archivedAt: p.archived_at,
+      archivedByUserId: p.archived_by_user_id,
+      folders: [],
+      chatMessages: [],
+    }));
+
+    state.areas = (areasRes.data || []).map(a => ({
+      id: a.id,
+      projectId: a.project_id,
+      name: a.name,
+      floor: a.floor,
+      iconKey: 'general',
+      status: a.status || 'open',
+      createdAt: a.created_at,
+      updatedAt: a.updated_at,
+      archivedAt: a.archived_at,
+      items: [],
+    }));
+
+    state.notes = (notesRes.data || []).map(n => ({
+      id: n.id,
+      type: 'note',
+      title: n.title || '',
+      content: n.content || '',
+      noteStyle: n.note_style || 'text',
+      checklist: n.checklist || [],
+      imageStoragePath: n.image_storage_path || '',
+      imageName: n.image_name || '',
+      showOnMasterPlan: n.show_on_master_plan || false,
+      createdByUserId: n.created_by_user_id,
+      createdAt: n.created_at,
+      updatedAt: n.updated_at,
+      archivedAt: n.archived_at,
+      archivedByUserId: n.archived_by_user_id,
+      projectId: n.project_id,
+      areaId: n.area_id,
+    }));
+
+    state.tasks = (tasksRes.data || []).map(t => ({
+      id: t.id,
+      title: t.title || '',
+      status: t.status || 'open',
+      assignedMemberId: t.assigned_member_id,
+      dueDate: t.due_date,
+      createdByUserId: t.created_by_user_id,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+      archivedAt: t.archived_at,
+      projectId: t.project_id,
+      areaId: t.area_id,
+    }));
+
+    // Run one-time migration from old localStorage if needed
+    await migrateLocalStorageToDB();
+
+    persist();
+    render();
+  } catch (error) {
+    console.error("Failed to load org data:", error);
+    showAppMessage("Failed to load project data: " + error.message, "error");
+  }
+}
+
+// Step 3: Save project to Postgres (upsert)
+async function saveProject(project) {
+  if (!currentOrgCode) throw new Error("Not logged in");
+
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .upsert({
+        id: project.id,
+        org_code: currentOrgCode,
+        name: project.name,
+        manager_user_id: project.managerUserId || null,
+        client_id: project.clientId || null,
+        address: project.address || null,
+        start_date: project.startDate || null,
+        end_date: project.endDate || null,
+        status: project.lifecycle === 'archived' ? 'archived' : project.lifecycle === 'completed' ? 'completed' : 'active',
+        color: project.color || '#fffaf2',
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const idx = (state.projects || []).findIndex(p => p.id === project.id);
+    if (idx >= 0) {
+      state.projects[idx] = { ...state.projects[idx], ...project, id: data.id };
+    } else {
+      state.projects.push({ ...project, id: data.id });
+    }
+
+    persist();
+    return data;
+  } catch (error) {
+    console.error("Failed to save project:", error);
+    showAppMessage("Failed to save project: " + error.message, "error");
+    throw error;
+  }
+}
+
+// Step 3: Save area to Postgres (upsert)
+async function saveArea(area) {
+  if (!currentOrgCode) throw new Error("Not logged in");
+
+  try {
+    const { data, error } = await supabase
+      .from('areas')
+      .upsert({
+        id: area.id,
+        org_code: currentOrgCode,
+        project_id: area.projectId,
+        name: area.name,
+        floor: area.floor || null,
+        status: area.status || 'open',
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const idx = (state.areas || []).findIndex(a => a.id === area.id);
+    if (idx >= 0) {
+      state.areas[idx] = { ...state.areas[idx], ...area, id: data.id };
+    } else {
+      state.areas.push({ ...area, id: data.id });
+    }
+
+    persist();
+    return data;
+  } catch (error) {
+    console.error("Failed to save area:", error);
+    showAppMessage("Failed to save area: " + error.message, "error");
+    throw error;
+  }
+}
+
+// Step 3: Save note to Postgres (upsert)
+async function saveNote(note) {
+  if (!currentOrgCode) throw new Error("Not logged in");
+
+  try {
+    const { data, error } = await supabase
+      .from('notes')
+      .upsert({
+        id: note.id,
+        org_code: currentOrgCode,
+        project_id: note.projectId,
+        area_id: note.areaId || null,
+        title: note.title || null,
+        content: note.content || null,
+        note_style: note.noteStyle || 'text',
+        checklist: note.checklist || null,
+        image_storage_path: note.imageStoragePath || null,
+        image_name: note.imageName || null,
+        show_on_master_plan: note.showOnMasterPlan || false,
+        created_by_user_id: note.createdByUserId || currentUserId,
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const idx = (state.notes || []).findIndex(n => n.id === note.id);
+    if (idx >= 0) {
+      state.notes[idx] = { ...state.notes[idx], ...note, id: data.id };
+    } else {
+      state.notes.push({ ...note, id: data.id });
+    }
+
+    persist();
+    return data;
+  } catch (error) {
+    console.error("Failed to save note:", error);
+    showAppMessage("Failed to save note: " + error.message, "error");
+    throw error;
+  }
+}
+
+// Step 3: Save task to Postgres (upsert)
+async function saveTask(task) {
+  if (!currentOrgCode) throw new Error("Not logged in");
+
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .upsert({
+        id: task.id,
+        org_code: currentOrgCode,
+        project_id: task.projectId,
+        area_id: task.areaId || null,
+        title: task.title,
+        status: task.status || 'open',
+        assigned_member_id: task.assignedMemberId || null,
+        due_date: task.dueDate || null,
+        created_by_user_id: task.createdByUserId || currentUserId,
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const idx = (state.tasks || []).findIndex(t => t.id === task.id);
+    if (idx >= 0) {
+      state.tasks[idx] = { ...state.tasks[idx], ...task, id: data.id };
+    } else {
+      state.tasks.push({ ...task, id: data.id });
+    }
+
+    persist();
+    return data;
+  } catch (error) {
+    console.error("Failed to save task:", error);
+    showAppMessage("Failed to save task: " + error.message, "error");
+    throw error;
+  }
+}
+
+// Step 3: One-time migration from localStorage to Postgres
+async function migrateLocalStorageToDB() {
+  if (state.migratedToDBAt) return;
+
+  const orgCode = currentOrgCode;
+  if (!orgCode) return;
+
+  const pending = [];
+
+  // Collect all projects/areas/notes/tasks from state
+  for (const project of state.projects || []) {
+    if (project.id && !project.isDraft) {
+      pending.push({ table: 'projects', data: { ...project, orgCode } });
+    }
+  }
+  for (const area of state.areas || []) {
+    if (area.id) {
+      pending.push({ table: 'areas', data: { ...area, orgCode } });
+    }
+  }
+  for (const note of state.notes || []) {
+    if (note.id) {
+      pending.push({ table: 'notes', data: { ...note, orgCode } });
+    }
+  }
+  for (const task of state.tasks || []) {
+    if (task.id) {
+      pending.push({ table: 'tasks', data: { ...task, orgCode } });
+    }
+  }
+
+  if (!pending.length) {
+    state.migratedToDBAt = new Date().toISOString();
+    persist();
+    return;
+  }
+
+  showAppMessage(`Syncing ${pending.length} items to cloud...`, "info");
+
+  let migrated = 0;
+  for (const item of pending) {
+    try {
+      // Call the appropriate save function based on table
+      switch (item.table) {
+        case 'projects':
+          await saveProject(item.data);
+          break;
+        case 'areas':
+          await saveArea(item.data);
+          break;
+        case 'notes':
+          await saveNote(item.data);
+          break;
+        case 'tasks':
+          await saveTask(item.data);
+          break;
+      }
+      migrated++;
+    } catch (error) {
+      // Ignore duplicate key errors; others are logged
+      if (error.code !== '23505') {
+        console.error(`Migration failed for ${item.table}:`, error);
+      }
+    }
+  }
+
+  state.migratedToDBAt = new Date().toISOString();
+  persist();
+  showAppMessage(`Synced ${migrated}/${pending.length} items.`, migrated === pending.length ? "success" : "info");
 }
 
 function persist() {
