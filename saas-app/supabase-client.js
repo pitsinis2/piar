@@ -7,9 +7,28 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export const STORAGE_BUCKET = "project-files";
 
-// Step 2 replaces this with the tenant id from the session.
+// Step 2: Get tenant ID from Supabase JWT, fallback to state
 export function getTenantId() {
-  return "00000000";
+  // Try to get from session JWT
+  if (typeof window !== 'undefined' && window.supabase) {
+    try {
+      const session = window.supabase.auth.getSession?.()?.data?.session;
+      if (session?.user?.user_metadata?.org_code) {
+        return session.user.user_metadata.org_code;
+      }
+    } catch (e) {
+      // Fall through to state
+    }
+  }
+
+  // Fallback to current state
+  if (typeof state !== 'undefined' && state.currentOrgCode) {
+    return state.currentOrgCode;
+  }
+
+  // Dev default
+  console.warn("No org_code in session; using dev default P00000000");
+  return "P00000000";
 }
 
 // appback.js is a classic (non-module) script and cannot use `import`.

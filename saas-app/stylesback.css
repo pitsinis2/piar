@@ -9472,3 +9472,83 @@ button.area-comment-preview-thumb:focus-visible,
 .mobile-bottom-nav:not(.mobile-bottom-nav-visible) {
   display: none !important;
 }
+
+/* Step 2: Login modal */
+#login-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: none;
+  border-radius: 8px;
+  box-shadow: var(--shadow-strong);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  background: var(--panel-strong);
+  z-index: 9999;
+}
+
+#login-modal::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+#login-modal h2 {
+  margin: 0 0 1.5rem 0;
+  color: var(--ink);
+  font-size: 1.5rem;
+}
+
+#login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+#login-form input {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+#login-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+#login-form button {
+  padding: 0.75rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+#login-form button:hover {
+  background: var(--accent-strong);
+}
+
+.error-message {
+  color: var(--archive-accent);
+  font-size: 0.9rem;
+  min-height: 1.2rem;
+}
+
+#login-modal .muted {
+  color: var(--muted);
+}

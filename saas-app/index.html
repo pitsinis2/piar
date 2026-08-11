@@ -22,6 +22,32 @@
   <link rel="stylesheet" href="styles-futuristic.css">
 </head>
 <body>
+  <!-- Step 2: Auth login modal -->
+  <dialog id="login-modal" class="modal" open>
+    <div class="modal-content">
+      <h2>Project Manager Login</h2>
+      <form id="login-form">
+        <label>
+          Org Code (e.g., P12345678)
+          <input type="text" id="login-orgCode" placeholder="P12345678" required autofocus />
+        </label>
+        <label>
+          Username
+          <input type="text" id="login-username" placeholder="your username" required />
+        </label>
+        <label>
+          PIN (6 digits)
+          <input type="password" id="login-pin" placeholder="123456" maxlength="6" required />
+        </label>
+        <div id="login-error" class="error-message"></div>
+        <button type="submit" class="primary-btn">Login</button>
+      </form>
+      <p class="muted" style="font-size: 0.9em; margin-top: 1em;">
+        Dev org: <strong>P00000000</strong> | Username: <strong>admin</strong> | PIN: <strong>123456</strong>
+      </p>
+    </div>
+  </dialog>
+
   <details class="access-menu" id="access-menu">
     <summary class="access-menu-trigger" aria-label="Open user menu">...</summary>
     <div class="access-menu-panel">
