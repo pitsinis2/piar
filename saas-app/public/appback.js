@@ -18781,10 +18781,44 @@ document.addEventListener('DOMContentLoaded', async function() {
       try {
         await loginWithOrgCodeAndPin(orgCode, username, pin);
         loginModal.close();
+        updateAuthUI();
         render();
       } catch (error) {
         loginError.textContent = error.message || 'Login failed';
       }
     });
   }
+
+  // Wire up logout button
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async function() {
+      await logout();
+      loginModal.showModal();
+      updateAuthUI();
+      render();
+    });
+  }
+
+  // Update auth UI on page load
+  updateAuthUI();
 });
+
+// Helper function to update login/logout UI
+function updateAuthUI() {
+  const logoutBtn = document.getElementById('logout-btn');
+  const sessionSummary = document.getElementById('current-user-summary');
+
+  if (isLoggedIn && logoutBtn && sessionSummary) {
+    logoutBtn.style.display = 'block';
+    sessionSummary.innerHTML = `
+      <strong>${currentUsername || 'User'}</strong><br>
+      Org: ${currentOrgCode || 'N/A'}<br>
+      Role: ${currentRole || 'N/A'}<br>
+      <em style="font-size: 0.9em;">${currentUserId ? '✓ Authenticated' : ''}</em>
+    `;
+  } else if (logoutBtn && sessionSummary) {
+    logoutBtn.style.display = 'none';
+    sessionSummary.innerHTML = '<em>Not logged in</em>';
+  }
+}
