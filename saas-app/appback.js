@@ -18849,6 +18849,7 @@ async function connectGoogleDrive() {
   sessionStorage.setItem(`google_auth_state_${currentOrgCode}`, state);
   authUrl.searchParams.set('state', state);
 
+  showAppMessage("Opening Google login in new window. Please grant permission to connect.", "info");
   window.open(authUrl.toString(), 'google-auth', 'width=500,height=600');
 }
 
@@ -18972,12 +18973,11 @@ async function hashData(data) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Handle OAuth callback from Google
-window.addEventListener('storage', async function(e) {
-  if (e.key && e.key.startsWith('google_token_') && e.newValue) {
+// Handle OAuth callback from Google popup
+window.addEventListener('message', async function(e) {
+  if (e.data.type === 'google_auth_success') {
     try {
-      const tokenData = JSON.parse(e.newValue);
-      googleAccessToken = tokenData.accessToken;
+      googleAccessToken = e.data.accessToken;
       updateBackupUI();
       showAppMessage("✓ Google Drive connected successfully!", "success");
 
@@ -18990,8 +18990,10 @@ window.addEventListener('storage', async function(e) {
     } catch (error) {
       console.error("OAuth callback error:", error);
     }
+  } else if (e.data.type === 'google_auth_error') {
+    showAppMessage(`❌ Google Drive connection failed: ${e.data.error}`, "error");
   }
-});
+}, false);
 
 // Wire up backup buttons on first load
 if (document.readyState === 'loading') {

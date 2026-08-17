@@ -30,12 +30,18 @@
 
             if (error) {
                 statusDiv.innerHTML = `<p class="error">❌ Authorization denied: ${error}</p><p style="font-size: 0.9em; color: #666;">You can close this window.</p>`;
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({ type: 'google_auth_error', error }, '*');
+                }
                 setTimeout(() => window.close(), 3000);
                 return;
             }
 
             if (!code) {
                 statusDiv.innerHTML = `<p class="error">❌ No authorization code received</p><p style="font-size: 0.9em; color: #666;">You can close this window.</p>`;
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({ type: 'google_auth_error', error: 'No code' }, '*');
+                }
                 setTimeout(() => window.close(), 3000);
                 return;
             }
@@ -55,38 +61,27 @@
 
                 const { accessToken, expiresIn } = await response.json();
 
-                // Store token in parent window's sessionStorage
+                // Send token to parent window via postMessage
                 if (window.opener && !window.opener.closed) {
-                    const orgCode = sessionStorage.getItem('google_auth_org_code') || 'unknown';
-                    window.opener.sessionStorage.setItem(`google_token_${orgCode}`, JSON.stringify({
+                    window.opener.postMessage({
+                        type: 'google_auth_success',
                         accessToken,
                         expiresIn,
                         obtainedAt: new Date().toISOString()
-                    }));
-
-                    // Notify parent window
-                    window.opener.dispatchEvent(new StorageEvent('storage', {
-                        key: `google_token_${orgCode}`,
-                        newValue: JSON.stringify({ accessToken, expiresIn })
-                    }));
+                    }, '*');
 
                     statusDiv.innerHTML = `<p class="success">✓ Connected successfully!</p><p style="font-size: 0.9em; color: #666;">Closing window...</p>`;
                     setTimeout(() => window.close(), 1500);
                 } else {
-                    statusDiv.innerHTML = `<p class="success">✓ Connected!</p><p style="font-size: 0.9em; color: #666;">You can close this window and retry the backup.</p>`;
+                    statusDiv.innerHTML = `<p class="error">❌ Parent window closed</p><p style="font-size: 0.9em; color: #666;">Please retry the backup.</p>`;
                 }
 
             } catch (error) {
                 console.error('Callback error:', error);
                 statusDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p><p style="font-size: 0.9em; color: #666;">You can close this window and try again.</p>`;
-            }
-        }
-
-        // Save org code before opening window (called from parent)
-        if (window.opener) {
-            const orgCode = window.opener.currentOrgCode;
-            if (orgCode) {
-                sessionStorage.setItem('google_auth_org_code', orgCode);
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({ type: 'google_auth_error', error: error.message }, '*');
+                }
             }
         }
 
