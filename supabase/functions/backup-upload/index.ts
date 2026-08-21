@@ -29,44 +29,10 @@ interface BackupRequest {
   googleAccessToken: string;
 }
 
-interface BackupResponse {
-  success: boolean;
-  fileId?: string;
-  fileName?: string;
-  sizeKB?: number;
-  error?: string;
-}
-
 function getEnv(key: string): string {
   const value = Deno.env.get(key);
   if (!value) throw new Error(`Missing env var: ${key}`);
   return value;
-}
-
-async function compressData(data: string): Promise<Uint8Array> {
-  const compressed = new CompressionStream("gzip");
-  const writer = compressed.writable.getWriter();
-  const encoder = new TextEncoder();
-  await writer.write(encoder.encode(data));
-  await writer.close();
-
-  const chunks: Uint8Array[] = [];
-  const reader = compressed.readable.getReader();
-  let result = await reader.read();
-  while (!result.done) {
-    chunks.push(result.value);
-    result = await reader.read();
-  }
-
-  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-  const compressed_data = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    compressed_data.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return compressed_data;
 }
 
 async function ensureBackupFolder(
@@ -164,18 +130,18 @@ async function ensureBackupFolder(
 async function uploadToGoogleDrive(
   accessToken: string,
   fileName: string,
-  fileData: Uint8Array,
+  fileContent: string,
   folderId: string
 ): Promise<{ fileId: string; fileName: string; sizeKB: number }> {
   const metadata = {
     name: fileName,
-    mimeType: "application/gzip",
+    mimeType: "application/json",
     parents: [folderId],
   };
 
   const form = new FormData();
   form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-  form.append("file", new Blob([fileData], { type: "application/gzip" }));
+  form.append("file", new Blob([fileContent], { type: "application/json" }));
 
   const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
     method: "POST",
@@ -191,10 +157,11 @@ async function uploadToGoogleDrive(
   }
 
   const result = await response.json();
+  const fileSizeKB = Math.round(fileContent.length / 1024);
   return {
     fileId: result.id,
     fileName: result.name,
-    sizeKB: Math.round(fileData.length / 1024),
+    sizeKB: fileSizeKB,
   };
 }
 
@@ -228,16 +195,15 @@ serve(async (req) => {
       });
     }
 
-    // Compress backup data
+    // Prepare backup JSON
     const backupJson = JSON.stringify(backup, null, 2);
-    const compressedData = await compressData(backupJson);
 
     // Create filename with timestamp
     const timestamp = new Date()
       .toISOString()
       .replace(/[:.]/g, "")
       .replace(/Z$/, "");
-    const fileName = `backup_${timestamp}.json.gz`;
+    const fileName = `backup_${timestamp}.json`;
 
     // Ensure backup folder exists
     const folderId = await ensureBackupFolder(
@@ -249,7 +215,7 @@ serve(async (req) => {
     const uploadResult = await uploadToGoogleDrive(
       googleAccessToken,
       fileName,
-      compressedData,
+      backupJson,
       folderId
     );
 
