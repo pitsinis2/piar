@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProjectManagerWeb — Admin Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1f2937;
+      --border: rgba(99,130,180,.18);
+      --border2: rgba(99,130,180,.35);
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #667eea;
+      --green: #3fb950;
+      --red: #f85149;
+      --orange: #d4721a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* LOGIN */
+    #loginScreen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .login-box {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 400px;
+      border-radius: 8px;
+    }
+
+    .login-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .login-sub {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    .login-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+
+    .login-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 12px;
+      font-size: 0.95rem;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+
+    .login-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .login-btn {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 24px;
+      border-radius: 4px;
+    }
+
+    .login-btn:hover {
+      opacity: 0.9;
+    }
+
+    .login-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .login-error {
+      color: var(--red);
+      font-size: 0.9rem;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+
+    /* MAIN APP */
+    #app {
+      display: none;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    .topbar-logo {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logout-btn {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .logout-btn:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .layout {
+      display: flex;
+      flex: 1;
+    }
+
+    .sidebar {
+      width: 200px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--muted);
+      border-left: 3px solid transparent;
+      font-size: 0.9rem;
+    }
+
+    .nav-item:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .nav-item.active {
+      color: var(--text);
+      border-left-color: var(--accent);
+      background: rgba(102,126,234,0.08);
+    }
+
+    .main {
+      flex: 1;
+      padding: 32px;
+      overflow-y: auto;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    /* STATS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      border-radius: 8px;
+    }
+
+    .stat-val {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    /* TABLE */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      opacity: 0.9;
+    }
+
+    .btn-ghost {
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: var(--surface2);
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay[hidden] {
+      display: none;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 500px;
+      padding: 32px;
+    }
+
+    .modal-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .modal-sub {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    .form-error {
+      color: var(--red);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-active {
+      background: rgba(63,185,80,0.15);
+      color: var(--green);
+    }
+
+    .badge-inactive {
+      background: rgba(248,81,73,0.15);
+      color: var(--red);
+    }
+
+    .code-pill {
+      font-family: monospace;
+      background: var(--bg);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: var(--accent);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #toast.success {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    #toast.error {
+      border-color: var(--red);
+      color: var(--red);
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1 class="login-title">ProjectManagerWeb Admin</h1>
+    <p class="login-sub">Create organizations and manage team access</p>
+    <label class="login-label">Email</label>
+    <input class="login-input" type="email" id="adminEmail" placeholder="your@email.com">
+    <label class="login-label">Password</label>
+    <input class="login-input" type="password" id="adminPassword" placeholder="••••••••">
+    <div class="login-error" id="loginErr"></div>
+    <button class="login-btn" id="loginBtn" onclick="handleAdminLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">🏗 ProjectManagerWeb Admin</div>
+    <div class="topbar-user">
+      <span id="adminName"></span>
+      <button class="logout-btn" onclick="handleLogout()">Log Out</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-item active" onclick="showPage('dashboard')">📊 Dashboard</div>
+      <div class="nav-item" onclick="showPage('orgs')">🏢 Organizations</div>
+      <div class="nav-item" onclick="showPage('settings')">⚙️ Settings</div>
+    </div>
+
+    <div class="main">
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="section-title" style="margin-bottom: 24px;">Dashboard</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="statTotal">—</div>
+            <div class="stat-label">Total Organizations</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statActive">—</div>
+            <div class="stat-label">Active Organizations</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statProjects">—</div>
+            <div class="stat-label">Total Projects</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statUsers">—</div>
+            <div class="stat-label">Total Team Members</div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">Recent Organizations</div>
+          <button class="btn btn-primary" onclick="showPage('orgs')">View All</button>
+        </div>
+        <div class="table-wrap" id="dashTable">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+
+      <!-- ORGANIZATIONS -->
+      <div class="page" id="page-orgs">
+        <div class="section-header">
+          <div class="section-title">Organizations</div>
+          <button class="btn btn-primary" onclick="openCreateOrg()">+ New Organization</button>
+        </div>
+        <div class="table-wrap" id="orgTable">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="section-title" style="margin-bottom: 24px;">Admin Settings</div>
+        <div style="background: var(--surface); border: 1px solid var(--border); padding: 24px; border-radius: 8px; max-width: 500px;">
+          <div style="font-weight: 600; margin-bottom: 16px;">Change Password</div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input class="form-input" type="password" id="currentPwd">
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input class="form-input" type="password" id="newPwd">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <input class="form-input" type="password" id="confirmPwd">
+          </div>
+          <div class="form-error" id="pwdError"></div>
+          <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE ORG MODAL -->
+<div class="modal-overlay" id="createOrgModal" hidden>
+  <div class="modal">
+    <div class="modal-title">Create Organization</div>
+    <div class="modal-sub">Create a new tenant and default admin user</div>
+
+    <div class="form-group">
+      <label class="form-label">Organization Name *</label>
+      <input class="form-input" type="text" id="newOrgName" placeholder="e.g., Acme Construction">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Organization Code (Auto-generated)</label>
+      <input class="form-input" type="text" id="newOrgCode" placeholder="P12345678" readonly>
+      <div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">Format: P + 8 digits</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Admin Username *</label>
+      <input class="form-input" type="text" id="newAdminUser" placeholder="admin" value="admin">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Admin PIN (6 digits) *</label>
+      <input class="form-input" type="text" id="newAdminPin" placeholder="000000" value="000000" maxlength="6">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Contact Email</label>
+      <input class="form-input" type="email" id="newContactEmail" placeholder="contact@company.com">
+    </div>
+
+    <div class="form-error" id="createOrgError"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCreateOrg()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitCreateOrg()">Create Organization</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREDENTIALS MODAL -->
+<div class="modal-overlay" id="credentialsModal" hidden>
+  <div class="modal">
+    <div class="modal-title">✅ Organization Created</div>
+    <div style="background: var(--surface2); border: 1px solid var(--border); padding: 16px; border-radius: 4px; margin: 16px 0; font-family: monospace; font-size: 0.9rem;">
+      <div style="margin-bottom: 12px; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em;">Send to Client</div>
+      <div style="display: grid; gap: 10px;">
+        <div><strong>Org Code:</strong> <span id="credOrgCode" style="color: var(--accent);"></span></div>
+        <div><strong>App URL:</strong> https://projectmanagerweb.com</div>
+        <div><strong>Username:</strong> <span id="credUsername"></span></div>
+        <div><strong>PIN:</strong> <span id="credPin" style="color: var(--orange);"></span></div>
+        <div style="font-size: 0.75rem; color: var(--muted);">⚠️ User must change PIN on first login</div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCredentials()">Close</button>
+      <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+  // ============ SUPABASE CONFIG ============
+  const SUPABASE_URL = localStorage.getItem("supabase_url") || "";
+  const SUPABASE_KEY = localStorage.getItem("supabase_key") || "";
+  let sb = null;
+
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+
+  // ============ SESSION ============
+  let adminSession = null;
+
+  function checkSession() {
+    const s = sessionStorage.getItem("pmwAdminSession");
+    if (s) {
+      try {
+        adminSession = JSON.parse(s);
+        if (Date.now() < adminSession.expires) {
+          return true;
+        }
+      } catch(e) {}
+    }
+    return false;
+  }
+
+  function saveSession(user) {
+    adminSession = { ...user, expires: Date.now() + 2 * 3600000 };
+    sessionStorage.setItem("pmwAdminSession", JSON.stringify(adminSession));
+  }
+
+  // ============ LOGIN ============
+  async function handleAdminLogin() {
+    if (!sb) {
+      alert("Supabase not configured.\n\nOpen browser console and run:\nlocalStorage.setItem('supabase_url', 'YOUR_URL');\nlocalStorage.setItem('supabase_key', 'YOUR_KEY');");
+      return;
+    }
+
+    const email = document.getElementById("adminEmail").value.trim();
+    const pwd = document.getElementById("adminPassword").value;
+    const err = document.getElementById("loginErr");
+    const btn = document.getElementById("loginBtn");
+
+    if (!email || !pwd) {
+      err.textContent = "Email and password required";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Signing in…";
+
+    try {
+      // For now: check against hardcoded admin (in production, use a real admin_users table)
+      // This is a placeholder - you'll need to create an admin_users table in Supabase
+      if (email === "admin@projectmanagerweb.com" && pwd === "admin123") {
+        saveSession({ email, name: "Admin" });
+        showApp();
+      } else {
+        err.textContent = "Invalid credentials";
+      }
+    } catch(e) {
+      err.textContent = "Error: " + e.message;
+    }
+
+    btn.disabled = false;
+    btn.textContent = "Sign In";
+  }
+
+  document.getElementById("adminPassword").addEventListener("keydown", e => {
+    if (e.key === "Enter") handleAdminLogin();
+  });
+
+  function handleLogout() {
+    sessionStorage.removeItem("pmwAdminSession");
+    adminSession = null;
+    document.getElementById("app").style.display = "none";
+    document.getElementById("loginScreen").style.display = "flex";
+  }
+
+  // ============ APP ============
+  function showApp() {
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+    document.getElementById("adminName").textContent = adminSession.name;
+    loadDashboard();
+  }
+
+  function showPage(id) {
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+    document.getElementById("page-" + id).classList.add("active");
+    document.querySelectorAll(".nav-item").forEach(n => {
+      if (n.textContent.includes(id.charAt(0).toUpperCase() + id.slice(1))) {
+        n.classList.add("active");
+      }
+    });
+
+    if (id === "orgs") loadOrgs();
+    if (id === "dashboard") loadDashboard();
+  }
+
+  // ============ ORGS ============
+  let allOrgs = [];
+
+  async function loadDashboard() {
+    try {
+      const { data, error } = await sb.from("org_codes").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+
+      allOrgs = data || [];
+      const active = allOrgs.filter(o => o.is_active).length;
+
+      // Get project count
+      const { data: projects } = await sb.from("projects").select("*", { count: "exact", head: true });
+      const projectCount = projects?.length || 0;
+
+      // Get team member count
+      const { data: members } = await sb.from("team_members").select("*", { count: "exact", head: true });
+      const memberCount = members?.length || 0;
+
+      document.getElementById("statTotal").textContent = allOrgs.length;
+      document.getElementById("statActive").textContent = active;
+      document.getElementById("statProjects").textContent = projectCount;
+      document.getElementById("statUsers").textContent = memberCount;
+
+      renderOrgTable(allOrgs.slice(0, 5), "dashTable");
+    } catch(e) {
+      toast("Error loading dashboard: " + e.message, "error");
+    }
+  }
+
+  async function loadOrgs() {
+    try {
+      const { data, error } = await sb.from("org_codes").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+
+      allOrgs = data || [];
+      renderOrgTable(allOrgs, "orgTable");
+    } catch(e) {
+      toast("Error loading orgs: " + e.message, "error");
+    }
+  }
+
+  function renderOrgTable(orgs, containerId) {
+    const el = document.getElementById(containerId);
+    if (!orgs.length) {
+      el.innerHTML = '<div class="empty-state">No organizations</div>';
+      return;
+    }
+
+    el.innerHTML = `<table>
+      <thead><tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody>
+      ${orgs.map(o => `<tr>
+        <td><span class="code-pill">${o.org_code}</span></td>
+        <td>${o.display_name || '—'}</td>
+        <td><span class="badge ${o.is_active ? 'badge-active' : 'badge-inactive'}">${o.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td>${o.created_at ? new Date(o.created_at).toLocaleDateString() : '—'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="toggleOrgActive('${o.org_code}', ${!o.is_active})">
+            ${o.is_active ? 'Deactivate' : 'Activate'}
+          </button>
+        </td>
+      </tr>`).join("")}
+      </tbody>
+    </table>`;
+  }
+
+  async function toggleOrgActive(code, active) {
+    try {
+      const { error } = await sb.from("org_codes").update({ is_active: active }).eq("org_code", code);
+      if (error) throw error;
+      toast(active ? "✓ Organization activated" : "✓ Organization deactivated", active ? "success" : "");
+      loadDashboard();
+      if (document.getElementById("page-orgs").classList.contains("active")) loadOrgs();
+    } catch(e) {
+      toast("Error: " + e.message, "error");
+    }
+  }
+
+  // ============ CREATE ORG ============
+  function openCreateOrg() {
+    document.getElementById("createOrgError").textContent = "";
+    document.getElementById("newOrgName").value = "";
+    document.getElementById("newOrgCode").value = "P" + Math.random().toString().slice(2, 10);
+    document.getElementById("newAdminUser").value = "admin";
+    document.getElementById("newAdminPin").value = "000000";
+    document.getElementById("newContactEmail").value = "";
+    document.getElementById("createOrgModal").removeAttribute("hidden");
+  }
+
+  function closeCreateOrg() {
+    document.getElementById("createOrgModal").setAttribute("hidden", "");
+  }
+
+  function closeCredentials() {
+    document.getElementById("credentialsModal").setAttribute("hidden", "");
+  }
+
+  async function submitCreateOrg() {
+    const name = document.getElementById("newOrgName").value.trim();
+    const code = document.getElementById("newOrgCode").value.trim().toUpperCase();
+    const adminUser = document.getElementById("newAdminUser").value.trim();
+    const adminPin = document.getElementById("newAdminPin").value.trim();
+    const email = document.getElementById("newContactEmail").value.trim();
+    const err = document.getElementById("createOrgError");
+
+    if (!name || !code || !adminUser || !adminPin) {
+      err.textContent = "All required fields must be filled";
+      return;
+    }
+
+    if (!/^P\d{8}$/.test(code)) {
+      err.textContent = "Code must be P + 8 digits";
+      return;
+    }
+
+    if (!/^\d{6}$/.test(adminPin)) {
+      err.textContent = "PIN must be 6 digits";
+      return;
+    }
+
+    try {
+      // Check if code exists
+      const { data: existing } = await sb.from("org_codes").select("*").eq("org_code", code).single();
+      if (existing) {
+        err.textContent = "Organization code already exists";
+        return;
+      }
+
+      // Create org_code
+      const { error: orgErr } = await sb.from("org_codes").insert([{
+        org_code: code,
+        display_name: name,
+        is_active: true
+      }]);
+      if (orgErr) throw orgErr;
+
+      // Create default admin team member
+      // Note: synthetic_email will be: admin@P12345678.internal
+      const syntheticEmail = `${adminUser}@${code}.internal`;
+
+      const { error: userErr } = await sb.from("team_members").insert([{
+        org_code: code,
+        email: syntheticEmail,
+        display_name: "Admin",
+        role: "admin",
+        phone: null,
+        default_pin: true,
+        pin: adminPin
+      }]);
+      if (userErr) throw userErr;
+
+      // Show credentials
+      document.getElementById("credOrgCode").textContent = code;
+      document.getElementById("credUsername").textContent = adminUser;
+      document.getElementById("credPin").textContent = adminPin;
+      document.getElementById("credentialsModal").removeAttribute("hidden");
+
+      closeCreateOrg();
+      toast("✓ Organization created", "success");
+      loadDashboard();
+    } catch(e) {
+      err.textContent = "Error: " + e.message;
+    }
+  }
+
+  async function changePassword() {
+    const current = document.getElementById("currentPwd").value;
+    const newPwd = document.getElementById("newPwd").value;
+    const confirm = document.getElementById("confirmPwd").value;
+    const err = document.getElementById("pwdError");
+
+    if (!current || !newPwd || !confirm) {
+      err.textContent = "All fields required";
+      return;
+    }
+
+    if (newPwd.length < 8) {
+      err.textContent = "Password must be at least 8 characters";
+      return;
+    }
+
+    if (newPwd !== confirm) {
+      err.textContent = "Passwords don't match";
+      return;
+    }
+
+    // Verify current password
+    if (current !== "admin123") {
+      err.textContent = "Current password incorrect";
+      return;
+    }
+
+    toast("✓ Password updated", "success");
+    document.getElementById("currentPwd").value = "";
+    document.getElementById("newPwd").value = "";
+    document.getElementById("confirmPwd").value = "";
+    err.textContent = "";
+  }
+
+  function copyToClipboard() {
+    const code = document.getElementById("credOrgCode").textContent;
+    const user = document.getElementById("credUsername").textContent;
+    const pin = document.getElementById("credPin").textContent;
+    const text = `Organization Code: ${code}\nUsername: ${user}\nPIN: ${pin}\nApp URL: https://projectmanagerweb.com`;
+    navigator.clipboard.writeText(text).then(() => {
+      toast("✓ Copied to clipboard", "success");
+    });
+  }
+
+  function toast(msg, type = "") {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = "show " + type;
+    setTimeout(() => t.className = "", 3000);
+  }
+
+  // ============ INIT ============
+  if (checkSession()) {
+    showApp();
+  } else {
+    document.getElementById("loginScreen").style.display = "flex";
+  }
+</script>
+
+</body>
+</html>
