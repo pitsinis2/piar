@@ -434,7 +434,89 @@
     // Load portal data
     async function loadPortal() {
       try {
-        const response = await fetch(`/functions/v1/client-portal-data/${shareToken}`);
+        // Try real endpoint first, fall back to mock data for testing
+        const response = await fetch(`/functions/v1/client-portal-data/${shareToken}`).catch(() => null);
+
+        if (!response || !response.ok) {
+          // Fallback to mock data for testing (before Edge Functions deployed)
+          const mockData = {
+            project: {
+              id: "mock-project-1",
+              name: "Kitchen Remodel - 123 Main St",
+              address: "123 Main Street, Springfield, IL 62701",
+              startDate: "2026-01-20T00:00:00Z",
+              endDate: "2026-02-15T00:00:00Z",
+              status: "active",
+              completionPercent: 75
+            },
+            areas: [
+              { id: "area-1", name: "Kitchen", photoCount: 12 },
+              { id: "area-2", name: "Bathroom", photoCount: 8 },
+              { id: "area-3", name: "Hallway", photoCount: 5 }
+            ],
+            notes: [
+              {
+                id: "note-1",
+                title: "Kitchen cabinets installed",
+                content: "All cabinets in place, hardware installed, looks great!",
+                createdAt: "2026-02-08T10:30:00Z",
+                areaId: "area-1",
+                areaName: "Kitchen",
+                photos: ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23ddd' width='400' height='300'/%3E%3Ctext x='50%' y='50%' text-anchor='middle' dy='.3em' fill='%23999' font-size='24'%3EKitchen Photo%3C/text%3E%3C/svg%3E"],
+                isCompleted: false
+              },
+              {
+                id: "note-2",
+                title: "Plumbing fixtures rough-in",
+                content: "Pipes installed for kitchen sink and bathroom. Inspector approved.",
+                createdAt: "2026-02-06T14:00:00Z",
+                areaId: "area-2",
+                areaName: "Bathroom",
+                photos: ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23ddd' width='400' height='300'/%3E%3Ctext x='50%' y='50%' text-anchor='middle' dy='.3em' fill='%23999' font-size='24'%3EBathroom Photo%3C/text%3E%3C/svg%3E"],
+                isCompleted: false
+              },
+              {
+                id: "note-3",
+                title: "Drywall repair needed - bathroom corner",
+                content: "Small water damage in bathroom corner. Will patch and repaint.",
+                createdAt: "2026-02-07T09:15:00Z",
+                areaId: "area-2",
+                areaName: "Bathroom",
+                photos: [],
+                isCompleted: false
+              }
+            ],
+            team: [
+              {
+                id: "user-1",
+                name: "John Smith",
+                role: "Lead Contractor",
+                email: "john@contractor.com",
+                phone: "+1-555-0123"
+              },
+              {
+                id: "user-2",
+                name: "Maria Rodriguez",
+                role: "Plumber",
+                email: "maria@contractor.com",
+                phone: "+1-555-0124"
+              }
+            ]
+          };
+
+          renderPortal(mockData);
+          setupTabSwitching();
+
+          // Show test notice
+          const notice = document.createElement('div');
+          notice.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #fff3cd; color: #856404; padding: 1em; text-align: center; font-size: 0.9em; z-index: 1000;';
+          notice.textContent = '🧪 TEST MODE: Using mock data. Deploy Edge Functions to Supabase to use real data.';
+          document.body.insertBefore(notice, document.body.firstChild);
+          return;
+        }
+
+        const data = await response.json();
+        renderPortal(data);
 
         if (response.status === 404) {
           throw new Error('Project not found. The share link may have expired or been revoked.');
