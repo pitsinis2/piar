@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Portal</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    #app {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      min-height: 100vh;
+    }
+
+    #loading, #error {
+      padding: 2em;
+      text-align: center;
+    }
+
+    #error {
+      background: #ffebee;
+      color: #c62828;
+      border-radius: 8px;
+      margin: 2em;
+    }
+
+    /* Header */
+    #project-header {
+      padding: 2em;
+      border-bottom: 1px solid #e0e0e0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .project-title {
+      font-size: 1.8em;
+      font-weight: 600;
+      margin-bottom: 0.5em;
+    }
+
+    .project-address {
+      font-size: 0.95em;
+      opacity: 0.9;
+      margin-bottom: 1em;
+    }
+
+    .project-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1em;
+      margin-top: 1.5em;
+      font-size: 0.9em;
+    }
+
+    @media (max-width: 600px) {
+      .project-meta { grid-template-columns: 1fr; }
+      .project-title { font-size: 1.4em; }
+      #project-header { padding: 1.5em; }
+    }
+
+    .meta-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .meta-label { opacity: 0.9; }
+    .meta-value { font-weight: 600; }
+
+    /* Progress Bar */
+    .progress-container {
+      margin-top: 1em;
+    }
+
+    .progress-bar {
+      background: rgba(255,255,255,0.3);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      background: #4caf50;
+      height: 100%;
+      transition: width 0.3s;
+    }
+
+    /* Tabs */
+    #tabs {
+      display: flex;
+      border-bottom: 1px solid #e0e0e0;
+      background: #fafafa;
+      padding: 0 2em;
+      gap: 0;
+    }
+
+    .tab-btn {
+      padding: 1em 1.5em;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.95em;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .tab-btn.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: #333;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+      padding: 2em;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Gallery */
+    .gallery-areas {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5em;
+      margin-bottom: 2em;
+    }
+
+    .area-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .area-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .area-header {
+      background: #f5f5f5;
+      padding: 1em;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .photo-count {
+      background: #667eea;
+      color: white;
+      padding: 0.3em 0.8em;
+      border-radius: 20px;
+      font-size: 0.85em;
+      font-weight: 600;
+    }
+
+    .area-preview {
+      width: 100%;
+      height: 180px;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 0.9em;
+    }
+
+    .area-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Photo Carousel */
+    .photo-carousel {
+      margin-top: 2em;
+      padding: 1.5em;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+
+    .carousel-title {
+      font-size: 1.2em;
+      font-weight: 600;
+      margin-bottom: 1em;
+    }
+
+    .carousel-image {
+      width: 100%;
+      max-height: 500px;
+      border-radius: 8px;
+      margin-bottom: 1em;
+      object-fit: contain;
+    }
+
+    .carousel-caption {
+      color: #666;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+
+    .carousel-meta {
+      margin-top: 1em;
+      padding-top: 1em;
+      border-top: 1px solid #e0e0e0;
+      color: #999;
+      font-size: 0.85em;
+    }
+
+    /* Punch List */
+    .punch-items {
+      display: grid;
+      gap: 1em;
+    }
+
+    .punch-item {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.5em;
+      background: #fafafa;
+    }
+
+    .punch-item.open {
+      border-left: 4px solid #ff9800;
+    }
+
+    .punch-item.closed {
+      border-left: 4px solid #4caf50;
+      opacity: 0.7;
+    }
+
+    .punch-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 0.5em;
+      color: #333;
+    }
+
+    .punch-location {
+      color: #667eea;
+      font-size: 0.9em;
+      margin-bottom: 0.5em;
+    }
+
+    .punch-description {
+      color: #666;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+
+    .punch-photos {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0.5em;
+      margin-top: 1em;
+    }
+
+    .punch-photo {
+      width: 100%;
+      height: 120px;
+      border-radius: 4px;
+      object-fit: cover;
+      cursor: pointer;
+    }
+
+    .punch-status {
+      display: inline-block;
+      margin-top: 1em;
+      padding: 0.4em 1em;
+      border-radius: 20px;
+      font-size: 0.85em;
+      font-weight: 600;
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .punch-status.open { background: #fff3e0; color: #e65100; }
+    .punch-status.closed { background: #e8f5e9; color: #2e7d32; }
+
+    /* Team */
+    .team-members {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5em;
+    }
+
+    .team-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.5em;
+      text-align: center;
+      background: #f9f9f9;
+    }
+
+    .team-name {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 0.3em;
+    }
+
+    .team-role {
+      color: #667eea;
+      font-size: 0.9em;
+      margin-bottom: 1em;
+    }
+
+    .team-contact {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      font-size: 0.95em;
+    }
+
+    .team-link {
+      color: #667eea;
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .team-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 3em 1em;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 3em;
+      margin-bottom: 1em;
+    }
+
+    /* Footer */
+    footer {
+      padding: 2em;
+      text-align: center;
+      color: #999;
+      font-size: 0.9em;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .footer-text {
+      margin-bottom: 0.5em;
+    }
+
+    .footer-branding {
+      font-size: 0.85em;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="loading">
+      <div style="padding: 3em; text-align: center;">
+        <p style="font-size: 1.2em; color: #667eea; margin-bottom: 1em;">📁 Loading project...</p>
+        <div style="width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+      </div>
+    </div>
+
+    <div id="error" style="display:none;">
+      <!-- Error message inserted here -->
+    </div>
+
+    <div id="content" style="display:none;">
+      <header id="project-header"></header>
+
+      <nav id="tabs">
+        <button class="tab-btn active" data-tab="gallery">📸 Gallery</button>
+        <button class="tab-btn" data-tab="punch-list">✓ Punch List</button>
+        <button class="tab-btn" data-tab="team">👥 Team</button>
+      </nav>
+
+      <div id="gallery" class="tab-content active"></div>
+      <div id="punch-list" class="tab-content"></div>
+      <div id="team" class="tab-content"></div>
+
+      <footer>
+        <div class="footer-text">📅 Last updated: <span id="last-updated">Just now</span></div>
+        <div class="footer-branding">Powered by Project Manager Web</div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const SUPABASE_URL = window.location.origin.includes('localhost')
+      ? 'http://localhost:54321'  // Local dev
+      : 'https://[project].supabase.co';  // Production
+
+    // Extract share token from URL
+    const shareToken = window.location.pathname.split('/').pop();
+
+    // Helper: Format date
+    function formatDate(isoDate) {
+      return new Date(isoDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+
+    function formatDateTime(isoDate) {
+      return new Date(isoDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+
+    // Load portal data
+    async function loadPortal() {
+      try {
+        const response = await fetch(`/functions/v1/client-portal-data/${shareToken}`);
+
+        if (response.status === 404) {
+          throw new Error('Project not found. The share link may have expired or been revoked.');
+        }
+        if (response.status === 403) {
+          throw new Error('Access denied. This share link is no longer valid.');
+        }
+        if (!response.ok) {
+          throw new Error('Failed to load project. Please try again later.');
+        }
+
+        const data = await response.json();
+        renderPortal(data);
+        setupTabSwitching();
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    // Show error message
+    function showError(message) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('error').innerHTML = `
+        <div style="max-width: 500px; margin: 0 auto;">
+          <div style="font-size: 2em; margin-bottom: 0.5em;">⚠️</div>
+          <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 0.5em;">Unable to Load Project</div>
+          <p>${message}</p>
+          <p style="margin-top: 1em; font-size: 0.9em; opacity: 0.8;">If you believe this is an error, please contact the project manager.</p>
+        </div>
+      `;
+    }
+
+    // Render complete portal
+    function renderPortal(data) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      renderHeader(data.project);
+      renderGallery(data);
+      renderPunchList(data.notes || []);
+      renderTeam(data.team || []);
+
+      // Update last updated time
+      document.getElementById('last-updated').textContent = 'just now';
+    }
+
+    // Render project header
+    function renderHeader(project) {
+      const header = document.getElementById('project-header');
+      const startDate = new Date(project.startDate);
+      const endDate = new Date(project.endDate);
+      const today = new Date();
+
+      const daysTotal = Math.max(1, Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)));
+      const daysPassed = Math.max(0, Math.floor((today - startDate) / (1000 * 60 * 60 * 24)));
+      const estimatedCompletion = Math.min(100, Math.round((daysPassed / daysTotal) * 100));
+
+      const status = project.status || 'active';
+      const statusEmoji = { active: '🔄', completed: '✅', archived: '📦' }[status] || '•';
+
+      header.innerHTML = `
+        <div class="project-title">${project.name}</div>
+        <div class="project-address">${project.address || 'No address provided'}</div>
+
+        <div class="project-meta">
+          <div class="meta-item">
+            <span class="meta-label">Timeline:</span>
+            <span class="meta-value">${formatDate(project.startDate)} – ${formatDate(project.endDate)}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Status:</span>
+            <span class="meta-value">${statusEmoji} ${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+          </div>
+        </div>
+
+        <div class="progress-container">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
+            <span style="opacity: 0.9; font-size: 0.9em;">Progress</span>
+            <span style="font-weight: 600;">${project.completionPercent || 0}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${project.completionPercent || 0}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render gallery
+    function renderGallery(data) {
+      const gallery = document.getElementById('gallery');
+      const areas = data.areas || [];
+      const notes = data.notes || [];
+
+      if (areas.length === 0) {
+        gallery.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📸</div>
+            <p>No project areas yet.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Group notes by area
+      const notesByArea = {};
+      areas.forEach(area => {
+        notesByArea[area.id] = notes.filter(n => n.areaId === area.id);
+      });
+
+      let html = '<div class="gallery-areas">';
+      areas.forEach(area => {
+        const areaNotesCount = notesByArea[area.id]?.length || 0;
+        const firstNote = notesByArea[area.id]?.[0];
+        const thumbnail = firstNote?.photos?.[0] || null;
+
+        html += `
+          <div class="area-card" onclick="showAreaPhotos('${area.id}')">
+            <div class="area-header">
+              <span>${area.name}</span>
+              <span class="photo-count">${areaNotesCount}</span>
+            </div>
+            <div class="area-preview">
+              ${thumbnail ? `<img src="${thumbnail}" alt="${area.name}">` : '📁 No photos yet'}
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      // Add carousel for all photos
+      const allPhotos = notes.flatMap(n => (n.photos || []).map(p => ({ ...n, photo: p })));
+      if (allPhotos.length > 0) {
+        const firstPhoto = allPhotos[0];
+        html += `
+          <div class="photo-carousel" id="carousel">
+            <div class="carousel-title">Latest Updates</div>
+            <img class="carousel-image" src="${firstPhoto.photo}" alt="Latest photo">
+            <div class="carousel-caption">${firstPhoto.title || 'Project update'}</div>
+            <div class="carousel-meta">
+              📅 ${formatDate(firstPhoto.createdAt)}
+              <br>
+              📍 ${notes.find(n => n.photos?.includes(firstPhoto.photo))?.title || 'Project area'}
+            </div>
+          </div>
+        `;
+      }
+
+      gallery.innerHTML = html;
+    }
+
+    function showAreaPhotos(areaId) {
+      // Phase 2: Implement modal/lightbox for area photos
+      console.log('Show photos for area:', areaId);
+    }
+
+    // Render punch list
+    function renderPunchList(notes) {
+      const punchList = document.getElementById('punch-list');
+
+      // Filter notes that are punch list items (open issues)
+      const items = notes.filter(n => n.title && !n.isCompleted);
+
+      if (items.length === 0) {
+        punchList.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">✅</div>
+            <p>No open issues! Project is running smoothly.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="punch-items">';
+      items.forEach(item => {
+        html += `
+          <div class="punch-item open">
+            <div class="punch-title">${item.title}</div>
+            <div class="punch-location">📍 ${item.areaName || 'Project area'}</div>
+            <div class="punch-description">${item.content || 'No description provided'}</div>
+            ${item.photos && item.photos.length > 0 ? `
+              <div class="punch-photos">
+                ${item.photos.map(photo => `<img class="punch-photo" src="${photo}" alt="Issue photo">`).join('')}
+              </div>
+            ` : ''}
+            <div class="punch-status open">🔴 Open</div>
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      punchList.innerHTML = html;
+    }
+
+    // Render team
+    function renderTeam(team) {
+      const teamDiv = document.getElementById('team');
+
+      if (team.length === 0) {
+        teamDiv.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">👥</div>
+            <p>No team members assigned to this project.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="team-members">';
+      team.forEach(member => {
+        html += `
+          <div class="team-card">
+            <div class="team-name">${member.name}</div>
+            <div class="team-role">${member.role || 'Team Member'}</div>
+            <div class="team-contact">
+              ${member.phone ? `<a class="team-link" href="tel:${member.phone}">📱 ${member.phone}</a>` : ''}
+              ${member.email ? `<a class="team-link" href="mailto:${member.email}">📧 ${member.email}</a>` : ''}
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      teamDiv.innerHTML = html;
+    }
+
+    // Setup tab switching
+    function setupTabSwitching() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tabName = btn.dataset.tab;
+
+          // Remove active class from all buttons and content
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+          // Add active class to clicked button and corresponding content
+          btn.classList.add('active');
+          document.getElementById(tabName).classList.add('active');
+        });
+      });
+    }
+
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadPortal);
+  </script>
+
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #1a1a1a;
+        color: #e0e0e0;
+      }
+
+      #app {
+        background: #2a2a2a;
+      }
+
+      #project-header {
+        background: linear-gradient(135deg, #4a5fc1 0%, #5a3a82 100%);
+      }
+
+      #tabs {
+        background: #333;
+        border-bottom-color: #444;
+      }
+
+      .tab-btn { color: #aaa; }
+      .tab-btn.active { color: #667eea; }
+
+      #tabs { border-bottom-color: #444; }
+      .tab-content { border-top-color: #444; }
+
+      .area-card,
+      .punch-item,
+      .team-card {
+        border-color: #444;
+        background: #333;
+      }
+
+      .photo-carousel {
+        background: #333;
+        border-color: #444;
+      }
+
+      .area-header { background: #3a3a3a; }
+
+      footer {
+        border-top-color: #444;
+        color: #888;
+      }
+    }
+  </style>
+</body>
+</html>
