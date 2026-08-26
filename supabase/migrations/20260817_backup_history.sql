@@ -22,6 +22,9 @@ create index idx_backup_history_org_created on backup_history(org_code, created_
 
 alter table backup_history enable row level security;
 
+drop policy if exists "backup_history_read_own_org" on backup_history;
+drop policy if exists "backup_history_insert_own_org" on backup_history;
+
 create policy "backup_history_read_own_org"
   on backup_history for select
   to authenticated

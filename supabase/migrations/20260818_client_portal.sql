@@ -29,6 +29,11 @@ alter table team_members add column if not exists show_on_client_portal boolean 
 -- Enable RLS on project_shares
 alter table project_shares enable row level security;
 
+-- Drop existing policies if they exist
+drop policy if exists "project_shares_read_own_org" on project_shares;
+drop policy if exists "project_shares_insert_own_org" on project_shares;
+drop policy if exists "project_shares_update_own_org" on project_shares;
+
 -- Team can see shares for projects they access
 create policy "project_shares_read_own_org"
   on project_shares for select

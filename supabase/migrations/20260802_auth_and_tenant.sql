@@ -46,6 +46,8 @@ alter table org_codes enable row level security;
 alter table team_members enable row level security;
 
 -- org_codes policies
+drop policy if exists "org_codes_read_public" on org_codes;
+drop policy if exists "org_codes_update_admin_only" on org_codes;
 
 -- Anyone can read org info (needed for signup)
 create policy "org_codes_read_public"
@@ -68,6 +70,10 @@ create policy "org_codes_update_admin_only"
   );
 
 -- team_members policies
+drop policy if exists "team_members_read_own_org" on team_members;
+drop policy if exists "team_members_read_anon" on team_members;
+drop policy if exists "team_members_insert_admin_only" on team_members;
+drop policy if exists "team_members_update_admin_or_self" on team_members;
 
 -- Users can see team members in their own org
 create policy "team_members_read_own_org"
@@ -118,6 +124,10 @@ drop policy if exists "dev_anon_write" on storage.objects;
 drop policy if exists "dev_anon_update" on storage.objects;
 
 -- New storage policies: only authenticated users in their own org
+drop policy if exists "auth_tenant_read" on storage.objects;
+drop policy if exists "auth_tenant_write" on storage.objects;
+drop policy if exists "auth_tenant_update" on storage.objects;
+
 create policy "auth_tenant_read"
   on storage.objects for select
   to authenticated

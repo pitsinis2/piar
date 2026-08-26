@@ -88,6 +88,23 @@ alter table areas enable row level security;
 alter table notes enable row level security;
 alter table tasks enable row level security;
 
+-- Drop existing policies if they exist
+drop policy if exists "projects_read_own_org" on projects;
+drop policy if exists "projects_insert_admin" on projects;
+drop policy if exists "projects_update_admin" on projects;
+drop policy if exists "projects_delete_admin" on projects;
+drop policy if exists "areas_read_own_org" on areas;
+drop policy if exists "areas_insert_in_project" on areas;
+drop policy if exists "areas_update_in_project" on areas;
+drop policy if exists "notes_read_own_org" on notes;
+drop policy if exists "notes_insert_own_org" on notes;
+drop policy if exists "notes_update_own_org" on notes;
+drop policy if exists "notes_delete_own" on notes;
+drop policy if exists "tasks_read_own_org" on tasks;
+drop policy if exists "tasks_insert_own_org" on tasks;
+drop policy if exists "tasks_update_own_org" on tasks;
+drop policy if exists "tasks_delete_own" on tasks;
+
 -- Projects policies
 create policy "projects_read_own_org"
   on projects for select

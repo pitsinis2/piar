@@ -18794,7 +18794,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async function() {
       await logout();
-      loginModal.showModal();
       updateAuthUI();
       render();
     });
@@ -18808,6 +18807,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 function updateAuthUI() {
   const logoutBtn = document.getElementById('logout-btn');
   const sessionSummary = document.getElementById('current-user-summary');
+  const loginModal = document.getElementById('login-modal');
 
   if (isLoggedIn && logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'block';
@@ -18817,9 +18817,28 @@ function updateAuthUI() {
       Role: ${currentRole || 'N/A'}<br>
       <em style="font-size: 0.9em;">${currentUserId ? '✓ Authenticated' : ''}</em>
     `;
+    // Close login modal when logged in
+    if (loginModal && loginModal.open) {
+      loginModal.close();
+    }
   } else if (logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'none';
     sessionSummary.innerHTML = '<em>Not logged in</em>';
+    // Show login modal when not logged in
+    if (loginModal) {
+      console.log('Showing login modal. Currently open:', loginModal.open);
+      try {
+        if (!loginModal.open) {
+          console.log('Calling showModal()...');
+          loginModal.showModal();
+          console.log('showModal() succeeded');
+        } else {
+          console.log('Modal already open, skipping showModal()');
+        }
+      } catch (error) {
+        console.warn('Could not show login modal:', error.message);
+      }
+    }
   }
 }
 
