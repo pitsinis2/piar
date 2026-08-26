@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "C:\\Progra~1\\nodejs\\node.exe node_modules/vite/bin/vite.js",
-    "dev:phone": "C:\\Progra~1\\nodejs\\node.exe node_modules/vite/bin/vite.js --host 0.0.0.0",
-    "ai:server": "C:\\Progra~1\\nodejs\\node.exe ai-secretary-server.mjs",
-    "verify:openai": "C:\\Progra~1\\nodejs\\node.exe verify-openai.mjs",
-    "build": "C:\\Progra~1\\nodejs\\node.exe node_modules/typescript/bin/tsc && C:\\Progra~1\\nodejs\\node.exe node_modules/vite/bin/vite.js build",
-    "preview": "C:\\Progra~1\\nodejs\\node.exe node_modules/vite/bin/vite.js preview"
+    "dev": "vite",
+    "dev:phone": "vite --host 0.0.0.0",
+    "ai:server": "node ai-secretary-server.mjs",
+    "verify:openai": "node verify-openai.mjs",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
