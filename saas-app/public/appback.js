@@ -1894,7 +1894,7 @@ function normalizeMemberWorkmode(value) {
   return "none";
 }
 
-function normalizePin(value, fallback = "000000") {
+function normalizePin(value, fallback = "123456") {
   const digits = String(value || "").replace(/\D+/g, "");
   return digits.length === 6 ? digits : fallback;
 }
@@ -17807,20 +17807,9 @@ let currentUsername = null;
 let currentOrgCode = null;
 let currentRole = 'worker';
 
+// No longer needed: first workspace user is now created on first login with the login username
 function checkDefaultAdminSecurity() {
-  if (!state.users) return;
-  const defaultAdmin = state.users.find(u => u.name === "Admin" && !u.surname);
-  if (defaultAdmin && defaultAdmin.mustChangePin !== false) {
-    const message = `⚠️ SECURITY: Your organization has a default "Admin" user (Personal No: ${getMemberPersonalNumber(defaultAdmin) || "1"}) that was auto-created when the org was set up.
-
-This is a potential security concern. Please:
-1. Go to Team Members
-2. Create your own named admin accounts
-3. Change or disable this default account
-4. Delete it if not needed`;
-
-    showAppMessage(message, "warning", "Security Alert");
-  }
+  // Legacy function - kept for backwards compatibility but no longer warns
 }
 
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
@@ -17869,10 +17858,31 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
     if (!hadCloudState) {
       await loadOrgData();
     }
-    persist();
 
-    // Security check: warn if org has default auto-created "Admin" user (security concern)
-    setTimeout(() => checkDefaultAdminSecurity(), 1000);
+    // First login: if org has no workspace users yet, create one for this login member
+    if (!state.users || state.users.length === 0) {
+      const firstUser = createSystemUser({
+        id: member.id || crypto.randomUUID(),
+        personalNumber: "1",
+        name: member.name || member.username,
+        surname: member.surname || "",
+        tel: member.tel || "",
+        email: member.email || "",
+        username: member.username,
+        role: "admin",
+        qualification: 0,
+        workmode: "none",
+        status: "active",
+        createdAt: new Date().toISOString(),
+        pinCode: DEFAULT_MEMBER_PIN,
+        mustChangePin: true,
+        loginEnabled: true,
+      });
+      state.users = [firstUser];
+      logAudit("First admin user created on first login", { objectType: "member", objectName: `${member.name || member.username} (admin)` });
+    }
+
+    persist();
 
     return { user, member };
   } catch (error) {

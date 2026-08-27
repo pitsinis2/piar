@@ -206,26 +206,10 @@ serve(async (req) => {
       ]);
       if (memberErr) return json({ error: "team_members: " + memberErr.message }, 500);
 
-      // 5. Seed workspace state with one internal admin user (default PIN)
+      // 5. Seed empty workspace state (first user created on first login)
       const now = new Date().toISOString();
-      const internalAdmin = {
-        id: crypto.randomUUID(),
-        personalNumber: "1",
-        name: "Admin",
-        surname: "",
-        tel: "",
-        email: contactEmail || "",
-        role: "admin",
-        qualification: 0,
-        workmode: "none",
-        status: "active",
-        createdAt: now,
-        pinCode: pin,
-        mustChangePin: true,
-        lastLoginAt: null,
-      };
       const { error: stateErr } = await supabase.from("org_state").upsert(
-        [{ org_code: orgCode, state: { users: [internalAdmin] }, updated_at: now }],
+        [{ org_code: orgCode, state: { users: [] }, updated_at: now }],
         { onConflict: "org_code" },
       );
       if (stateErr) console.error("org_state seed failed:", stateErr.message);
