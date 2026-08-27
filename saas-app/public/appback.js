@@ -17882,10 +17882,12 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
       logAudit("First admin user created on first login", { objectType: "member", objectName: `${member.name || member.username} (admin)` });
     } else {
       // Cleanup: remove auto-created "Admin" user if it still exists from before the fix
-      const autoAdmin = state.users.find(u => u.name === "Admin" && !u.surname && u.personalNumber === "1");
-      if (autoAdmin && state.users.length > 1) {
+      // Delete ANY user named "Admin" with no surname (this is always the auto-created one)
+      const autoAdmin = state.users.find(u => u.name === "Admin" && !u.surname);
+      if (autoAdmin) {
         state.users = state.users.filter(u => u.id !== autoAdmin.id);
-        logAudit("Auto-created Admin user removed", { objectType: "cleanup", objectName: "Default Admin" });
+        logAudit("Auto-created Admin user removed on login", { objectType: "cleanup", objectName: "Default Admin" });
+        showAppNotification("Removed auto-created Admin user from workspace.", { tag: "admin-cleanup" });
       }
     }
 
