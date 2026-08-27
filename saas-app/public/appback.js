@@ -17807,6 +17807,22 @@ let currentUsername = null;
 let currentOrgCode = null;
 let currentRole = 'worker';
 
+function checkDefaultAdminSecurity() {
+  if (!state.users) return;
+  const defaultAdmin = state.users.find(u => u.name === "Admin" && !u.surname);
+  if (defaultAdmin && defaultAdmin.mustChangePin !== false) {
+    const message = `⚠️ SECURITY: Your organization has a default "Admin" user (Personal No: ${getMemberPersonalNumber(defaultAdmin) || "1"}) that was auto-created when the org was set up.
+
+This is a potential security concern. Please:
+1. Go to Team Members
+2. Create your own named admin accounts
+3. Change or disable this default account
+4. Delete it if not needed`;
+
+    showAppMessage(message, "warning", "Security Alert");
+  }
+}
+
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
   orgCode = String(orgCode || "").trim().toUpperCase();
   if (!/^[PD]\d{8}$/.test(orgCode)) {
@@ -17854,6 +17870,9 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
       await loadOrgData();
     }
     persist();
+
+    // Security check: warn if org has default auto-created "Admin" user (security concern)
+    setTimeout(() => checkDefaultAdminSecurity(), 1000);
 
     return { user, member };
   } catch (error) {
@@ -19047,7 +19066,7 @@ function updateAuthUI() {
     logoutBtn.style.display = 'block';
     sessionSummary.innerHTML = `
       <strong>${currentUsername || 'User'}</strong><br>
-      Org: ${currentOrgCode || 'N/A'}<br>
+      <span style="font-size: 1.1em; color: #0077be; font-weight: 600;">📍 ${currentOrgCode || 'N/A'}</span><br>
       Role: ${currentRole || 'N/A'}<br>
       <em style="font-size: 0.9em;">${currentUserId ? '✓ Authenticated' : ''}</em>
     `;
