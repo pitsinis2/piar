@@ -915,5 +915,25 @@ window.APP_TRANSLATIONS = {
     "Wait before answer (seconds)": "Αναμονή πριν την απάντηση (δευτερόλεπτα)",
     "Tell me what happened.": "Πείτε μου τι συνέβη.",
     "Hello, I hear you.": "Γεια σας, σας ακούω.",
+
+    // ---- AI Helper / Voice features ----
+    "Choose what you want to add.": "Επιλέξτε τι θέλετε να προσθέσετε.",
+    "Speech to editable project drafts.": "Φωνή σε επεξεργάσιμα προσχέδια έργου.",
+    "Offer draft from speech": "Προσχέδιο προσφοράς από ομιλία",
+    "Turn spoken job notes into an editable offer draft before anything is sent.": "Μετατρέψτε τις φωνητικές σημειώσεις σε προσχέδιο προσφοράς.",
+    "Editable note draft": "Επεξεργάσιμο προσχέδιο σημείωσης",
+    "Needs check markers": "Δείκτες που χρειάζονται έλεγχο",
+    "Material list from speech": "Λίστα υλικών από ομιλία",
+    "Capture material requests and keep unclear items marked as needs check.": "Καταγραφή αιτημάτων υλικών και σήμανση αβέβαιων.",
+    "Summarize long spoken updates and save them to project notes or area notes.": "Σύνοψη μεγάλων ενημερώσεων και αποθήκευση στις σημειώσεις.",
+    "Listen to a discussion and turn it into decisions, tasks, and next steps.": "Ακούστε συζήτηση και μετατρέψτε την σε αποφάσεις και εργασίες.",
+    "2 sec wait": "Αναμονή 2 δευτ.",
+    "Review": "Έλεγχος",
+    "Reads draft aloud": "Ανάγνωση προσχεδίου",
+
+    // ---- Client details ----
+    "No address yet.": "Χωρίς διεύθυνση ακόμα",
+    "Company:": "Εταιρεία:",
+    "UID:": "ΑΦΜ:",
   },
 };
