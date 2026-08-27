@@ -182,6 +182,8 @@ window.APP_TRANSLATIONS = {
     "Login access for this member is disabled. Contact your admin.": "Η σύνδεση για αυτό το μέλος είναι κλειδωμένη. Επικοινωνήστε με τον διαχειριστή.",
     "Only admins can change login access.": "Μόνο οι διαχειριστές αλλάζουν την πρόσβαση σύνδεσης.",
     "PIN change required": "Απαιτείται αλλαγή PIN",
+    "Last login": "Τελευταία σύνδεση",
+    "Never": "Ποτέ",
 
     // ---- Backup / sync ----
     "Download Backup": "Λήψη αντιγράφου",
