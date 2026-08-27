@@ -66,6 +66,13 @@
         <button id="reset-access-preview-btn" class="ghost-btn" type="button">Back to Developer</button>
       </div>
       <div id="current-user-summary" class="session-summary muted"></div>
+      <label style="display: flex; align-items: center; gap: 0.5em; margin-top: 1em; font-size: 0.9em;">
+        <span>🌐 Language</span>
+        <select id="app-language-select" style="flex: 1;">
+          <option value="el">Ελληνικά</option>
+          <option value="en">English</option>
+        </select>
+      </label>
       <div class="backup-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
         <button id="download-backup-btn" class="primary-btn" type="button" style="width: 100%;">⬇ Download Backup</button>
         <button id="folder-sync-btn" class="ghost-btn" type="button" style="width: 100%; margin-top: 0.5em; display: none;">📁 Enable Folder Sync</button>
@@ -1582,7 +1589,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script defer src="appback.js?v=folder-sync-82"></script>
+  <script src="translations.js?v=el-1"></script>
+  <script defer src="appback.js?v=greek-83"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

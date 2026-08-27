@@ -151,11 +151,29 @@ function getLanguageFromUrl() {
 }
 
 function syncLanguageInUrl(lang) {
-  return "en";
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("lang") !== lang) {
+      url.searchParams.set("lang", lang);
+      window.history.replaceState({}, "", url.toString());
+    }
+  } catch (error) {
+    // keep working without URL API
+  }
+  return lang;
 }
 
 function getStoredLanguage() {
-  return "en";
+  const fromUrl = getLanguageFromUrl();
+  if (fromUrl) return fromUrl;
+  try {
+    const stored = normalizeLanguageCode(localStorage.getItem(LANGUAGE_STORAGE_KEY));
+    if (stored) return stored;
+  } catch (error) {
+    // localStorage unavailable: fall through to default
+  }
+  // Greek-first product: new users see Greek until they pick a language.
+  return "el";
 }
 
 const initialState = {
@@ -838,9 +856,9 @@ function showAppMessage(message, tone = "info", title = "") {
   };
   const resolvedTone = ["info", "success", "warning"].includes(tone) ? tone : "info";
   els.appMessageForm.dataset.tone = resolvedTone;
-  if (els.appMessageEyebrow) els.appMessageEyebrow.textContent = eyebrows[resolvedTone];
-  if (els.appMessageTitle) els.appMessageTitle.textContent = title || titles[resolvedTone];
-  els.appMessageBody.textContent = message;
+  if (els.appMessageEyebrow) els.appMessageEyebrow.textContent = translateFromEnglishText(eyebrows[resolvedTone]);
+  if (els.appMessageTitle) els.appMessageTitle.textContent = translateFromEnglishText(title || titles[resolvedTone]);
+  els.appMessageBody.textContent = translateFromEnglishText(message);
   if (!els.appMessageDialog.open) {
     els.appMessageDialog.showModal();
   }
@@ -872,11 +890,11 @@ function showAppConfirm(message, title = "Are you sure?", options = {}) {
   }
   const resolvedTone = ["info", "success", "warning"].includes(tone) ? tone : "warning";
   els.appConfirmForm.dataset.tone = resolvedTone;
-  if (els.appConfirmEyebrow) els.appConfirmEyebrow.textContent = eyebrow;
-  if (els.appConfirmTitle) els.appConfirmTitle.textContent = title;
-  if (els.appConfirmBody) els.appConfirmBody.textContent = message;
-  if (els.appConfirmOkBtn) els.appConfirmOkBtn.textContent = confirmLabel;
-  if (els.appConfirmCancelBtn) els.appConfirmCancelBtn.textContent = cancelLabel;
+  if (els.appConfirmEyebrow) els.appConfirmEyebrow.textContent = translateFromEnglishText(eyebrow);
+  if (els.appConfirmTitle) els.appConfirmTitle.textContent = translateFromEnglishText(title);
+  if (els.appConfirmBody) els.appConfirmBody.textContent = translateFromEnglishText(message);
+  if (els.appConfirmOkBtn) els.appConfirmOkBtn.textContent = translateFromEnglishText(confirmLabel);
+  if (els.appConfirmCancelBtn) els.appConfirmCancelBtn.textContent = translateFromEnglishText(cancelLabel);
   if (!els.appConfirmDialog.open) {
     els.appConfirmDialog.showModal();
   }
@@ -1096,6 +1114,7 @@ function updateProjectSaveButtonState(project = getCurrentProject()) {
 }
 
 const els = {
+  appLanguageSelect: document.querySelector("#app-language-select"),
   viewButtons: Array.from(document.querySelectorAll("[data-view]")),
   appShell: document.querySelector(".app-shell"),
   backButton: document.querySelector("#back-button"),
@@ -5777,6 +5796,10 @@ function downloadAiDraftAsWord() {
 }
 
 bindEvents();
+if (els.appLanguageSelect) {
+  els.appLanguageSelect.value = currentAppLanguage || "en";
+  els.appLanguageSelect.addEventListener("change", onAppLanguageChange);
+}
 applyAppLanguage();
 renderProjectColorPalette();
 renderServiceTeamColorPalette();
