@@ -1,7 +1,26 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://ivdszujgmhpkebdgwoav.supabase.co";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZHN6dWpnbWhwa2ViZGd3b2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MjE1NDQsImV4cCI6MjEwMTA5NzU0NH0.KZMYtxCF0uzM-BlgEsqPEWOu689S3RnOCzbAg8jTCFQ";
+// Env values can arrive with paste artifacts (masked "•" chars, zero-width
+// spaces, stray whitespace). HTTP headers only allow ISO-8859-1, so any
+// non-ASCII character in the key crashes every Supabase request. Validate
+// and fall back to the known-good values rather than shipping a broken build.
+function cleanEnvValue(value, fallback) {
+  const v = String(value || "").trim();
+  if (!v || /[^\x20-\x7E]/.test(v)) {
+    if (v) console.warn("Ignoring env value with invalid characters; using built-in fallback.");
+    return fallback;
+  }
+  return v;
+}
+
+const SUPABASE_URL = cleanEnvValue(
+  import.meta.env.VITE_SUPABASE_URL,
+  "https://ivdszujgmhpkebdgwoav.supabase.co"
+);
+const SUPABASE_ANON_KEY = cleanEnvValue(
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZHN6dWpnbWhwa2ViZGd3b2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MjE1NDQsImV4cCI6MjEwMTA5NzU0NH0.KZMYtxCF0uzM-BlgEsqPEWOu689S3RnOCzbAg8jTCFQ"
+);
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -38,4 +57,7 @@ export function getTenantId() {
 window.supabase = supabase;
 window.STORAGE_BUCKET = STORAGE_BUCKET;
 window.getTenantId = getTenantId;
-window.GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "492857024431-7hotva9fppa5e1dete5s98rhchrnhjce.apps.googleusercontent.com";
+window.GOOGLE_CLIENT_ID = cleanEnvValue(
+  import.meta.env.VITE_GOOGLE_CLIENT_ID,
+  "492857024431-7hotva9fppa5e1dete5s98rhchrnhjce.apps.googleusercontent.com"
+);
