@@ -19394,11 +19394,113 @@ function updateFolderSyncUI() {
   }
 }
 
+async function loadAvailableBackups() {
+  try {
+    const { data: backups, error } = await supabase
+      .from('org_backups')
+      .select('*')
+      .eq('org_code', currentOrgCode)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) throw error;
+    return backups || [];
+  } catch (e) {
+    console.error('Error loading backups:', e);
+    return [];
+  }
+}
+
+async function restoreFromBackup(backupId) {
+  try {
+    showAppMessage('Restoring backup...');
+
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      showAppMessage('Not authenticated. Please login first.', 'error');
+      return;
+    }
+
+    const response = await fetch(
+      'https://ivdszujgmhpkebdgwoav.functions.supabase.co/restore-backup',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.session.access_token}`,
+        },
+        body: JSON.stringify({ orgCode: currentOrgCode, backupId }),
+      }
+    );
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Restore failed');
+
+    showAppMessage('✓ Backup restored successfully! Reloading...', 'success');
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    console.error('Restore error:', e);
+    showAppMessage('Restore failed: ' + e.message, 'error');
+  }
+}
+
+function openRestoreModal() {
+  const modal = document.getElementById('restore-modal');
+  if (!modal) return;
+
+  modal.style.display = 'flex';
+
+  loadAvailableBackups().then(backups => {
+    const list = document.getElementById('restore-backups-list');
+    if (!backups.length) {
+      list.innerHTML = '<p class="muted" style="padding: 1em; text-align: center;">No backups available</p>';
+      return;
+    }
+
+    list.innerHTML = backups.map((b, i) => `
+      <label style="display: flex; align-items: center; padding: 0.75em; border-bottom: 1px solid #eee; cursor: pointer;">
+        <input type="radio" name="backup-select" value="${b.id}" ${i === 0 ? 'checked' : ''} style="margin-right: 0.75em;">
+        <span>${new Date(b.created_at).toLocaleString()}</span>
+      </label>
+    `).join('');
+  });
+}
+
+function closeRestoreModal() {
+  const modal = document.getElementById('restore-modal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.getElementById('restore-error').textContent = '';
+  }
+}
+
 function setupBackupButtons() {
   const downloadBtn = document.getElementById('download-backup-btn');
   if (downloadBtn) {
     downloadBtn.addEventListener('click', () => { downloadBackupFile(); });
   }
+
+  const restoreBtn = document.getElementById('restore-backup-btn');
+  if (restoreBtn) {
+    restoreBtn.addEventListener('click', () => { openRestoreModal(); });
+  }
+
+  const restoreCancelBtn = document.getElementById('restore-cancel-btn');
+  if (restoreCancelBtn) {
+    restoreCancelBtn.addEventListener('click', () => { closeRestoreModal(); });
+  }
+
+  const restoreConfirmBtn = document.getElementById('restore-confirm-btn');
+  if (restoreConfirmBtn) {
+    restoreConfirmBtn.addEventListener('click', () => {
+      const selected = document.querySelector('input[name="backup-select"]:checked');
+      if (selected) {
+        restoreFromBackup(selected.value);
+        closeRestoreModal();
+      }
+    });
+  }
+
   const folderBtn = document.getElementById('folder-sync-btn');
   if (folderBtn) {
     folderBtn.addEventListener('click', async () => {

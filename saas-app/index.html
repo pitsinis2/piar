@@ -68,6 +68,7 @@
       <div id="current-user-summary" class="session-summary muted"></div>
       <div class="backup-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
         <button id="download-backup-btn" class="primary-btn" type="button" style="width: 100%;">⬇ Download Backup</button>
+        <button id="restore-backup-btn" class="ghost-btn" type="button" style="width: 100%; margin-top: 0.5em;">↩️ Restore Backup</button>
         <button id="folder-sync-btn" class="ghost-btn" type="button" style="width: 100%; margin-top: 0.5em; display: none;">📁 Enable Folder Sync</button>
         <div id="folder-sync-status" class="muted" style="font-size: 0.85em; margin-top: 0.5em; line-height: 1.4;"></div>
         <p style="font-size: 0.85em; color: #666; margin-top: 0.75em; margin-bottom: 0;">Your backup is automatically saved daily on our secure servers. Download a portable copy anytime, or keep a live mirror in a folder on this computer.</p>
@@ -2685,5 +2686,22 @@
       renderMonth();
     })();
   </script>
+
+  <!-- Restore Backup Modal -->
+  <dialog id="restore-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>Restore from Backup</h2>
+      <p class="muted">Select a backup to restore from the last 30 days.</p>
+      <div id="restore-backups-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 0.5em; margin: 1em 0;">
+        <p class="muted" style="padding: 1em; text-align: center;">Loading backups...</p>
+      </div>
+      <div id="restore-error" class="error-message"></div>
+      <div style="display: flex; gap: 1em; margin-top: 1.5em;">
+        <button id="restore-cancel-btn" class="ghost-btn" type="button" style="flex: 1;">Cancel</button>
+        <button id="restore-confirm-btn" class="primary-btn" type="button" style="flex: 1;" disabled>Restore Selected</button>
+      </div>
+    </div>
+  </dialog>
+
 </body>
 </html>
