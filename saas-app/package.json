@@ -12,7 +12,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

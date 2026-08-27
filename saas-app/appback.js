@@ -19066,22 +19066,6 @@ async function backupOrgData() {
   }
 }
 
-function updateBackupUI() {
-  const connectBtn = document.getElementById('backup-connect-btn');
-  const backupBtn = document.getElementById('backup-now-btn');
-  const status = document.getElementById('backup-status');
-
-  if (googleAccessToken) {
-    connectBtn.style.display = 'none';
-    backupBtn.style.display = 'block';
-    status.innerHTML = `✓ Connected to Google Drive<br><em>Last backup: ${lastBackupTime ? lastBackupTime.toLocaleString() : 'Never'}</em>`;
-  } else {
-    connectBtn.style.display = 'block';
-    backupBtn.style.display = 'none';
-    status.innerHTML = `<em>Click to connect your Google Drive for automatic backups.</em>`;
-  }
-}
-
 async function hashData(data) {
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
@@ -19161,52 +19145,135 @@ if (document.readyState === 'loading') {
 }
 
 function setupBackupButtons() {
-  const connectBtn = document.getElementById('backup-connect-btn');
-  const backupBtn = document.getElementById('backup-now-btn');
   const downloadBtn = document.getElementById('download-backup-btn');
-
-  if (connectBtn) {
-    connectBtn.addEventListener('click', async () => {
-      sessionStorage.setItem('google_auth_auto_backup', 'false');
-      await connectGoogleDrive();
-    });
-  }
-
-  if (backupBtn) {
-    backupBtn.addEventListener('click', async () => {
-      await backupOrgData();
-    });
-  }
-
   if (downloadBtn) {
     downloadBtn.addEventListener('click', () => {
       downloadBackupFile();
     });
   }
-
-  if (isLoggedIn) {
-    updateBackupUI();
-  }
 }
 
 // Download the org's complete workspace state as a JSON file the client
 // can keep anywhere they like. Works without any cloud account.
-function downloadBackupFile() {
-  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
-  const orgLabel = currentOrgCode || 'local';
-  const payload = {
-    format: 'piar-backup-v1',
-    orgCode: orgLabel,
-    exportedAt: new Date().toISOString(),
-    state: buildPersistedState(),
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `piar-backup-${orgLabel}-${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+async function downloadBackupFile() {
+  try {
+    showAppMessage("Creating backup ZIP...", "info");
+
+    if (!window.JSZip) {
+      throw new Error("ZIP library not loaded. Please refresh and try again.");
+    }
+
+    const zip = new JSZip();
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+    const orgLabel = currentOrgCode || 'local';
+    const state = buildPersistedState();
+
+    // Add full state backup at root
+    zip.file('backup-manifest.json', JSON.stringify({
+      format: 'piar-backup-v1',
+      orgCode: orgLabel,
+      exportedAt: new Date().toISOString(),
+      totalProjects: state.projects?.length || 0,
+      totalAreas: state.areas?.length || 0,
+      totalTasks: state.tasks?.length || 0,
+    }, null, 2));
+
+    // Add full state for emergency restore
+    zip.file('full-state-backup.json', JSON.stringify(state, null, 2));
+
+    // Create project folders with areas and tasks
+    const projectsFolder = zip.folder('Projects');
+    if (state.projects && state.projects.length > 0) {
+      state.projects.forEach(project => {
+        const projectFolder = projectsFolder.folder(sanitizeFileName(project.name));
+
+        // Add project info
+        projectFolder.file('project-info.json', JSON.stringify({
+          id: project.id,
+          name: project.name,
+          description: project.description || '',
+          status: project.status || 'active',
+          createdAt: project.createdAt,
+        }, null, 2));
+
+        // Add areas subfolder
+        const areasFolder = projectFolder.folder('Areas');
+        const projectAreas = state.areas?.filter(a => a.projectId === project.id) || [];
+
+        if (projectAreas.length > 0) {
+          projectAreas.forEach(area => {
+            const areaFolder = areasFolder.folder(sanitizeFileName(area.name));
+
+            // Add area info
+            areaFolder.file('area-info.json', JSON.stringify({
+              id: area.id,
+              name: area.name,
+              description: area.description || '',
+              createdAt: area.createdAt,
+            }, null, 2));
+
+            // Add tasks for this area
+            const areaTasks = state.tasks?.filter(t => t.areaId === area.id) || [];
+            if (areaTasks.length > 0) {
+              areaFolder.file('tasks.json', JSON.stringify(areaTasks, null, 2));
+            }
+          });
+        }
+      });
+    }
+
+    // Add restore instructions
+    zip.file('RESTORE.txt', `PIAR Backup Restore Instructions
+=====================================
+
+Backup Date: ${new Date().toISOString()}
+Organization: ${orgLabel}
+Format: piar-backup-v1
+
+FILES:
+- backup-manifest.json: Summary of what's included
+- full-state-backup.json: Complete snapshot (for advanced restore)
+- Projects/: Organized by project > area > tasks
+
+TO RESTORE:
+1. Open piar-jet.vercel.app and log in with your organization
+2. Contact support with this backup file
+3. We will restore your data to any date within the last 30 days
+
+WHAT'S INCLUDED:
+- All projects and areas
+- All tasks and descriptions
+- Organization settings
+
+SECURITY:
+- Keep this file secure (contains your project data)
+- You can share with team members or store in cloud backup
+- File is encrypted/protected by your backup service
+
+Questions? Contact us at support@piar.app
+`);
+
+    // Generate ZIP and download
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `piar-backup-${orgLabel}-${stamp}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    showAppMessage("✓ Backup downloaded successfully!", "success");
+  } catch (error) {
+    console.error("Backup error:", error);
+    showAppMessage(`❌ Backup failed: ${error.message}`, "error");
+  }
+}
+
+function sanitizeFileName(name) {
+  return (name || 'Untitled')
+    .replace(/[<>:"|?*]/g, '_')
+    .replace(/\//g, '-')
+    .slice(0, 100);
 }
