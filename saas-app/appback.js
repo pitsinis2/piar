@@ -19103,11 +19103,19 @@ window.addEventListener('message', async function(e) {
     sessionStorage.removeItem(`google_auth_state_${currentOrgCode}`);
     try {
       showAppMessage("Finishing Google Drive connection...", "info");
+      console.log("Invoking google-oauth-callback with code:", e.data.code?.slice(0, 20) + "...");
       const { data, error } = await supabase.functions.invoke('google-oauth-callback', {
         body: { code: e.data.code, state: e.data.state },
       });
-      if (error || !data || data.error || !data.accessToken) {
-        throw new Error(error?.message || data?.error || 'Token exchange failed');
+      console.log("Function response - error:", error, "data:", data);
+      if (error) {
+        throw new Error(`Function error: ${error.message || JSON.stringify(error)}`);
+      }
+      if (!data || data.error) {
+        throw new Error(data?.error || 'No data returned from token exchange');
+      }
+      if (!data.accessToken) {
+        throw new Error('No access token in response');
       }
       googleAccessToken = data.accessToken;
       updateBackupUI();
