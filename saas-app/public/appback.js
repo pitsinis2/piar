@@ -10611,7 +10611,7 @@ function populateCurrentUserSelect() {
   const user = getCurrentUser();
   const visibleProjects = getVisibleProjects(state, false).length;
   els.currentUserSummary.textContent = user
-    ? `${ROLE_LABELS[user.role]} � ${visibleProjects} visible project${visibleProjects === 1 ? "" : "s"}`
+    ? `${ROLE_LABELS[user.role]} · ${visibleProjects} visible project${visibleProjects === 1 ? "" : "s"}`
     : "No active user selected";
 }
 
@@ -17818,6 +17818,32 @@ function removeAutoCreatedAdmin() {
   logAudit("Auto-created Admin user removed", { objectType: "cleanup", objectName: "Default Admin" });
 }
 
+// Make sure the org-level login (e.g. "giannis") has a matching workspace user,
+// and make that user the active one, so the UI shows "giannis (admin)".
+function ensureWorkspaceUserForLogin(member) {
+  if (!member?.username) return;
+  if (!Array.isArray(state.users)) state.users = [];
+  const loginUsername = normalizeUsername(member.username);
+  let workspaceUser = state.users.find(u => normalizeUsername(u.username || "") === loginUsername);
+  if (!workspaceUser) {
+    workspaceUser = createSystemUser({
+      personalNumber: getNextPersonalNumber(),
+      name: member.name || member.username,
+      surname: member.surname || "",
+      tel: member.tel || "",
+      email: member.email || "",
+      username: member.username,
+      role: member.role === "admin" ? "admin" : "user",
+      qualification: 0,
+      workmode: "none",
+    });
+    workspaceUser.mustChangePin = true;
+    state.users.push(workspaceUser);
+    logAudit("Workspace user created for login account", { objectType: "member", objectName: `${member.username} (${workspaceUser.role})` });
+  }
+  state.currentUserId = workspaceUser.id;
+}
+
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
   orgCode = String(orgCode || "").trim().toUpperCase();
   if (!/^[PD]\d{8}$/.test(orgCode)) {
@@ -17865,31 +17891,8 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
       await loadOrgData();
     }
 
-    // First login: if org has no workspace users yet, create one for this login member
-    if (!state.users || state.users.length === 0) {
-      const firstUser = createSystemUser({
-        id: member.id || crypto.randomUUID(),
-        personalNumber: "1",
-        name: member.name || member.username,
-        surname: member.surname || "",
-        tel: member.tel || "",
-        email: member.email || "",
-        username: member.username,
-        role: "admin",
-        qualification: 0,
-        workmode: "none",
-        status: "active",
-        createdAt: new Date().toISOString(),
-        pinCode: DEFAULT_MEMBER_PIN,
-        mustChangePin: true,
-        loginEnabled: true,
-      });
-      state.users = [firstUser];
-      logAudit("First admin user created on first login", { objectType: "member", objectName: `${member.name || member.username} (admin)` });
-    } else {
-      removeAutoCreatedAdmin();
-    }
-
+    removeAutoCreatedAdmin();
+    ensureWorkspaceUserForLogin(member);
     persist();
 
     return { user, member };
@@ -17954,6 +17957,7 @@ async function initializeAuthState() {
           await loadOrgData();
         }
         removeAutoCreatedAdmin();
+        ensureWorkspaceUserForLogin({ username, role, name: username });
         persist();
         return true;
       }
