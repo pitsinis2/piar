@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Δημιουργία Οργανισμού - Generate Organization</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 500px;
+      width: 100%;
+      padding: 40px;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .language-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      color: #333;
+      font-weight: 500;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.3s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    button[type="submit"] {
+      flex: 1;
+      padding: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button[type="submit"]:hover {
+      background: #5568d3;
+    }
+    button[type="submit"]:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .success-box {
+      background: #f0f9ff;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      display: none;
+    }
+    .success-box.show {
+      display: block;
+    }
+    .success-box h3 {
+      color: #667eea;
+      margin-bottom: 12px;
+    }
+    .org-details {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 13px;
+      color: #333;
+      margin: 10px 0;
+      word-break: break-all;
+    }
+    .error-box {
+      background: #fef2f2;
+      border: 2px solid #ef4444;
+      border-radius: 8px;
+      padding: 12px;
+      color: #dc2626;
+      font-size: 14px;
+      margin: 10px 0;
+      display: none;
+    }
+    .error-box.show {
+      display: block;
+    }
+    .success-box button {
+      margin-top: 12px;
+      padding: 10px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .success-box button:hover {
+      background: #5568d3;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      color: #667eea;
+      margin: 20px 0;
+    }
+    .loading.show {
+      display: block;
+    }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <button class="language-toggle" id="langToggle">English</button>
+
+  <div class="container">
+    <h1 id="title">Δημιουργία Οργανισμού</h1>
+    <p class="subtitle" id="subtitle">Δημιουργήστε νέο οργανισμό και τον πρώτο διαχειριστή</p>
+
+    <form id="orgForm">
+      <div class="form-group">
+        <label for="clientName" id="labelClientName">Όνομα πελάτη / εταιρείας</label>
+        <input type="text" id="clientName" name="clientName" required>
+      </div>
+
+      <div class="form-group">
+        <label for="firstName" id="labelFirstName">Όνομα πρώτου διαχειριστή</label>
+        <input type="text" id="firstName" name="firstName" required>
+      </div>
+
+      <div class="form-group">
+        <label for="lastName" id="labelLastName">Επώνυμο</label>
+        <input type="text" id="lastName" name="lastName" required>
+      </div>
+
+      <div class="form-group">
+        <label for="email" id="labelEmail">Email</label>
+        <input type="email" id="email" name="email" required>
+      </div>
+
+      <div class="form-group">
+        <label for="pin" id="labelPin">PIN (6 ψηφία)</label>
+        <input type="text" id="pin" name="pin" inputmode="numeric" maxlength="6" required>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p id="loadingText">Δημιουργία...</p>
+      </div>
+
+      <div class="error-box" id="errorBox"></div>
+
+      <div class="button-group">
+        <button type="submit" id="submitBtn">Δημιουργία Οργανισμού</button>
+      </div>
+    </form>
+
+    <div class="success-box" id="successBox">
+      <h3 id="successTitle">✓ Οργανισμός δημιουργήθηκε επιτυχώς!</h3>
+      <p id="successMsg">Δώστε τα παρακάτω στοιχεία στον πελάτη:</p>
+
+      <div>
+        <strong id="labelOrgCode">Κωδικός Οργανισμού:</strong>
+        <div class="org-details" id="orgCodeDisplay"></div>
+      </div>
+
+      <div>
+        <strong id="labelUsername">Όνομα χρήστη:</strong>
+        <div class="org-details" id="usernameDisplay"></div>
+      </div>
+
+      <div>
+        <strong id="labelPin2">PIN:</strong>
+        <div class="org-details" id="pinDisplay"></div>
+      </div>
+
+      <div>
+        <strong id="labelEmail2">Email:</strong>
+        <div class="org-details" id="emailDisplay"></div>
+      </div>
+
+      <button type="button" id="copyBtn">Αντιγραφή όλων</button>
+      <button type="button" id="resetBtn">Δημιουργία νέου</button>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Supabase
+    const SUPABASE_URL = "https://ivdszujgmhpkebdgwoav.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZHN6dWpnbWhwa2ViZGd3b2F2IiwiKyUiOiJhcGkiLCJpYXQiOjE2OTUwMjUyOTksImV4cCI6MjAxMDYwNTI5OX0.tN2p-_6wJAx0x_sQaQfvDEQvXR1V9sDl2yKBmFpFILA";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const translations = {
+      el: {
+        title: "Δημιουργία Οργανισμού",
+        subtitle: "Δημιουργήστε νέο οργανισμό και τον πρώτο διαχειριστή",
+        labelClientName: "Όνομα πελάτη / εταιρείας",
+        labelFirstName: "Όνομα πρώτου διαχειριστή",
+        labelLastName: "Επώνυμο",
+        labelEmail: "Email",
+        labelPin: "PIN (6 ψηφία)",
+        submitBtn: "Δημιουργία Οργανισμού",
+        loadingText: "Δημιουργία...",
+        successTitle: "✓ Οργανισμός δημιουργήθηκε επιτυχώς!",
+        successMsg: "Δώστε τα παρακάτω στοιχεία στον πελάτη:",
+        labelOrgCode: "Κωδικός Οργανισμού:",
+        labelUsername: "Όνομα χρήστη:",
+        labelPin2: "PIN:",
+        labelEmail2: "Email:",
+        copyBtn: "Αντιγραφή όλων",
+        resetBtn: "Δημιουργία νέου",
+        langToggle: "English",
+        errorRequired: "Συμπληρώστε όλα τα πεδία",
+        errorPin: "Το PIN πρέπει να έχει 6 ψηφία",
+        errorEmail: "Δώστε έγκυρο email",
+        errorUnauth: "Δεν έχετε εξουσιοδότηση. Συνδεθείτε πρώτα.",
+        errorServer: "Σφάλμα διακομιστή. Προσπαθήστε ξανά.",
+        copied: "Αντιγράφηκε!",
+      },
+      en: {
+        title: "Generate Organization",
+        subtitle: "Create a new organization and first admin user",
+        labelClientName: "Client / Company Name",
+        labelFirstName: "First Name of Admin",
+        labelLastName: "Last Name",
+        labelEmail: "Email",
+        labelPin: "PIN (6 digits)",
+        submitBtn: "Generate Organization",
+        loadingText: "Creating...",
+        successTitle: "✓ Organization created successfully!",
+        successMsg: "Share these credentials with the client:",
+        labelOrgCode: "Organization Code:",
+        labelUsername: "Username:",
+        labelPin2: "PIN:",
+        labelEmail2: "Email:",
+        copyBtn: "Copy All",
+        resetBtn: "Create Another",
+        langToggle: "Ελληνικά",
+        errorRequired: "Please fill all fields",
+        errorPin: "PIN must be 6 digits",
+        errorEmail: "Please enter a valid email",
+        errorUnauth: "Not authorized. Please login first.",
+        errorServer: "Server error. Please try again.",
+        copied: "Copied!",
+      }
+    };
+
+    let currentLang = localStorage.getItem("adminLang") || "el";
+
+    function t(key) {
+      return translations[currentLang][key] || key;
+    }
+
+    function updateUI() {
+      document.getElementById("title").textContent = t("title");
+      document.getElementById("subtitle").textContent = t("subtitle");
+      document.getElementById("labelClientName").textContent = t("labelClientName");
+      document.getElementById("labelFirstName").textContent = t("labelFirstName");
+      document.getElementById("labelLastName").textContent = t("labelLastName");
+      document.getElementById("labelEmail").textContent = t("labelEmail");
+      document.getElementById("labelPin").textContent = t("labelPin");
+      document.getElementById("submitBtn").textContent = t("submitBtn");
+      document.getElementById("loadingText").textContent = t("loadingText");
+      document.getElementById("successTitle").textContent = t("successTitle");
+      document.getElementById("successMsg").textContent = t("successMsg");
+      document.getElementById("labelOrgCode").textContent = t("labelOrgCode");
+      document.getElementById("labelUsername").textContent = t("labelUsername");
+      document.getElementById("labelPin2").textContent = t("labelPin2");
+      document.getElementById("labelEmail2").textContent = t("labelEmail2");
+      document.getElementById("copyBtn").textContent = t("copyBtn");
+      document.getElementById("resetBtn").textContent = t("resetBtn");
+      document.getElementById("langToggle").textContent = t("langToggle");
+    }
+
+    document.getElementById("langToggle").addEventListener("click", () => {
+      currentLang = currentLang === "el" ? "en" : "el";
+      localStorage.setItem("adminLang", currentLang);
+      updateUI();
+    });
+
+    document.getElementById("orgForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const clientName = document.getElementById("clientName").value;
+      const firstName = document.getElementById("firstName").value;
+      const lastName = document.getElementById("lastName").value;
+      const email = document.getElementById("email").value;
+      const pin = document.getElementById("pin").value;
+
+      // Validate
+      if (!clientName || !firstName || !lastName || !email || !pin) {
+        showError(t("errorRequired"));
+        return;
+      }
+      if (!/^\d{6}$/.test(pin)) {
+        showError(t("errorPin"));
+        return;
+      }
+      if (!email.includes("@")) {
+        showError(t("errorEmail"));
+        return;
+      }
+
+      showLoading(true);
+
+      try {
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          throw new Error(t("errorUnauth"));
+        }
+
+        const response = await fetch(
+          "https://ivdszujgmhpkebdgwoav.functions.supabase.co/generate-org",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              clientName,
+              firstName,
+              lastName,
+              email,
+              pin,
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || t("errorServer"));
+        }
+
+        showSuccess(data, firstName, lastName, email, pin);
+      } catch (error) {
+        showError(error.message || t("errorServer"));
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    function showError(msg) {
+      const errorBox = document.getElementById("errorBox");
+      errorBox.textContent = msg;
+      errorBox.classList.add("show");
+      setTimeout(() => errorBox.classList.remove("show"), 5000);
+    }
+
+    function showLoading(show) {
+      document.getElementById("loading").classList.toggle("show", show);
+      document.getElementById("submitBtn").disabled = show;
+    }
+
+    function showSuccess(data, firstName, lastName, email, pin) {
+      document.getElementById("errorBox").classList.remove("show");
+      document.getElementById("orgForm").style.display = "none";
+      document.getElementById("successBox").classList.add("show");
+
+      document.getElementById("orgCodeDisplay").textContent = data.orgCode;
+      document.getElementById("usernameDisplay").textContent =
+        firstName.toLowerCase() + "." + lastName.toLowerCase();
+      document.getElementById("pinDisplay").textContent = pin;
+      document.getElementById("emailDisplay").textContent = email;
+    }
+
+    document.getElementById("copyBtn").addEventListener("click", () => {
+      const orgCode = document.getElementById("orgCodeDisplay").textContent;
+      const username = document.getElementById("usernameDisplay").textContent;
+      const pin = document.getElementById("pinDisplay").textContent;
+      const email = document.getElementById("emailDisplay").textContent;
+
+      const text = `Κωδικός Οργανισμού: ${orgCode}\nÒνομα χρήστη: ${username}\nPIN: ${pin}\nEmail: ${email}`;
+      navigator.clipboard.writeText(text).then(() => {
+        alert(t("copied"));
+      });
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      document.getElementById("orgForm").reset();
+      document.getElementById("orgForm").style.display = "block";
+      document.getElementById("successBox").classList.remove("show");
+    });
+
+    // Check authentication on page load
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        showError(t("errorUnauth"));
+        document.getElementById("orgForm").style.display = "none";
+        // Show message to open from main app after login
+        const msg = currentLang === "el"
+          ? "Συνδεθείτε στην κύρια εφαρμογή πρώτα"
+          : "Please login in the main app first";
+        alert(msg);
+      }
+    }
+
+    updateUI();
+    checkAuth();
+  </script>
+</body>
+</html>
