@@ -17700,7 +17700,8 @@ let currentOrgCode = null;
 let currentRole = 'worker';
 
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
-  if (!/^P\d{8}$/.test(orgCode)) {
+  orgCode = String(orgCode || "").trim().toUpperCase();
+  if (!/^[PD]\d{8}$/.test(orgCode)) {
     throw new Error("Org code must be format P12345678");
   }
   if (!/^\d{6}$/.test(pin)) {
@@ -19398,9 +19399,9 @@ async function loadAvailableBackups() {
   try {
     const { data: backups, error } = await supabase
       .from('org_backups')
-      .select('*')
+      .select('id, backed_up_at')
       .eq('org_code', currentOrgCode)
-      .order('created_at', { ascending: false })
+      .order('backed_up_at', { ascending: false })
       .limit(30);
 
     if (error) throw error;
@@ -19460,7 +19461,7 @@ function openRestoreModal() {
     list.innerHTML = backups.map((b, i) => `
       <label style="display: flex; align-items: center; padding: 0.75em; border-bottom: 1px solid #eee; cursor: pointer;">
         <input type="radio" name="backup-select" value="${b.id}" ${i === 0 ? 'checked' : ''} style="margin-right: 0.75em;">
-        <span>${new Date(b.created_at).toLocaleString()}</span>
+        <span>${new Date(b.backed_up_at).toLocaleString()}</span>
       </label>
     `).join('');
   });
