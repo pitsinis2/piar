@@ -6647,6 +6647,84 @@ button.area-comment-preview-thumb:focus-visible,
     z-index: 6;
     justify-content: stretch;
   }
+
+  /* Mobile-friendly directory layout: stack vertically, no side-by-side columns */
+  .directory-detail-layout,
+  .member-page-layout,
+  .equipment-page-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .directory-detail-panel,
+  .client-directory-panel,
+  .member-directory-panel,
+  .equipment-directory-panel {
+    max-height: auto;
+    padding: 16px;
+    font-size: 14px;
+  }
+
+  .directory-detail-panel {
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(52, 45, 33, 0.06);
+  }
+
+  /* Make text readable on mobile */
+  .directory-select-item {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .directory-select-subtitle {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .directory-select-meta-item {
+    font-size: 12px;
+    padding: 6px 0;
+    word-break: break-word;
+  }
+
+  .meta-pill {
+    font-size: 12px;
+    padding: 6px 10px;
+    margin: 4px 4px 4px 0;
+  }
+
+  /* Button sizing for touch */
+  .primary-btn, .ghost-btn, .icon-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Info display */
+  .directory-detail-subtitle {
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
+  /* Member/client cards */
+  .client-row,
+  .equipment-row,
+  .member-row {
+    padding: 12px;
+  }
+
+  /* Reduce excessive spacing */
+  h2, h3, h4 {
+    margin-top: 12px;
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
   .user-quick-nav-btn {
     flex: 1;
   }
