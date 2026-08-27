@@ -38,3 +38,4 @@ export function getTenantId() {
 window.supabase = supabase;
 window.STORAGE_BUCKET = STORAGE_BUCKET;
 window.getTenantId = getTenantId;
+window.GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "492857024431-7hotva9fppa5e1dete5s98rhchrnhjce.apps.googleusercontent.com";

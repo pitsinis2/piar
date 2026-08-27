@@ -18794,7 +18794,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async function() {
       await logout();
-      loginModal.showModal();
       updateAuthUI();
       render();
     });
@@ -18808,6 +18807,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 function updateAuthUI() {
   const logoutBtn = document.getElementById('logout-btn');
   const sessionSummary = document.getElementById('current-user-summary');
+  const loginModal = document.getElementById('login-modal');
 
   if (isLoggedIn && logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'block';
@@ -18817,8 +18817,228 @@ function updateAuthUI() {
       Role: ${currentRole || 'N/A'}<br>
       <em style="font-size: 0.9em;">${currentUserId ? '✓ Authenticated' : ''}</em>
     `;
+    // Close login modal when logged in
+    if (loginModal && loginModal.open) {
+      loginModal.close();
+    }
   } else if (logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'none';
     sessionSummary.innerHTML = '<em>Not logged in</em>';
+    // Show login modal when not logged in
+    if (loginModal) {
+      console.log('Showing login modal. Currently open:', loginModal.open);
+      try {
+        if (!loginModal.open) {
+          console.log('Calling showModal()...');
+          loginModal.showModal();
+          console.log('showModal() succeeded');
+        } else {
+          console.log('Modal already open, skipping showModal()');
+        }
+      } catch (error) {
+        console.warn('Could not show login modal:', error.message);
+      }
+    }
+  }
+}
+
+// Step 4: Google Drive Backup
+let googleAccessToken = null;
+let lastBackupTime = null;
+
+async function connectGoogleDrive() {
+  const clientId = window.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    showAppMessage("Google OAuth not configured. Contact support.", "error");
+    return;
+  }
+
+  const redirectUri = `${window.location.origin}/auth/google/callback`;
+  const scope = 'https://www.googleapis.com/auth/drive.file';
+
+  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  authUrl.searchParams.set('client_id', clientId);
+  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('scope', scope);
+  authUrl.searchParams.set('access_type', 'offline');
+  authUrl.searchParams.set('prompt', 'consent');
+
+  const state = crypto.randomUUID();
+  sessionStorage.setItem(`google_auth_state_${currentOrgCode}`, state);
+  authUrl.searchParams.set('state', state);
+
+  showAppMessage("Opening Google login in new window. Please grant permission to connect.", "info");
+  window.open(authUrl.toString(), 'google-auth', 'width=500,height=600');
+}
+
+async function backupOrgData() {
+  if (!isLoggedIn || !currentOrgCode) {
+    showAppMessage("Must be logged in to backup", "error");
+    return;
+  }
+
+  if (!googleAccessToken) {
+    showAppMessage("Google Drive not connected", "error");
+    return;
+  }
+
+  const backupBtn = document.getElementById('backup-now-btn');
+  backupBtn.disabled = true;
+  showAppMessage("Starting backup...", "info");
+
+  try {
+    const [projects, areas, notes, tasks, members] = await Promise.all([
+      supabase.from('projects').select('*').eq('org_code', currentOrgCode),
+      supabase.from('areas').select('*').eq('org_code', currentOrgCode),
+      supabase.from('notes').select('*').eq('org_code', currentOrgCode),
+      supabase.from('tasks').select('*').eq('org_code', currentOrgCode),
+      supabase.from('team_members').select('*').eq('org_code', currentOrgCode),
+    ]);
+
+    if (projects.error) throw projects.error;
+    if (areas.error) throw areas.error;
+    if (notes.error) throw notes.error;
+    if (tasks.error) throw tasks.error;
+    if (members.error) throw members.error;
+
+    const backupData = {
+      version: '3.1',
+      exportedAt: new Date().toISOString(),
+      orgCode: currentOrgCode,
+      backupId: crypto.randomUUID(),
+      data: {
+        projects: projects.data || [],
+        areas: areas.data || [],
+        notes: notes.data || [],
+        tasks: tasks.data || [],
+        teamMembers: members.data || [],
+      },
+      stats: {
+        projectCount: projects.data?.length || 0,
+        areaCount: areas.data?.length || 0,
+        noteCount: notes.data?.length || 0,
+        taskCount: tasks.data?.length || 0,
+        memberCount: members.data?.length || 0,
+      }
+    };
+
+    backupData.integrity = {
+      checksum: await hashData(JSON.stringify(backupData.data)),
+      rowCounts: backupData.stats
+    };
+
+    const session = await supabase.auth.getSession();
+    const response = await fetch('/functions/v1/backup-upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.data.session.access_token}`
+      },
+      body: JSON.stringify({
+        backup: backupData,
+        googleAccessToken: googleAccessToken
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Backup upload failed');
+    }
+
+    const result = await response.json();
+    lastBackupTime = new Date();
+    showAppMessage(`✓ Backup complete! ${result.sizeKB}KB saved to Google Drive`, "success");
+
+    await supabase.from('backup_history').insert([{
+      org_code: currentOrgCode,
+      backup_file_id: result.fileId,
+      backup_file_name: result.fileName,
+      backup_size_kb: result.sizeKB,
+      created_by_user_id: currentUserId,
+      notes: 'Manual backup via app'
+    }]);
+
+  } catch (error) {
+    console.error("Backup error:", error);
+    showAppMessage(`Backup failed: ${error.message}`, "error");
+  } finally {
+    backupBtn.disabled = false;
+    updateBackupUI();
+  }
+}
+
+function updateBackupUI() {
+  const connectBtn = document.getElementById('backup-connect-btn');
+  const backupBtn = document.getElementById('backup-now-btn');
+  const status = document.getElementById('backup-status');
+
+  if (googleAccessToken) {
+    connectBtn.style.display = 'none';
+    backupBtn.style.display = 'block';
+    status.innerHTML = `✓ Connected to Google Drive<br><em>Last backup: ${lastBackupTime ? lastBackupTime.toLocaleString() : 'Never'}</em>`;
+  } else {
+    connectBtn.style.display = 'block';
+    backupBtn.style.display = 'none';
+    status.innerHTML = `<em>Click to connect your Google Drive for automatic backups.</em>`;
+  }
+}
+
+async function hashData(data) {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Handle OAuth callback from Google popup
+window.addEventListener('message', async function(e) {
+  if (e.data.type === 'google_auth_success') {
+    try {
+      googleAccessToken = e.data.accessToken;
+      updateBackupUI();
+      showAppMessage("✓ Google Drive connected successfully!", "success");
+
+      const autoBackup = sessionStorage.getItem('google_auth_auto_backup');
+      if (autoBackup === 'true') {
+        sessionStorage.removeItem('google_auth_auto_backup');
+        await new Promise(r => setTimeout(r, 500));
+        await backupOrgData();
+      }
+    } catch (error) {
+      console.error("OAuth callback error:", error);
+    }
+  } else if (e.data.type === 'google_auth_error') {
+    showAppMessage(`❌ Google Drive connection failed: ${e.data.error}`, "error");
+  }
+}, false);
+
+// Wire up backup buttons on first load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupBackupButtons);
+} else {
+  setupBackupButtons();
+}
+
+function setupBackupButtons() {
+  const connectBtn = document.getElementById('backup-connect-btn');
+  const backupBtn = document.getElementById('backup-now-btn');
+
+  if (connectBtn) {
+    connectBtn.addEventListener('click', async () => {
+      sessionStorage.setItem('google_auth_auto_backup', 'false');
+      await connectGoogleDrive();
+    });
+  }
+
+  if (backupBtn) {
+    backupBtn.addEventListener('click', async () => {
+      await backupOrgData();
+    });
+  }
+
+  if (isLoggedIn) {
+    updateBackupUI();
   }
 }

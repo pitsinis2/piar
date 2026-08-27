@@ -18847,7 +18847,7 @@ let googleAccessToken = null;
 let lastBackupTime = null;
 
 async function connectGoogleDrive() {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const clientId = window.GOOGLE_CLIENT_ID;
   if (!clientId) {
     showAppMessage("Google OAuth not configured. Contact support.", "error");
     return;
