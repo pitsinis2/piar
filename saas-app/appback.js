@@ -5796,27 +5796,9 @@ function downloadAiDraftAsWord() {
 }
 
 bindEvents();
-{
-  // Language toggle: the button always shows the language you would switch TO.
-  const languageToggleBtn = document.getElementById("language-toggle-btn");
-  if (languageToggleBtn) {
-    languageToggleBtn.textContent = currentAppLanguage === "el" ? "🌐 English" : "🌐 Ελληνικά";
-    languageToggleBtn.addEventListener("click", () => {
-      const next = currentAppLanguage === "el" ? "en" : "el";
-      try {
-        localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
-      } catch (error) {
-        // keep working without localStorage permissions
-      }
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set("lang", next);
-        window.location.assign(url.toString());
-      } catch (error) {
-        window.location.reload();
-      }
-    });
-  }
+if (els.appLanguageSelect) {
+  els.appLanguageSelect.value = currentAppLanguage || "en";
+  els.appLanguageSelect.addEventListener("change", onAppLanguageChange);
 }
 applyAppLanguage();
 renderProjectColorPalette();

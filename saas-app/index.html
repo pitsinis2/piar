@@ -72,8 +72,14 @@
         <div id="folder-sync-status" class="muted" style="font-size: 0.85em; margin-top: 0.5em; line-height: 1.4;"></div>
         <p style="font-size: 0.85em; color: #666; margin-top: 0.75em; margin-bottom: 0;">Your backup is automatically saved daily on our secure servers. Download a portable copy anytime, or keep a live mirror in a folder on this computer.</p>
       </div>
-      <button id="language-toggle-btn" class="ghost-btn" type="button" style="width: 100%; margin-top: 1em;">🌐 English</button>
-      <button id="logout-btn" class="ghost-btn" type="button" style="display:none; color: #d32f2f; margin-top: 0.5em;">Logout</button>
+      <label style="display: flex; align-items: center; gap: 0.5em; margin-top: 1em; font-size: 0.9em;">
+        <span>🌐</span>
+        <select id="app-language-select" style="flex: 1;">
+          <option value="el">Ελληνικά</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <button id="logout-btn" class="ghost-btn" type="button" style="display:none; color: #d32f2f; margin-top: 1em;">Logout</button>
       <button id="client-overview-btn" class="ghost-btn client-overview-btn" type="button">Client demo overview</button>
     </div>
   </details>
