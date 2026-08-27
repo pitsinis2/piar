@@ -68,7 +68,9 @@
       <div id="current-user-summary" class="session-summary muted"></div>
       <div class="backup-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
         <button id="download-backup-btn" class="primary-btn" type="button" style="width: 100%;">⬇ Download Backup</button>
-        <p style="font-size: 0.85em; color: #666; margin-top: 0.75em; margin-bottom: 0;">Your backup is automatically saved daily on our secure servers. Click above to download a portable copy.</p>
+        <button id="folder-sync-btn" class="ghost-btn" type="button" style="width: 100%; margin-top: 0.5em; display: none;">📁 Enable Folder Sync</button>
+        <div id="folder-sync-status" class="muted" style="font-size: 0.85em; margin-top: 0.5em; line-height: 1.4;"></div>
+        <p style="font-size: 0.85em; color: #666; margin-top: 0.75em; margin-bottom: 0;">Your backup is automatically saved daily on our secure servers. Download a portable copy anytime, or keep a live mirror in a folder on this computer.</p>
       </div>
       <button id="logout-btn" class="ghost-btn" type="button" style="display:none; color: #d32f2f; margin-top: 1em;">Logout</button>
       <button id="client-overview-btn" class="ghost-btn client-overview-btn" type="button">Client demo overview</button>
@@ -1580,7 +1582,7 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script defer src="appback.js?v=zip-backup-81"></script>
+  <script defer src="appback.js?v=folder-sync-82"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

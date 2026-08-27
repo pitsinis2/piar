@@ -18130,6 +18130,7 @@ function buildPersistedState() {
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistedState()));
   scheduleCloudSync();
+  scheduleFolderSync();
 }
 
 // ---- Per-org cloud sync (org_state table, RLS-isolated per tenant) ----
@@ -18187,6 +18188,9 @@ async function loadStateFromCloud() {
       state = normalizeState({ ...structuredClone(initialState), ...data.state });
       cloudStateReady = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistedState()));
+      // Freshly pulled cloud state should land in the local sync folder too,
+      // so changes made on other devices appear on this PC.
+      scheduleFolderSync();
       return true;
     }
     // No cloud state yet: local state becomes the seed for the first push.
@@ -18940,330 +18944,201 @@ function updateAuthUI() {
   }
 }
 
-// Step 4: Google Drive Backup
-let googleAccessToken = null;
-let lastBackupTime = null;
+// ---- Workspace export & backups ----
+// One tree builder feeds both the ZIP download and the local folder sync,
+// so the two backups can never drift apart in structure.
 
-async function connectGoogleDrive() {
-  const clientId = window.GOOGLE_CLIENT_ID;
-  if (!clientId) {
-    showAppMessage("Google OAuth not configured. Contact support.", "error");
-    return;
-  }
-
-  const redirectUri = `${window.location.origin}/auth/google/callback`;
-  const scope = 'https://www.googleapis.com/auth/drive.file';
-
-  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  authUrl.searchParams.set('client_id', clientId);
-  authUrl.searchParams.set('redirect_uri', redirectUri);
-  authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set('scope', scope);
-  authUrl.searchParams.set('access_type', 'offline');
-  authUrl.searchParams.set('prompt', 'consent');
-
-  const state = crypto.randomUUID();
-  sessionStorage.setItem(`google_auth_state_${currentOrgCode}`, state);
-  authUrl.searchParams.set('state', state);
-
-  showAppMessage("Opening Google login in new window. Please grant permission to connect.", "info");
-  window.open(authUrl.toString(), 'google-auth', 'width=500,height=600');
+function sanitizeFileName(name) {
+  return String(name || 'Untitled')
+    .replace(/[<>:"|?*\\]/g, '_')
+    .replace(/\//g, '-')
+    .replace(/\.+$/, '')
+    .trim()
+    .slice(0, 80) || 'Untitled';
 }
 
-async function backupOrgData() {
-  if (!isLoggedIn || !currentOrgCode) {
-    showAppMessage("Must be logged in to backup", "error");
-    return;
-  }
+function stripSensitiveUserFields(user) {
+  const clone = { ...(user || {}) };
+  delete clone.password;
+  delete clone.passwordHash;
+  delete clone.pin;
+  return clone;
+}
 
-  if (!googleAccessToken) {
-    showAppMessage("Google Drive not connected", "error");
-    return;
-  }
+// Returns { files: {path -> content}, projectDirs: Map(dirName -> {areas:Set, teams:Set}), orgLabel }
+function buildWorkspaceExportTree() {
+  const snapshot = buildPersistedState();
+  const orgLabel = currentOrgCode || 'local';
+  const files = {};
+  const projectDirs = new Map();
 
-  const backupBtn = document.getElementById('backup-now-btn');
-  backupBtn.disabled = true;
-  showAppMessage("Starting backup...", "info");
-
-  try {
-    const [projects, areas, notes, tasks, members] = await Promise.all([
-      supabase.from('projects').select('*').eq('org_code', currentOrgCode),
-      supabase.from('areas').select('*').eq('org_code', currentOrgCode),
-      supabase.from('notes').select('*').eq('org_code', currentOrgCode),
-      supabase.from('tasks').select('*').eq('org_code', currentOrgCode),
-      supabase.from('team_members').select('*').eq('org_code', currentOrgCode),
-    ]);
-
-    if (projects.error) throw projects.error;
-    if (areas.error) throw areas.error;
-    if (notes.error) throw notes.error;
-    if (tasks.error) throw tasks.error;
-    if (members.error) throw members.error;
-
-    const backupData = {
-      version: '3.1',
-      exportedAt: new Date().toISOString(),
-      orgCode: currentOrgCode,
-      backupId: crypto.randomUUID(),
-      data: {
-        projects: projects.data || [],
-        areas: areas.data || [],
-        notes: notes.data || [],
-        tasks: tasks.data || [],
-        teamMembers: members.data || [],
-      },
-      stats: {
-        projectCount: projects.data?.length || 0,
-        areaCount: areas.data?.length || 0,
-        noteCount: notes.data?.length || 0,
-        taskCount: tasks.data?.length || 0,
-        memberCount: members.data?.length || 0,
+  const makeUniqueNamer = () => {
+    const used = new Set();
+    return (rawName) => {
+      const base = sanitizeFileName(rawName);
+      let candidate = base;
+      let counter = 2;
+      while (used.has(candidate.toLowerCase())) {
+        candidate = `${base} (${counter++})`;
       }
+      used.add(candidate.toLowerCase());
+      return candidate;
     };
+  };
 
-    backupData.integrity = {
-      checksum: await hashData(JSON.stringify(backupData.data)),
-      rowCounts: backupData.stats
+  const splitItems = (items) => {
+    const list = Array.isArray(items) ? items : [];
+    return {
+      tasks: list.filter((item) => item?.type === 'task'),
+      notes: list.filter((item) => item?.type === 'note'),
+      media: list.filter((item) => ['photo', 'file', 'plan'].includes(item?.type)),
     };
+  };
 
-    const session = await supabase.auth.getSession();
-    const response = await fetch('/functions/v1/backup-upload', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.data.session.access_token}`
-      },
-      body: JSON.stringify({
-        backup: backupData,
-        googleAccessToken: googleAccessToken
-      })
-    });
+  let totalAreas = 0;
+  let totalTasks = 0;
+  const nameProjectDir = makeUniqueNamer();
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Backup upload failed');
+  for (const project of snapshot.projects || []) {
+    const pDir = nameProjectDir(project.name || project.projectNumber || 'Untitled Project');
+    const dirInfo = { areas: new Set(), teams: new Set() };
+    projectDirs.set(pDir, dirInfo);
+    const base = `Projects/${pDir}`;
+
+    files[`${base}/project-info.json`] = JSON.stringify({
+      id: project.id,
+      projectNumber: project.projectNumber || '',
+      name: project.name || '',
+      address: project.address || '',
+      phone: project.phone || '',
+      startDate: project.startDate || '',
+      endDate: project.endDate || '',
+      lifecycle: project.lifecycle || 'active',
+      clientId: project.clientId || '',
+      memberIds: project.memberIds || [],
+      createdAt: project.createdAt || '',
+    }, null, 2);
+
+    const nameAreaDir = makeUniqueNamer();
+    for (const area of project.areas || []) {
+      totalAreas += 1;
+      const aDir = nameAreaDir(area.name || 'Untitled Area');
+      dirInfo.areas.add(aDir);
+      const areaBase = `${base}/Areas/${aDir}`;
+      const { tasks, notes, media } = splitItems(area.items);
+      totalTasks += tasks.length;
+      files[`${areaBase}/area-info.json`] = JSON.stringify({
+        id: area.id,
+        name: area.name || '',
+        floor: area.floor || '',
+        teamIds: area.teamIds || [],
+        completedAt: area.completedAt || null,
+        createdAt: area.createdAt || '',
+      }, null, 2);
+      files[`${areaBase}/tasks.json`] = JSON.stringify(tasks, null, 2);
+      files[`${areaBase}/notes.json`] = JSON.stringify(notes, null, 2);
+      files[`${areaBase}/files-and-photos.json`] = JSON.stringify(media, null, 2);
     }
 
-    const result = await response.json();
-    lastBackupTime = new Date();
-    showAppMessage(`✓ Backup complete! ${result.sizeKB}KB saved to Google Drive`, "success");
-
-    await supabase.from('backup_history').insert([{
-      org_code: currentOrgCode,
-      backup_file_id: result.fileId,
-      backup_file_name: result.fileName,
-      backup_size_kb: result.sizeKB,
-      created_by_user_id: currentUserId,
-      notes: 'Manual backup via app'
-    }]);
-
-  } catch (error) {
-    console.error("Backup error:", error);
-    showAppMessage(`Backup failed: ${error.message}`, "error");
-  } finally {
-    backupBtn.disabled = false;
-    updateBackupUI();
-  }
-}
-
-async function hashData(data) {
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Handle OAuth callback from Google popup
-window.addEventListener('message', async function(e) {
-  if (e.data && e.data.type === 'google_auth_code') {
-    // Only accept messages from our own origin (the callback page).
-    if (e.origin !== window.location.origin) return;
-    const expectedState = sessionStorage.getItem(`google_auth_state_${currentOrgCode}`);
-    if (!expectedState || e.data.state !== expectedState) {
-      showAppMessage("Google Drive connection failed the security check. Please try again.", "error");
-      return;
+    const nameTeamDir = makeUniqueNamer();
+    const teamFolders = [project.detailsFolder, ...(project.folders || [])].filter(Boolean);
+    for (const folder of teamFolders) {
+      const tDir = nameTeamDir(folder.name || 'Untitled Team');
+      dirInfo.teams.add(tDir);
+      const teamBase = `${base}/Teams/${tDir}`;
+      const { tasks, notes, media } = splitItems(folder.items);
+      totalTasks += tasks.length;
+      files[`${teamBase}/team-info.json`] = JSON.stringify({
+        id: folder.id,
+        name: folder.name || '',
+        builtIn: Boolean(folder.builtIn),
+        createdAt: folder.createdAt || '',
+      }, null, 2);
+      files[`${teamBase}/tasks.json`] = JSON.stringify(tasks, null, 2);
+      files[`${teamBase}/notes.json`] = JSON.stringify(notes, null, 2);
+      files[`${teamBase}/files-and-photos.json`] = JSON.stringify(media, null, 2);
     }
-    sessionStorage.removeItem(`google_auth_state_${currentOrgCode}`);
-    try {
-      showAppMessage("Finishing Google Drive connection...", "info");
-      console.log("Invoking google-oauth-callback with code:", e.data.code?.slice(0, 20) + "...");
-      const { data, error } = await supabase.functions.invoke('google-oauth-callback', {
-        body: { code: e.data.code, state: e.data.state },
-      });
-      console.log("Function response - error:", error, "data:", data);
-      if (error) {
-        throw new Error(`Function error: ${error.message || JSON.stringify(error)}`);
-      }
-      if (!data || data.error) {
-        throw new Error(data?.error || 'No data returned from token exchange');
-      }
-      if (!data.accessToken) {
-        throw new Error('No access token in response');
-      }
-      googleAccessToken = data.accessToken;
-      updateBackupUI();
-      showAppMessage("✓ Google Drive connected successfully!", "success");
 
-      const autoBackup = sessionStorage.getItem('google_auth_auto_backup');
-      if (autoBackup === 'true') {
-        sessionStorage.removeItem('google_auth_auto_backup');
-        await new Promise(r => setTimeout(r, 500));
-        await backupOrgData();
-      }
-    } catch (error) {
-      console.error("OAuth exchange error:", error);
-      showAppMessage(`❌ Google Drive connection failed: ${error.message}`, "error");
-    }
-    return;
+    files[`${base}/chat-history.json`] = JSON.stringify(project.chatMessages || [], null, 2);
   }
-  if (e.data.type === 'google_auth_success') {
-    try {
-      googleAccessToken = e.data.accessToken;
-      updateBackupUI();
-      showAppMessage("✓ Google Drive connected successfully!", "success");
 
-      const autoBackup = sessionStorage.getItem('google_auth_auto_backup');
-      if (autoBackup === 'true') {
-        sessionStorage.removeItem('google_auth_auto_backup');
-        await new Promise(r => setTimeout(r, 500));
-        await backupOrgData();
-      }
-    } catch (error) {
-      console.error("OAuth callback error:", error);
-    }
-  } else if (e.data.type === 'google_auth_error') {
-    showAppMessage(`❌ Google Drive connection failed: ${e.data.error}`, "error");
-  }
-}, false);
+  files['Clients/clients.json'] = JSON.stringify(snapshot.clients || [], null, 2);
+  files['Team/team-members.json'] = JSON.stringify(
+    (snapshot.users || []).map(stripSensitiveUserFields), null, 2);
+  files['Equipment/equipment.json'] = JSON.stringify({
+    categories: snapshot.equipmentCategories || [],
+    items: snapshot.equipmentItems || [],
+  }, null, 2);
+  files['Daily-Works/daily-works.json'] = JSON.stringify(snapshot.dailyWorks || [], null, 2);
 
-// Wire up backup buttons on first load
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupBackupButtons);
-} else {
-  setupBackupButtons();
+  files['full-state-backup.json'] = JSON.stringify(snapshot, null, 2);
+  files['backup-manifest.json'] = JSON.stringify({
+    format: 'piar-backup-v1',
+    orgCode: orgLabel,
+    exportedAt: new Date().toISOString(),
+    totalProjects: (snapshot.projects || []).length,
+    totalAreas,
+    totalTasks,
+    totalClients: (snapshot.clients || []).length,
+    totalTeamMembers: (snapshot.users || []).length,
+  }, null, 2);
+  files['RESTORE.txt'] = `PIAR Backup
+====================
+
+Organization: ${orgLabel}
+Exported: ${new Date().toISOString()}
+Format: piar-backup-v1
+
+WHAT IS IN HERE
+- Projects/           one folder per project
+    - Areas/          one folder per area (tasks, notes, file lists)
+    - Teams/          one folder per service team
+    - chat-history.json
+- Clients/            all client records
+- Team/               all team members
+- Equipment/          equipment categories and items
+- Daily-Works/        daily work entries
+- full-state-backup.json   complete snapshot, used for restore
+- backup-manifest.json     summary of this backup
+
+NOTE ON PHOTOS AND FILES
+Uploaded photos and documents live in secure cloud storage.
+The files-and-photos.json lists them; the actual files stay
+available inside the app.
+
+TO RESTORE
+1. Open the app and log in with your organization code.
+2. Contact support and send the full-state-backup.json file.
+3. Your workspace can also be restored server-side from any
+   of the last 30 days of automatic backups.
+`;
+
+  return { files, projectDirs, orgLabel };
 }
 
-function setupBackupButtons() {
-  const downloadBtn = document.getElementById('download-backup-btn');
-  if (downloadBtn) {
-    downloadBtn.addEventListener('click', () => {
-      downloadBackupFile();
-    });
-  }
-}
-
-// Download the org's complete workspace state as a JSON file the client
-// can keep anywhere they like. Works without any cloud account.
+// Download the whole workspace as a structured ZIP the client can keep
+// anywhere: their PC, their own cloud drive, a USB stick.
 async function downloadBackupFile() {
   try {
     showAppMessage("Creating backup ZIP...", "info");
-
     if (!window.JSZip) {
-      throw new Error("ZIP library not loaded. Please refresh and try again.");
+      throw new Error("ZIP library not loaded. Please refresh the page and try again.");
     }
-
+    const tree = buildWorkspaceExportTree();
     const zip = new JSZip();
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
-    const orgLabel = currentOrgCode || 'local';
-    const state = buildPersistedState();
-
-    // Add full state backup at root
-    zip.file('backup-manifest.json', JSON.stringify({
-      format: 'piar-backup-v1',
-      orgCode: orgLabel,
-      exportedAt: new Date().toISOString(),
-      totalProjects: state.projects?.length || 0,
-      totalAreas: state.areas?.length || 0,
-      totalTasks: state.tasks?.length || 0,
-    }, null, 2));
-
-    // Add full state for emergency restore
-    zip.file('full-state-backup.json', JSON.stringify(state, null, 2));
-
-    // Create project folders with areas and tasks
-    const projectsFolder = zip.folder('Projects');
-    if (state.projects && state.projects.length > 0) {
-      state.projects.forEach(project => {
-        const projectFolder = projectsFolder.folder(sanitizeFileName(project.name));
-
-        // Add project info
-        projectFolder.file('project-info.json', JSON.stringify({
-          id: project.id,
-          name: project.name,
-          description: project.description || '',
-          status: project.status || 'active',
-          createdAt: project.createdAt,
-        }, null, 2));
-
-        // Add areas subfolder
-        const areasFolder = projectFolder.folder('Areas');
-        const projectAreas = state.areas?.filter(a => a.projectId === project.id) || [];
-
-        if (projectAreas.length > 0) {
-          projectAreas.forEach(area => {
-            const areaFolder = areasFolder.folder(sanitizeFileName(area.name));
-
-            // Add area info
-            areaFolder.file('area-info.json', JSON.stringify({
-              id: area.id,
-              name: area.name,
-              description: area.description || '',
-              createdAt: area.createdAt,
-            }, null, 2));
-
-            // Add tasks for this area
-            const areaTasks = state.tasks?.filter(t => t.areaId === area.id) || [];
-            if (areaTasks.length > 0) {
-              areaFolder.file('tasks.json', JSON.stringify(areaTasks, null, 2));
-            }
-          });
-        }
-      });
+    for (const [path, content] of Object.entries(tree.files)) {
+      zip.file(path, content);
     }
-
-    // Add restore instructions
-    zip.file('RESTORE.txt', `PIAR Backup Restore Instructions
-=====================================
-
-Backup Date: ${new Date().toISOString()}
-Organization: ${orgLabel}
-Format: piar-backup-v1
-
-FILES:
-- backup-manifest.json: Summary of what's included
-- full-state-backup.json: Complete snapshot (for advanced restore)
-- Projects/: Organized by project > area > tasks
-
-TO RESTORE:
-1. Open piar-jet.vercel.app and log in with your organization
-2. Contact support with this backup file
-3. We will restore your data to any date within the last 30 days
-
-WHAT'S INCLUDED:
-- All projects and areas
-- All tasks and descriptions
-- Organization settings
-
-SECURITY:
-- Keep this file secure (contains your project data)
-- You can share with team members or store in cloud backup
-- File is encrypted/protected by your backup service
-
-Questions? Contact us at support@piar.app
-`);
-
-    // Generate ZIP and download
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `piar-backup-${orgLabel}-${stamp}.zip`;
+    a.download = `piar-backup-${tree.orgLabel}-${stamp}.zip`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-
     showAppMessage("✓ Backup downloaded successfully!", "success");
   } catch (error) {
     console.error("Backup error:", error);
@@ -19271,9 +19146,253 @@ Questions? Contact us at support@piar.app
   }
 }
 
-function sanitizeFileName(name) {
-  return (name || 'Untitled')
-    .replace(/[<>:"|?*]/g, '_')
-    .replace(/\//g, '-')
-    .slice(0, 100);
+// ---- Local folder sync (File System Access API, Chrome/Edge desktop) ----
+// The user picks a folder once; the app mirrors the workspace into it on
+// every change. The folder handle persists in IndexedDB across sessions;
+// the browser may ask once per session to re-allow access.
+let folderSyncHandle = null;
+let folderSyncStatus = 'off'; // 'off' | 'active' | 'paused' (needs permission)
+let folderSyncTimer = null;
+let folderSyncInFlight = false;
+let folderSyncQueued = false;
+let lastFolderSyncTime = null;
+
+function folderSyncSupported() {
+  return typeof window.showDirectoryPicker === 'function';
+}
+
+function openFolderSyncDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('piar-folder-sync', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('handles'); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveFolderSyncHandle(handle) {
+  const db = await openFolderSyncDb();
+  try {
+    await idbRequest(db.transaction('handles', 'readwrite').objectStore('handles').put(handle, 'root'));
+  } finally { db.close(); }
+}
+
+async function loadFolderSyncHandle() {
+  const db = await openFolderSyncDb();
+  try {
+    return await idbRequest(db.transaction('handles').objectStore('handles').get('root'));
+  } finally { db.close(); }
+}
+
+async function clearFolderSyncHandle() {
+  const db = await openFolderSyncDb();
+  try {
+    await idbRequest(db.transaction('handles', 'readwrite').objectStore('handles').delete('root'));
+  } finally { db.close(); }
+}
+
+function scheduleFolderSync() {
+  if (folderSyncStatus !== 'active' || !folderSyncHandle) return;
+  clearTimeout(folderSyncTimer);
+  folderSyncTimer = setTimeout(() => { syncWorkspaceToFolder(); }, 3000);
+}
+
+async function writeFileByPath(rootHandle, path, content) {
+  const segments = path.split('/');
+  const fileName = segments.pop();
+  let dir = rootHandle;
+  for (const segment of segments) {
+    dir = await dir.getDirectoryHandle(segment, { create: true });
+  }
+  const fileHandle = await dir.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+// Remove folders under Projects/ that no longer match a project, area or
+// team. Only the app-managed Projects/ subtree is ever cleaned; anything
+// else the user keeps in the sync folder is left alone.
+async function pruneStaleExportDirs(rootHandle, tree) {
+  const projectsDir = await rootHandle.getDirectoryHandle('Projects', { create: true });
+  const staleProjects = [];
+  for await (const [name] of projectsDir.entries()) {
+    if (!tree.projectDirs.has(name)) staleProjects.push(name);
+  }
+  for (const name of staleProjects) {
+    await projectsDir.removeEntry(name, { recursive: true }).catch(() => {});
+  }
+  for (const [projectName, dirInfo] of tree.projectDirs) {
+    let projectDir;
+    try {
+      projectDir = await projectsDir.getDirectoryHandle(projectName);
+    } catch (error) { continue; }
+    for (const [subName, expectedSet] of [['Areas', dirInfo.areas], ['Teams', dirInfo.teams]]) {
+      let subDir;
+      try {
+        subDir = await projectDir.getDirectoryHandle(subName);
+      } catch (error) { continue; }
+      const stale = [];
+      for await (const [name] of subDir.entries()) {
+        if (!expectedSet.has(name)) stale.push(name);
+      }
+      for (const name of stale) {
+        await subDir.removeEntry(name, { recursive: true }).catch(() => {});
+      }
+    }
+  }
+}
+
+async function syncWorkspaceToFolder() {
+  if (!folderSyncHandle || folderSyncStatus !== 'active') return;
+  if (folderSyncInFlight) { folderSyncQueued = true; return; }
+  folderSyncInFlight = true;
+  try {
+    const tree = buildWorkspaceExportTree();
+    for (const [path, content] of Object.entries(tree.files)) {
+      await writeFileByPath(folderSyncHandle, path, content);
+    }
+    await pruneStaleExportDirs(folderSyncHandle, tree);
+    lastFolderSyncTime = new Date();
+    updateFolderSyncUI();
+  } catch (error) {
+    console.error('Folder sync failed:', error);
+    if (error && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
+      folderSyncStatus = 'paused';
+      updateFolderSyncUI();
+    }
+  } finally {
+    folderSyncInFlight = false;
+    if (folderSyncQueued) {
+      folderSyncQueued = false;
+      scheduleFolderSync();
+    }
+  }
+}
+
+async function enableFolderSync() {
+  if (!folderSyncSupported()) {
+    showAppMessage("Folder sync needs Chrome or Edge on a desktop computer.", "warning");
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    folderSyncHandle = handle;
+    folderSyncStatus = 'active';
+    await saveFolderSyncHandle(handle).catch((error) => {
+      console.warn('Could not persist folder handle:', error);
+    });
+    updateFolderSyncUI();
+    showAppMessage("Folder sync enabled. Writing your workspace...", "info");
+    await syncWorkspaceToFolder();
+    showAppMessage(`✓ Folder sync active. Your workspace now mirrors into "${handle.name}".`, "success");
+  } catch (error) {
+    if (error && error.name === 'AbortError') return; // user closed the picker
+    console.error('Enable folder sync failed:', error);
+    showAppMessage(`❌ Could not enable folder sync: ${error.message}`, "error");
+  }
+}
+
+async function disableFolderSync() {
+  clearTimeout(folderSyncTimer);
+  folderSyncHandle = null;
+  folderSyncStatus = 'off';
+  lastFolderSyncTime = null;
+  await clearFolderSyncHandle().catch(() => {});
+  updateFolderSyncUI();
+  showAppMessage("Folder sync turned off. Files already in your folder stay there.", "info");
+}
+
+async function resumeFolderSync() {
+  if (!folderSyncHandle) { await enableFolderSync(); return; }
+  try {
+    const permission = await folderSyncHandle.requestPermission({ mode: 'readwrite' });
+    if (permission === 'granted') {
+      folderSyncStatus = 'active';
+      updateFolderSyncUI();
+      await syncWorkspaceToFolder();
+      showAppMessage("✓ Folder sync resumed.", "success");
+    } else {
+      showAppMessage("Folder access was not granted. Folder sync stays paused.", "warning");
+    }
+  } catch (error) {
+    console.error('Resume folder sync failed:', error);
+    showAppMessage(`❌ Could not resume folder sync: ${error.message}`, "error");
+  }
+}
+
+async function restoreFolderSyncOnLoad() {
+  if (!folderSyncSupported()) { updateFolderSyncUI(); return; }
+  try {
+    const handle = await loadFolderSyncHandle();
+    if (!handle) { updateFolderSyncUI(); return; }
+    folderSyncHandle = handle;
+    let permission = 'prompt';
+    try {
+      permission = await handle.queryPermission({ mode: 'readwrite' });
+    } catch (error) { /* older browsers: treat as prompt */ }
+    folderSyncStatus = permission === 'granted' ? 'active' : 'paused';
+    updateFolderSyncUI();
+    if (folderSyncStatus === 'active') scheduleFolderSync();
+  } catch (error) {
+    console.warn('Folder sync restore failed:', error);
+    updateFolderSyncUI();
+  }
+}
+
+function updateFolderSyncUI() {
+  const btn = document.getElementById('folder-sync-btn');
+  const status = document.getElementById('folder-sync-status');
+  if (!btn || !status) return;
+  if (!folderSyncSupported()) {
+    btn.style.display = 'none';
+    status.textContent = '';
+    return;
+  }
+  btn.style.display = 'block';
+  if (folderSyncStatus === 'active') {
+    btn.textContent = '📁 Folder Sync: On (click to turn off)';
+    const folderName = folderSyncHandle?.name ? `"${folderSyncHandle.name}"` : 'your folder';
+    status.textContent = `Mirroring workspace into ${folderName}`
+      + (lastFolderSyncTime ? ` · last sync ${lastFolderSyncTime.toLocaleTimeString()}` : '');
+  } else if (folderSyncStatus === 'paused') {
+    btn.textContent = '📁 Resume Folder Sync';
+    status.textContent = 'Click to allow access to your sync folder again.';
+  } else {
+    btn.textContent = '📁 Enable Folder Sync';
+    status.textContent = 'Mirror all projects into a folder on this computer.';
+  }
+}
+
+function setupBackupButtons() {
+  const downloadBtn = document.getElementById('download-backup-btn');
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', () => { downloadBackupFile(); });
+  }
+  const folderBtn = document.getElementById('folder-sync-btn');
+  if (folderBtn) {
+    folderBtn.addEventListener('click', async () => {
+      if (folderSyncStatus === 'active') {
+        await disableFolderSync();
+      } else if (folderSyncStatus === 'paused') {
+        await resumeFolderSync();
+      } else {
+        await enableFolderSync();
+      }
+    });
+  }
+  restoreFolderSyncOnLoad();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupBackupButtons);
+} else {
+  setupBackupButtons();
 }
