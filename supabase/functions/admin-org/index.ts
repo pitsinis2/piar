@@ -57,12 +57,14 @@ serve(async (req) => {
       const users = (Array.isArray(d.users) ? d.users : []).map((u: any) => ({
         id: u.id,
         name: [u.name, u.surname].filter(Boolean).join(" ") || u.username || "—",
+        username: u.username || "",
         role: u.role || "user",
         status: u.status || "active",
         email: u.email || "",
         tel: u.tel || "",
         mustChangePin: u.mustChangePin !== false, // true = still on default PIN
         lastLoginAt: u.lastLoginAt || null,
+        loginEnabled: u.loginEnabled !== false,
       }));
 
       const counts = {
@@ -97,7 +99,7 @@ serve(async (req) => {
     // ── RESET PIN of an internal app user (inside org_state) ─────────
     if (action === "resetPin") {
       const userId = String(body.userId || "");
-      const newPin = String(body.newPin || "000000");
+      const newPin = String(body.newPin || "123456");
       if (!orgCode || !userId) return json({ error: "Missing orgCode or userId" }, 400);
       if (!/^\d{6}$/.test(newPin)) return json({ error: "PIN must be 6 digits" }, 400);
 
@@ -128,7 +130,7 @@ serve(async (req) => {
     // ── RESET the org-level login PIN (Supabase Auth password) ───────
     if (action === "resetOrgPin") {
       const username = String(body.username || "");
-      const newPin = String(body.newPin || "000000");
+      const newPin = String(body.newPin || "123456");
       if (!orgCode || !username) return json({ error: "Missing orgCode or username" }, 400);
       if (!/^\d{6}$/.test(newPin)) return json({ error: "PIN must be 6 digits" }, 400);
 
@@ -156,7 +158,7 @@ serve(async (req) => {
       const plan = String(body.plan || "standard");
       const contactEmail = String(body.contactEmail || "").trim() || null;
       const username = String(body.username || "admin").trim().toLowerCase();
-      const pin = String(body.pin || "000000");
+      const pin = String(body.pin || "123456");
 
       if (!/^[PD]\d{8}$/.test(orgCode)) {
         return json({ error: "Code must be P or D + exactly 8 digits" }, 400);

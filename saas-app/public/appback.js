@@ -1331,6 +1331,7 @@ const els = {
   memberPersonalNumber: document.querySelector("#member-personal-number"),
   memberName: document.querySelector("#member-name"),
   memberSurname: document.querySelector("#member-surname"),
+  memberUsername: document.querySelector("#member-username"),
   memberTel: document.querySelector("#member-tel"),
   memberEmail: document.querySelector("#member-email"),
   memberQualification: document.querySelector("#member-qualification"),
@@ -1786,11 +1787,13 @@ function normalizeUser(user) {
     ...createSystemUser(user),
     ...user,
     personalNumber: normalizePersonalNumber(user?.personalNumber),
+    username: normalizeUsername(user?.username) || buildUsernameFromName(user?.name, user?.surname),
     qualification: normalizeQualification(user?.qualification),
     workmode: normalizeMemberWorkmode(user?.workmode),
     pinCode: normalizePin(user?.pinCode),
     mustChangePin: user?.mustChangePin !== false,
     lastLoginAt: user?.lastLoginAt || null,
+    loginEnabled: user?.loginEnabled !== false,
     permissionOverrides: { ...(user.permissionOverrides || {}) },
     navViewOrder: normalizeNavViewOrder(user?.navViewOrder),
   };
@@ -1925,7 +1928,19 @@ function renderMemberWorkmodeBadge(value, options = {}) {
   return `<span class="member-workmode-badge" title="${escapeHtml(meta.label)}"><span aria-hidden="true">${meta.icon}</span><span>${escapeHtml(meta.label)}</span></span>`;
 }
 
-function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", name, surname, tel, email, role = "user", qualification = 0, workmode = "none", status = "active", createdAt = new Date().toISOString(), pinCode = "000000", mustChangePin = true, lastLoginAt = null }) {
+const DEFAULT_MEMBER_PIN = "123456";
+
+function buildUsernameFromName(name, surname) {
+  const clean = (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const parts = [clean(name), clean(surname)].filter(Boolean);
+  return parts.join(".");
+}
+
+function normalizeUsername(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, ".").replace(/[^a-z0-9._-]/g, "");
+}
+
+function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", name, surname, tel, email, username = "", role = "user", qualification = 0, workmode = "none", status = "active", createdAt = new Date().toISOString(), pinCode = DEFAULT_MEMBER_PIN, mustChangePin = true, lastLoginAt = null, loginEnabled = true }) {
   return {
     id,
     personalNumber: normalizePersonalNumber(personalNumber),
@@ -1933,6 +1948,7 @@ function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", name,
     surname,
     tel,
     email: (email || "").trim().toLowerCase(),
+    username: normalizeUsername(username) || buildUsernameFromName(name, surname),
     role,
     qualification: normalizeQualification(qualification),
     workmode: normalizeMemberWorkmode(workmode),
@@ -1941,6 +1957,7 @@ function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", name,
     pinCode: normalizePin(pinCode),
     mustChangePin: Boolean(mustChangePin),
     lastLoginAt,
+    loginEnabled: loginEnabled !== false,
     archivedAt: status === "archived" ? createdAt : null,
     permissionOverrides: {},
     navViewOrder: [...DEFAULT_NAV_VIEW_ORDER],
@@ -6936,6 +6953,10 @@ function onCurrentUserChange() {
 
 function authenticateLoginUser(user) {
   if (!user) return false;
+  if (user.loginEnabled === false) {
+    showAppMessage("Login access for this member is disabled. Contact your admin.", "warning", "Login");
+    return false;
+  }
   const enteredPin = window.prompt(`PIN for ${getMemberDisplayName(user)}:`);
   if (enteredPin == null) return false;
   if (normalizePin(enteredPin, "") !== user.pinCode) {
@@ -6946,8 +6967,8 @@ function authenticateLoginUser(user) {
   const nextPin = window.prompt("This is the first login after a reset. Enter a new 6-digit PIN:");
   if (nextPin == null) return false;
   const normalizedNextPin = normalizePin(nextPin, "");
-  if (!normalizedNextPin || normalizedNextPin === "000000") {
-    showAppMessage("Please choose a new 6-digit PIN that is not 000000.", "warning", "Login");
+  if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === DEFAULT_MEMBER_PIN) {
+    showAppMessage("Please choose a new personal 6-digit PIN (not the temporary one).", "warning", "Login");
     return false;
   }
   const confirmPin = window.prompt("Confirm the new PIN:");
@@ -7103,6 +7124,7 @@ function onMemberAdd(event) {
   if (isEditingMember && !editingMember) return;
   const name = els.memberName.value.trim();
   const surname = els.memberSurname.value.trim();
+  const username = normalizeUsername(els.memberUsername?.value) || buildUsernameFromName(name, surname);
   const tel = els.memberTel.value.trim();
   const email = els.memberEmail.value.trim().toLowerCase();
   const qualification = normalizeQualification(els.memberQualification?.value);
@@ -7127,15 +7149,20 @@ function onMemberAdd(event) {
     showAppMessage("Another member already uses this email address.", "warning", "Member");
     return;
   }
+  const duplicateUsername = state.users.find((user) => user.username === username && user.id !== editingMemberId);
+  if (duplicateUsername) {
+    showAppMessage("Another member already uses this username.", "warning", "Member");
+    return;
+  }
   const existing = editingMember || state.users.find((user) => user.email === email);
-  const user = existing || createSystemUser({ personalNumber: getNextPersonalNumber(), name, surname, tel, email, role, qualification, workmode });
+  const user = existing || createSystemUser({ personalNumber: getNextPersonalNumber(), name, surname, tel, email, username, role, qualification, workmode });
   if (!existing) {
     state.users.push(user);
-    user.pinCode = "000000";
+    user.pinCode = DEFAULT_MEMBER_PIN;
     user.mustChangePin = true;
     notifyUser(user.id, {
       title: "Account created",
-      body: "Your account was created. Use temporary PIN 000000 on first login, then choose a new PIN.",
+      body: "Your account was created. Use temporary PIN 123456 on first login, then choose a new PIN.",
     });
     logAudit("Member Created", {
       objectType: "member",
@@ -7146,6 +7173,7 @@ function onMemberAdd(event) {
     if (existing.role !== role && !isInitialSetup && !requirePermission(hasPermission("changeRoles"), "You do not have permission to change roles.")) return;
     existing.name = name;
     existing.surname = surname;
+    existing.username = username;
     existing.tel = tel;
     existing.email = email;
     existing.qualification = qualification;
@@ -8598,6 +8626,7 @@ function populateMemberForm(member) {
   if (els.memberPersonalNumber) els.memberPersonalNumber.value = getMemberPersonalNumber(member);
   if (els.memberName) els.memberName.value = member.name || "";
   if (els.memberSurname) els.memberSurname.value = member.surname || "";
+  if (els.memberUsername) els.memberUsername.value = member.username || "";
   if (els.memberTel) els.memberTel.value = member.tel || "";
   if (els.memberEmail) els.memberEmail.value = member.email || "";
   if (els.memberQualification) els.memberQualification.value = String(normalizeQualification(member.qualification));
@@ -10574,7 +10603,9 @@ function syncProjectContactOverrideFields(project = getCurrentProject()) {
 }
 
 function populateCurrentUserSelect() {
-  const options = getActiveUsers().map((user) => `<option value="${user.id}">${escapeHtml(getMemberDisplayName(user))} (${ROLE_LABELS[user.role]})</option>`).join("");
+  const options = getActiveUsers()
+    .filter((user) => user.loginEnabled !== false || user.id === state.currentUserId)
+    .map((user) => `<option value="${user.id}">${escapeHtml(user.username || getMemberDisplayName(user))} (${ROLE_LABELS[user.role]})</option>`).join("");
   els.currentUserSelect.innerHTML = options;
   els.currentUserSelect.value = state.currentUserId || "";
   const user = getCurrentUser();
@@ -11614,11 +11645,13 @@ function renderMemberDetail(member, project = getCurrentProject()) {
     </div>
     <div class="directory-detail-meta member-detail-summary">
       <span class="meta-pill">Personal No: ${escapeHtml(personalNumber)}</span>
+      <span class="meta-pill">Username: ${escapeHtml(member.username || "-")}</span>
       <span class="meta-pill">Email: ${escapeHtml(member.email || "No email")}</span>
       <span class="meta-pill">Telephone: ${escapeHtml(member.tel || "No telephone")}</span>
       <span class="meta-pill">Created: ${escapeHtml(formatDateDisplay(member.createdAt))}</span>
       <span class="meta-pill">Last login: ${escapeHtml(member.lastLoginAt ? formatDateDisplay(member.lastLoginAt.slice(0, 10)) : "Never")}</span>
       ${member.mustChangePin ? '<span class="meta-pill status-pill-archived">PIN change required</span>' : ""}
+      ${member.loginEnabled === false ? '<span class="meta-pill status-pill-archived">Login disabled</span>' : '<span class="meta-pill status-pill-active">Login enabled</span>'}
     </div>
   `;
   const actionsHost = els.memberDetailCard.querySelector("#member-detail-actions");
@@ -11656,6 +11689,13 @@ function renderMemberDetail(member, project = getCurrentProject()) {
       resetPinBtn.textContent = "Reset PIN";
       resetPinBtn.addEventListener("click", () => resetMemberPin(member.id));
       actionsHost?.append(resetPinBtn);
+
+      const loginToggleBtn = document.createElement("button");
+      loginToggleBtn.type = "button";
+      loginToggleBtn.className = member.loginEnabled === false ? "secondary-btn" : "ghost-btn destructive-btn";
+      loginToggleBtn.textContent = member.loginEnabled === false ? "Enable Login" : "Disable Login";
+      loginToggleBtn.addEventListener("click", () => toggleMemberLoginAccess(member.id));
+      actionsHost?.append(loginToggleBtn);
     }
 
     if (!isCurrentMember && hasPermission("deleteMembers") && (member.role !== "admin" || hasPermission("deleteAdmin"))) {
@@ -11666,6 +11706,15 @@ function renderMemberDetail(member, project = getCurrentProject()) {
       deactivateBtn.addEventListener("click", () => archiveMember(member.id));
       actionsHost?.append(deactivateBtn);
     }
+  }
+  // Every logged-in member can change their own PIN, regardless of role.
+  if (member.status !== "archived" && isCurrentMember) {
+    const changePinBtn = document.createElement("button");
+    changePinBtn.type = "button";
+    changePinBtn.className = "ghost-btn";
+    changePinBtn.textContent = "Change PIN";
+    changePinBtn.addEventListener("click", () => changeOwnPin());
+    actionsHost?.append(changePinBtn);
   }
 }
 
@@ -16345,11 +16394,11 @@ function resetMemberPin(memberId) {
   if (!requirePermission(isAdmin(), "Only admins can reset login PINs.")) return;
   const member = getUserById(memberId);
   if (!member || member.id === state.currentUserId) return;
-  member.pinCode = "000000";
+  member.pinCode = DEFAULT_MEMBER_PIN;
   member.mustChangePin = true;
   notifyUser(member.id, {
     title: "PIN reset",
-    body: "An admin reset your login PIN. Use 000000 once, then choose a new PIN.",
+    body: "An admin reset your login PIN. Use 123456 once, then choose a new PIN.",
   });
   logAudit("Member PIN Reset", {
     objectType: "member",
@@ -16358,7 +16407,66 @@ function resetMemberPin(memberId) {
   persist();
   renderMembers();
   renderNotificationsPanel();
-  showAppMessage(`Temporary PIN for ${getMemberDisplayName(member)} is 000000. They must change it at next login.`, "success", "PIN Reset");
+  showAppMessage(`Temporary PIN for ${getMemberDisplayName(member)} is 123456. They must change it at next login.`, "success", "PIN Reset");
+}
+
+function changeOwnPin() {
+  const member = getCurrentUser();
+  if (!member) return;
+  const currentPin = window.prompt("Enter your current PIN:");
+  if (currentPin == null) return;
+  if (normalizePin(currentPin, "") !== member.pinCode) {
+    showAppMessage("Incorrect PIN.", "warning", "Change PIN");
+    return;
+  }
+  const nextPin = window.prompt("Enter a new 6-digit PIN:");
+  if (nextPin == null) return;
+  const normalizedNextPin = normalizePin(nextPin, "");
+  if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === DEFAULT_MEMBER_PIN) {
+    showAppMessage("Please choose a new personal 6-digit PIN (not the temporary one).", "warning", "Change PIN");
+    return;
+  }
+  const confirmPin = window.prompt("Confirm the new PIN:");
+  if (normalizePin(confirmPin, "") !== normalizedNextPin) {
+    showAppMessage("PIN confirmation did not match.", "warning", "Change PIN");
+    return;
+  }
+  member.pinCode = normalizedNextPin;
+  member.mustChangePin = false;
+  logAudit("Member PIN Changed", {
+    objectType: "member",
+    objectName: getMemberDisplayName(member),
+  });
+  persist();
+  renderMembers();
+  showAppMessage("Your PIN was changed successfully.", "success", "Change PIN");
+}
+
+function toggleMemberLoginAccess(memberId) {
+  if (!requirePermission(isAdmin(), "Only admins can change login access.")) return;
+  const member = getUserById(memberId);
+  if (!member || member.id === state.currentUserId) return;
+  member.loginEnabled = member.loginEnabled === false;
+  logAudit(member.loginEnabled ? "Member Login Enabled" : "Member Login Disabled", {
+    objectType: "member",
+    objectName: getMemberDisplayName(member),
+  });
+  notifyUser(member.id, {
+    title: member.loginEnabled ? "Login access enabled" : "Login access disabled",
+    body: member.loginEnabled
+      ? "An admin enabled your login access. You can log in again."
+      : "An admin disabled your login access.",
+  });
+  persist();
+  renderMembers();
+  render();
+  showAppMessage(
+    member.loginEnabled
+      ? `Login access for ${getMemberDisplayName(member)} is now enabled.`
+      : `Login access for ${getMemberDisplayName(member)} is now disabled.`,
+    "success",
+    "Login Access"
+  );
 }
 
 function editClient(clientId) {

@@ -594,11 +594,13 @@ async function loadOrgDetail(code) {
       usersEl.innerHTML = '<div class="empty-state" style="padding:16px">No users in the workspace yet</div>';
     } else {
       usersEl.innerHTML = `<table>
-        <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>PIN</th><th>Last Login</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Login</th><th>PIN</th><th>Last Login</th><th></th></tr></thead>
         <tbody>${info.users.map(u => `<tr>
           <td><strong>${u.name}</strong>${u.email ? `<br><span style="font-size:.72rem;color:var(--muted)">${u.email}</span>` : ""}</td>
+          <td>${u.username ? `<span class="code-pill">${u.username}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
           <td style="color:var(--muted)">${u.role}</td>
           <td><span class="badge badge-${u.status === "active" ? "active" : "inactive"}">${u.status}</span></td>
+          <td style="font-size:.76rem;color:${u.loginEnabled === false ? "var(--red)" : "var(--green)"}">${u.loginEnabled === false ? "✕ Off" : "✓ On"}</td>
           <td style="font-size:.76rem;color:${u.mustChangePin ? "var(--orange)" : "var(--green)"}">${u.mustChangePin ? "⚠ Default" : "✓ Changed"}</td>
           <td style="font-size:.76rem;color:var(--muted)">${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never"}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="resetInternalPin('${u.id}', '${u.name.replace(/'/g, "")}')">Reset PIN</button></td>
@@ -612,9 +614,9 @@ async function loadOrgDetail(code) {
 }
 
 async function resetOrgLoginPin(username) {
-  const pin = prompt(`Reset the LOGIN PIN for "${username}" (the PIN typed at the app login).\nEnter new PIN (6 digits), or leave empty for 000000:`);
+  const pin = prompt(`Reset the LOGIN PIN for "${username}" (the PIN typed at the app login).\nEnter new PIN (6 digits), or leave empty for 123456:`);
   if (pin === null) return;
-  const newPin = pin.trim() || "000000";
+  const newPin = pin.trim() || "123456";
   if (!/^\d{6}$/.test(newPin)) { toast("PIN must be 6 digits", "error"); return; }
   try {
     await adminFn({ action: "resetOrgPin", orgCode: editingOrgCode, username, newPin });
@@ -629,9 +631,9 @@ async function resetOrgLoginPin(username) {
 }
 
 async function resetInternalPin(userId, name) {
-  const pin = prompt(`Reset the workspace PIN for "${name}".\nEnter new PIN (6 digits), or leave empty for 000000:`);
+  const pin = prompt(`Reset the workspace PIN for "${name}".\nEnter new PIN (6 digits), or leave empty for 123456:`);
   if (pin === null) return;
-  const newPin = pin.trim() || "000000";
+  const newPin = pin.trim() || "123456";
   if (!/^\d{6}$/.test(newPin)) { toast("PIN must be 6 digits", "error"); return; }
   try {
     await adminFn({ action: "resetPin", orgCode: editingOrgCode, userId, newPin });
