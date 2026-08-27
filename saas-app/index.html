@@ -69,6 +69,7 @@
       <div class="backup-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
         <button id="backup-connect-btn" class="primary-btn" type="button" style="width: 100%;">🔗 Connect Google Drive</button>
         <button id="backup-now-btn" class="primary-btn" type="button" style="width: 100%; display: none; margin-top: 0.5em;">💾 Backup Now</button>
+        <button id="download-backup-btn" class="ghost-btn" type="button" style="width: 100%; margin-top: 0.5em;">⬇ Download Backup</button>
         <div id="backup-status" class="muted" style="font-size: 0.85em; margin-top: 0.5em; line-height: 1.4;"></div>
       </div>
       <button id="logout-btn" class="ghost-btn" type="button" style="display:none; color: #d32f2f; margin-top: 1em;">Logout</button>
@@ -1580,7 +1581,7 @@
     })();
   </script>
   <script type="module" src="./supabase-client.js"></script>
-  <script defer src="appback.js?v=session-persist-78"></script>
+  <script defer src="appback.js?v=backups-oauth-79"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

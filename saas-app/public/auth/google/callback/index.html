@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Connecting Google Drive…</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; align-items: center;
+           justify-content: center; min-height: 90vh; background: #faf7f2; color: #333; }
+    .card { text-align: center; padding: 2em; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 id="msg">Connecting your Google Drive…</h2>
+    <p id="detail">This window closes automatically.</p>
+  </div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var code = params.get('code');
+      var state = params.get('state');
+      var error = params.get('error');
+      var msg = document.getElementById('msg');
+      var detail = document.getElementById('detail');
+
+      function send(payload) {
+        if (window.opener) {
+          window.opener.postMessage(payload, window.location.origin);
+          setTimeout(function () { window.close(); }, 800);
+        } else {
+          msg.textContent = 'Please return to the app window.';
+          detail.textContent = 'You can close this window.';
+        }
+      }
+
+      if (error) {
+        msg.textContent = 'Connection cancelled';
+        send({ type: 'google_auth_error', error: error });
+      } else if (code) {
+        msg.textContent = '✓ Permission granted';
+        send({ type: 'google_auth_code', code: code, state: state });
+      } else {
+        msg.textContent = 'Something went wrong';
+        detail.textContent = 'Missing authorization code. Close this window and try again.';
+      }
+    })();
+  </script>
+</body>
+</html>

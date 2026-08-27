@@ -19092,6 +19092,39 @@ async function hashData(data) {
 
 // Handle OAuth callback from Google popup
 window.addEventListener('message', async function(e) {
+  if (e.data && e.data.type === 'google_auth_code') {
+    // Only accept messages from our own origin (the callback page).
+    if (e.origin !== window.location.origin) return;
+    const expectedState = sessionStorage.getItem(`google_auth_state_${currentOrgCode}`);
+    if (!expectedState || e.data.state !== expectedState) {
+      showAppMessage("Google Drive connection failed the security check. Please try again.", "error");
+      return;
+    }
+    sessionStorage.removeItem(`google_auth_state_${currentOrgCode}`);
+    try {
+      showAppMessage("Finishing Google Drive connection...", "info");
+      const { data, error } = await supabase.functions.invoke('google-oauth-callback', {
+        body: { code: e.data.code, state: e.data.state },
+      });
+      if (error || !data || data.error || !data.accessToken) {
+        throw new Error(error?.message || data?.error || 'Token exchange failed');
+      }
+      googleAccessToken = data.accessToken;
+      updateBackupUI();
+      showAppMessage("✓ Google Drive connected successfully!", "success");
+
+      const autoBackup = sessionStorage.getItem('google_auth_auto_backup');
+      if (autoBackup === 'true') {
+        sessionStorage.removeItem('google_auth_auto_backup');
+        await new Promise(r => setTimeout(r, 500));
+        await backupOrgData();
+      }
+    } catch (error) {
+      console.error("OAuth exchange error:", error);
+      showAppMessage(`❌ Google Drive connection failed: ${error.message}`, "error");
+    }
+    return;
+  }
   if (e.data.type === 'google_auth_success') {
     try {
       googleAccessToken = e.data.accessToken;
@@ -19122,6 +19155,7 @@ if (document.readyState === 'loading') {
 function setupBackupButtons() {
   const connectBtn = document.getElementById('backup-connect-btn');
   const backupBtn = document.getElementById('backup-now-btn');
+  const downloadBtn = document.getElementById('download-backup-btn');
 
   if (connectBtn) {
     connectBtn.addEventListener('click', async () => {
@@ -19136,7 +19170,35 @@ function setupBackupButtons() {
     });
   }
 
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', () => {
+      downloadBackupFile();
+    });
+  }
+
   if (isLoggedIn) {
     updateBackupUI();
   }
+}
+
+// Download the org's complete workspace state as a JSON file the client
+// can keep anywhere they like. Works without any cloud account.
+function downloadBackupFile() {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  const orgLabel = currentOrgCode || 'local';
+  const payload = {
+    format: 'piar-backup-v1',
+    orgCode: orgLabel,
+    exportedAt: new Date().toISOString(),
+    state: buildPersistedState(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `piar-backup-${orgLabel}-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

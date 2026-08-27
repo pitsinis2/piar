@@ -57,7 +57,9 @@ export function getTenantId() {
 window.supabase = supabase;
 window.STORAGE_BUCKET = STORAGE_BUCKET;
 window.getTenantId = getTenantId;
-window.GOOGLE_CLIENT_ID = cleanEnvValue(
-  import.meta.env.VITE_GOOGLE_CLIENT_ID,
-  "492857024431-7hotva9fppa5e1dete5s98rhchrnhjce.apps.googleusercontent.com"
-);
+// Accept the env value only if it actually looks like a Google client ID;
+// otherwise use the known-good one (guards against placeholder/stale envs).
+const googleClientIdEnv = cleanEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID, "");
+window.GOOGLE_CLIENT_ID = /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(googleClientIdEnv)
+  ? googleClientIdEnv
+  : "492857024431-7hotva9fppa5e1dete5s98rhchrnhjce.apps.googleusercontent.com";
