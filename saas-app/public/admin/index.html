@@ -225,6 +225,14 @@
       </div>
     </div>
     <div class="form-group">
+      <label class="form-label">Organization Code * (1 letter + 8 digits)</label>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" type="text" id="newOrgCode" maxlength="9" placeholder="p12345678" style="font-family:monospace;letter-spacing:.08em">
+        <button class="btn btn-ghost" type="button" onclick="regenOrgCode()" title="Generate random code">↻</button>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:5px">p = production, d = demo. Example: p12345678</div>
+    </div>
+    <div class="form-group">
       <label class="form-label">Organization Name *</label>
       <input class="form-input" type="text" id="newOrgName" placeholder="e.g. Acme Corp">
     </div>
@@ -244,6 +252,44 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeCreateOrg()">Cancel</button>
       <button class="btn btn-primary" id="createOrgBtn" onclick="submitCreateOrg()">Create Organization</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT ORG MODAL -->
+<div class="modal-overlay" id="editOrgModal" hidden>
+  <div class="modal">
+    <div class="modal-title">Edit Organization</div>
+    <div class="modal-sub">Code: <span class="code-pill" id="editOrgCodeLabel">—</span> &nbsp;(the code cannot be changed — all org data is linked to it)</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-input" id="editOrgType">
+          <option value="production">Production</option>
+          <option value="demo">Demo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan</label>
+        <select class="form-input" id="editOrgPlan">
+          <option value="standard">Standard</option>
+          <option value="pro">Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Organization Name *</label>
+      <input class="form-input" type="text" id="editOrgName">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contact Email</label>
+      <input class="form-input" type="email" id="editOrgEmail">
+    </div>
+    <div class="form-error" id="editOrgError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEditOrg()">Cancel</button>
+      <button class="btn btn-primary" id="editOrgBtn" onclick="submitEditOrg()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -340,6 +386,13 @@ document.getElementById("adminPassword").addEventListener("keydown", e => {
   if (e.key === "Enter") handleAdminLogin();
 });
 
+// Keep the code prefix in sync with the selected type (p = production, d = demo)
+document.getElementById("newOrgType").addEventListener("change", () => {
+  const input = document.getElementById("newOrgCode");
+  const prefix = document.getElementById("newOrgType").value === "demo" ? "d" : "p";
+  input.value = prefix + input.value.slice(1);
+});
+
 function handleLogout() {
   sessionStorage.removeItem("piARAdminSession");
   adminSession = null;
@@ -403,7 +456,8 @@ function renderOrgTable(orgs, containerId) {
       <td style="color:var(--muted);font-size:.82rem">${o.plan||'standard'}</td>
       <td><span class="badge badge-${o.active?'active':'inactive'}">${o.active?'Active':'Inactive'}</span></td>
       <td style="color:var(--muted);font-size:.78rem">${o.created_at ? new Date(o.created_at).toLocaleDateString() : '—'}</td>
-      <td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openEditOrg('${o.code}')">✎ Edit</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleOrg('${o.code}', ${!o.active})">
           ${o.active ? 'Deactivate' : 'Activate'}
         </button>
@@ -420,9 +474,21 @@ async function toggleOrg(code, active) {
   loadDashboard();
 }
 
+function generateOrgCode() {
+  const type = document.getElementById("newOrgType").value;
+  const prefix = type === "demo" ? "d" : "p";
+  const digits = Math.random().toString().substr(2, 8).padStart(8, "0");
+  return prefix + digits;
+}
+
+function regenOrgCode() {
+  document.getElementById("newOrgCode").value = generateOrgCode();
+}
+
 function openCreateOrg() {
   document.getElementById("createOrgModal").removeAttribute("hidden");
   document.getElementById("createOrgError").textContent = "";
+  document.getElementById("newOrgCode").value = generateOrgCode();
   document.getElementById("newOrgName").value = "";
   document.getElementById("newOrgEmail").value = "";
   document.getElementById("newOrgAdminUser").value = "admin";
@@ -431,6 +497,54 @@ function openCreateOrg() {
 
 function closeCreateOrg() {
   document.getElementById("createOrgModal").setAttribute("hidden", "");
+}
+
+let editingOrgCode = null;
+
+function openEditOrg(code) {
+  const org = allOrgs.find(o => o.code === code);
+  if (!org) return;
+  editingOrgCode = code;
+  document.getElementById("editOrgCodeLabel").textContent = code;
+  document.getElementById("editOrgType").value = org.type || "production";
+  document.getElementById("editOrgPlan").value = org.plan || "standard";
+  document.getElementById("editOrgName").value = org.name || "";
+  document.getElementById("editOrgEmail").value = org.contact_email || "";
+  document.getElementById("editOrgError").textContent = "";
+  document.getElementById("editOrgModal").removeAttribute("hidden");
+}
+
+function closeEditOrg() {
+  document.getElementById("editOrgModal").setAttribute("hidden", "");
+  editingOrgCode = null;
+}
+
+async function submitEditOrg() {
+  const name = document.getElementById("editOrgName").value.trim();
+  const errEl = document.getElementById("editOrgError");
+  const btn = document.getElementById("editOrgBtn");
+  if (!name) { errEl.textContent = "Organization name is required"; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try {
+    const { error } = await sb.from("organizations").update({
+      name,
+      type: document.getElementById("editOrgType").value,
+      plan: document.getElementById("editOrgPlan").value,
+      contact_email: document.getElementById("editOrgEmail").value.trim() || null,
+      updated_at: new Date().toISOString()
+    }).eq("code", editingOrgCode);
+    if (error) throw new Error(error.message);
+    closeEditOrg();
+    toast("✓ Organization updated", "success");
+    loadDashboard();
+    loadOrgs();
+  } catch(e) {
+    errEl.textContent = e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = "Save Changes";
 }
 
 function closeCredentials() {
@@ -447,17 +561,22 @@ async function submitCreateOrg() {
   const errEl = document.getElementById("createOrgError");
   const btn = document.getElementById("createOrgBtn");
 
+  const orgCode = document.getElementById("newOrgCode").value.trim();
+
   if (!name) { errEl.textContent = "Organization name is required"; return; }
   if (!/^\d{6}$/.test(adminPin)) { errEl.textContent = "PIN must be exactly 6 digits"; return; }
-
-  const prefix = type === "demo" ? "d" : "p";
-  const digits = Math.random().toString().substr(2, 8).padStart(8, "0");
-  const orgCode = prefix + digits;
+  if (!/^[pdPD]\d{8}$/.test(orgCode)) {
+    errEl.textContent = "Code must be 1 letter (p or d) followed by exactly 8 digits, e.g. p12345678";
+    return;
+  }
 
   btn.disabled = true;
   btn.textContent = "Creating…";
 
   try {
+    const { data: existing } = await sb.from("organizations").select("code").ilike("code", orgCode);
+    if (existing && existing.length) throw new Error(`Code "${existing[0].code}" is already in use — choose another.`);
+
     const { error: orgErr } = await sb.from("organizations").insert([{
       code: orgCode, name, type, plan, contact_email: email || null, active: true
     }]);
