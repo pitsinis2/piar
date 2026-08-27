@@ -17757,12 +17757,27 @@ async function initializeAuthState() {
     const session = await supabase.auth.getSession();
     if (session?.data?.session) {
       const user = session.data.session.user;
-      const orgCode = user.user_metadata?.org_code;
+      let orgCode = user.user_metadata?.org_code;
+      let username = user.user_metadata?.username;
+      let role = user.user_metadata?.role;
+      if (!orgCode) {
+        // Our users carry no metadata; membership lives in team_members.
+        const { data: member } = await supabase
+          .from('team_members')
+          .select('org_code, username, role')
+          .eq('supabase_user_id', user.id)
+          .maybeSingle();
+        if (member) {
+          orgCode = member.org_code;
+          username = member.username;
+          role = member.role;
+        }
+      }
       if (orgCode) {
         currentOrgCode = orgCode;
         currentUserId = user.id;
-        currentUsername = user.user_metadata?.username;
-        currentRole = user.user_metadata?.role || 'worker';
+        currentUsername = username;
+        currentRole = role || 'worker';
         isLoggedIn = true;
         // Cloud-first state load on session restore
         const hadCloudState = await loadStateFromCloud();
@@ -18845,15 +18860,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
 
-  // Try to restore existing session
-  const sessionRestored = await initializeAuthState();
-  if (sessionRestored) {
-    loginModal.close();
-    render();
-    return;
-  }
-
-  // Wire up login form
+  // Wire up handlers first so they exist on every path, including
+  // session restore.
   if (loginForm) {
     loginForm.addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -18873,7 +18881,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
   }
 
-  // Wire up logout button
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async function() {
@@ -18881,6 +18888,13 @@ document.addEventListener('DOMContentLoaded', async function() {
       updateAuthUI();
       render();
     });
+  }
+
+  // Try to restore existing session (keeps users logged in across refreshes)
+  const sessionRestored = await initializeAuthState();
+  if (sessionRestored) {
+    if (loginModal && loginModal.open) loginModal.close();
+    render();
   }
 
   // Update auth UI on page load
