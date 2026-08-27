@@ -17807,9 +17807,15 @@ let currentUsername = null;
 let currentOrgCode = null;
 let currentRole = 'worker';
 
-// No longer needed: first workspace user is now created on first login with the login username
-function checkDefaultAdminSecurity() {
-  // Legacy function - kept for backwards compatibility but no longer warns
+// Remove the legacy auto-created "Admin" workspace user (name "Admin", no surname).
+// New orgs never get one; this cleans up orgs created before the fix.
+function removeAutoCreatedAdmin() {
+  if (!Array.isArray(state.users)) return;
+  const autoAdmin = state.users.find(u => u.name === "Admin" && !u.surname);
+  if (!autoAdmin) return;
+  state.users = state.users.filter(u => u.id !== autoAdmin.id);
+  if (state.currentUserId === autoAdmin.id) state.currentUserId = state.users[0]?.id || "";
+  logAudit("Auto-created Admin user removed", { objectType: "cleanup", objectName: "Default Admin" });
 }
 
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
@@ -17881,14 +17887,7 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
       state.users = [firstUser];
       logAudit("First admin user created on first login", { objectType: "member", objectName: `${member.name || member.username} (admin)` });
     } else {
-      // Cleanup: remove auto-created "Admin" user if it still exists from before the fix
-      // Delete ANY user named "Admin" with no surname (this is always the auto-created one)
-      const autoAdmin = state.users.find(u => u.name === "Admin" && !u.surname);
-      if (autoAdmin) {
-        state.users = state.users.filter(u => u.id !== autoAdmin.id);
-        logAudit("Auto-created Admin user removed on login", { objectType: "cleanup", objectName: "Default Admin" });
-        showAppNotification("Removed auto-created Admin user from workspace.", { tag: "admin-cleanup" });
-      }
+      removeAutoCreatedAdmin();
     }
 
     persist();
@@ -17954,6 +17953,7 @@ async function initializeAuthState() {
         if (!hadCloudState) {
           await loadOrgData();
         }
+        removeAutoCreatedAdmin();
         persist();
         return true;
       }

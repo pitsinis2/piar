@@ -206,7 +206,7 @@
 <div class="modal-overlay" id="createOrgModal" hidden>
   <div class="modal">
     <div class="modal-title">New Organization</div>
-    <div class="modal-sub">Creates the org and a default admin user (PIN: 000000)</div>
+    <div class="modal-sub">Creates the org and a default admin user (PIN: 123456)</div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Type</label>
@@ -246,7 +246,7 @@
     </div>
     <div class="form-group">
       <label class="form-label">Default PIN (6 digits)</label>
-      <input class="form-input" type="text" id="newOrgAdminPin" placeholder="000000" maxlength="6" value="000000">
+      <input class="form-input" type="text" id="newOrgAdminPin" placeholder="123456" maxlength="6" value="123456">
     </div>
     <div class="form-error" id="createOrgError"></div>
     <div class="modal-actions">
@@ -508,7 +508,7 @@ function openCreateOrg() {
   document.getElementById("newOrgName").value = "";
   document.getElementById("newOrgEmail").value = "";
   document.getElementById("newOrgAdminUser").value = "admin";
-  document.getElementById("newOrgAdminPin").value = "000000";
+  document.getElementById("newOrgAdminPin").value = "123456";
 }
 
 function closeCreateOrg() {
@@ -655,7 +655,7 @@ function sendCredsByEmail() {
     "Εφαρμογή:            https://piar-jet.vercel.app\n" +
     "Κωδικός Οργανισμού:  " + editingOrgCode + "\n" +
     "Όνομα χρήστη:        admin\n" +
-    "Προσωρινό PIN:       000000\n\n" +
+    "Προσωρινό PIN:       123456\n\n" +
     "Παρακαλούμε αλλάξτε το PIN κατά την πρώτη σύνδεση.\n\n" +
     "Με εκτίμηση,\nFotis Pitsinis\npiAR"
   );
@@ -705,7 +705,7 @@ async function submitCreateOrg() {
   const plan = document.getElementById("newOrgPlan").value;
   const email = document.getElementById("newOrgEmail").value.trim();
   const adminUser = document.getElementById("newOrgAdminUser").value.trim() || "admin";
-  const adminPin = document.getElementById("newOrgAdminPin").value.trim() || "000000";
+  const adminPin = document.getElementById("newOrgAdminPin").value.trim() || "123456";
   const errEl = document.getElementById("createOrgError");
   const btn = document.getElementById("createOrgBtn");
 
