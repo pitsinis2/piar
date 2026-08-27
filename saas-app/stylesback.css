@@ -2362,6 +2362,136 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   gap: 10px;
 }
 
+/* ── Collapsible Member Card (Mobile-Friendly) ── */
+.member-card-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.member-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.member-card-title-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-card-title-area h4 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.member-card-toggle-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--accent-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.member-card-toggle-btn:hover {
+  background: rgba(0, 119, 190, 0.1);
+}
+
+.member-card-toggle-btn svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.member-card-toggle-btn.expanded svg {
+  transform: rotate(180deg);
+}
+
+.member-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+.member-card-section {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.member-card-section h5 {
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
+.member-card-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-card-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.member-card-row .label {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.member-card-row .value {
+  word-break: break-word;
+  color: var(--text-strong);
+}
+
+.member-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.member-card-actions .primary-btn,
+.member-card-actions .secondary-btn,
+.member-card-actions .ghost-btn {
+  font-size: 13px;
+  padding: 10px 14px;
+  min-height: 40px;
+}
+
 /* Make contact/ID info easier to scan in Member Details */
 #member-detail-card .directory-detail-subtitle {
   font-size: 1.05rem;

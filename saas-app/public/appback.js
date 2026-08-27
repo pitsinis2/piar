@@ -11632,30 +11632,85 @@ function renderMemberDetail(member, project = getCurrentProject()) {
     : `<p class="muted">No project schedule assigned yet.</p>`;
   const personalNumber = getMemberPersonalNumber(member) || "-";
   els.memberDetailCard.innerHTML = `
-    <div class="directory-detail-header">
-      <div class="directory-detail-title-group">
-        <div class="directory-detail-title-row">
+    <div class="member-card-compact">
+      <!-- HEADER: Always visible on mobile -->
+      <div class="member-card-header">
+        <div class="member-card-title-area">
           <h4>${escapeHtml(getMemberDisplayName(member))}</h4>
-          ${qualificationBadge}
-          ${workmodeBadge}
           <span class="meta-pill role-pill-${member.role}">${escapeHtml(roleLabel)}</span>
           ${member.status === "archived" ? '<span class="meta-pill status-pill-archived">Inactive</span>' : ""}
         </div>
-        <p class="directory-detail-subtitle">Personal No: ${escapeHtml(personalNumber)} | ${escapeHtml(member.email || "No email")} | ${escapeHtml(member.tel || "No telephone")}</p>
+        <button type="button" class="member-card-toggle-btn" aria-label="Toggle details" aria-expanded="false">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
-      <div class="directory-detail-actions" id="member-detail-actions"></div>
-    </div>
-    <div class="directory-detail-meta member-detail-summary">
-      <span class="meta-pill">Personal No: ${escapeHtml(personalNumber)}</span>
-      <span class="meta-pill">Username: ${escapeHtml(member.username || "-")}</span>
-      <span class="meta-pill">Email: ${escapeHtml(member.email || "No email")}</span>
-      <span class="meta-pill">Telephone: ${escapeHtml(member.tel || "No telephone")}</span>
-      <span class="meta-pill">Created: ${escapeHtml(formatDateDisplay(member.createdAt))}</span>
-      <span class="meta-pill">Last login: ${escapeHtml(member.lastLoginAt ? formatDateDisplay(member.lastLoginAt.slice(0, 10)) : "Never")}</span>
-      ${member.mustChangePin ? '<span class="meta-pill status-pill-archived">PIN change required</span>' : ""}
-      ${member.loginEnabled === false ? '<span class="meta-pill status-pill-archived">Login disabled</span>' : '<span class="meta-pill status-pill-active">Login enabled</span>'}
+
+      <!-- DETAILS: Collapsible section -->
+      <div class="member-card-details" style="display: none;">
+        <!-- Contact Info -->
+        <div class="member-card-section">
+          <h5>Επικοινωνία</h5>
+          <div class="member-card-rows">
+            <div class="member-card-row">
+              <span class="label">Αρ. προσωπικού</span>
+              <span class="value">${escapeHtml(personalNumber)}</span>
+            </div>
+            <div class="member-card-row">
+              <span class="label">Username</span>
+              <span class="value">${escapeHtml(member.username || "-")}</span>
+            </div>
+            <div class="member-card-row">
+              <span class="label">Email</span>
+              <span class="value">${escapeHtml(member.email || "No email")}</span>
+            </div>
+            <div class="member-card-row">
+              <span class="label">Τηλέφωνο</span>
+              <span class="value">${escapeHtml(member.tel || "No telephone")}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Info -->
+        <div class="member-card-section">
+          <h5>Λογαριασμός</h5>
+          <div class="member-card-rows">
+            <div class="member-card-row">
+              <span class="label">Created</span>
+              <span class="value">${escapeHtml(formatDateDisplay(member.createdAt))}</span>
+            </div>
+            <div class="member-card-row">
+              <span class="label">Last login</span>
+              <span class="value">${escapeHtml(member.lastLoginAt ? formatDateDisplay(member.lastLoginAt.slice(0, 10)) : "Never")}</span>
+            </div>
+            <div class="member-card-row">
+              <span class="label">Status</span>
+              <span class="value">
+                ${member.loginEnabled === false ? '🔒 Disabled' : '✓ Enabled'}
+                ${member.mustChangePin ? ' • PIN change required' : ''}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIONS: Always at bottom -->
+      <div class="member-card-actions" id="member-detail-actions"></div>
     </div>
   `;
+
+  // Wire up toggle button
+  const toggleBtn = els.memberDetailCard.querySelector(".member-card-toggle-btn");
+  const detailsSection = els.memberDetailCard.querySelector(".member-card-details");
+  if (toggleBtn && detailsSection) {
+    toggleBtn.addEventListener("click", () => {
+      const isExpanded = detailsSection.style.display !== "none";
+      detailsSection.style.display = isExpanded ? "none" : "block";
+      toggleBtn.setAttribute("aria-expanded", !isExpanded);
+      toggleBtn.classList.toggle("expanded");
+    });
+  }
   const actionsHost = els.memberDetailCard.querySelector("#member-detail-actions");
   const isCurrentMember = member.id === state.currentUserId;
   if (member.status === "archived") {
