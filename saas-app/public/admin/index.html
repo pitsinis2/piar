@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>piAR — Admin Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d1117;--surface:#161b22;--surface2:#1f2937;
+      --border:rgba(99,130,180,.18);--border2:rgba(99,130,180,.35);
+      --text:#e6edf3;--muted:#8b949e;--accent:#667eea;
+      --green:#3fb950;--red:#f85149;--orange:#d4721a;
+    }
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh}
+
+    /* LOGIN */
+    #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+    .login-box{background:var(--surface);border:1px solid var(--border2);padding:48px 40px;width:100%;max-width:400px;border-radius:8px}
+    .login-logo{font-family:monospace;font-size:.7rem;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;margin-bottom:24px}
+    .login-title{font-size:1.4rem;font-weight:700;margin-bottom:6px}
+    .login-sub{font-size:.85rem;color:var(--muted);margin-bottom:32px}
+    .login-label{display:block;font-size:.7rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;margin-top:16px}
+    .login-input{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:12px 14px;font-size:.95rem;outline:none;font-family:inherit;border-radius:4px}
+    .login-input:focus{border-color:var(--accent)}
+    .login-btn{width:100%;background:var(--accent);color:#fff;border:none;padding:13px;font-size:.9rem;font-weight:600;cursor:pointer;margin-top:24px;letter-spacing:.04em;border-radius:4px}
+    .login-btn:hover{opacity:.9}
+    .login-btn:disabled{opacity:.5;cursor:not-allowed}
+    .login-error{color:var(--red);font-size:.82rem;margin-top:10px;min-height:18px}
+
+    /* MAIN APP */
+    #app{display:none;flex-direction:column;min-height:100vh}
+    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topbar-logo{font-family:monospace;font-size:.75rem;color:var(--accent);letter-spacing:.12em;text-transform:uppercase}
+    .topbar-user{display:flex;align-items:center;gap:12px;font-size:.82rem;color:var(--muted)}
+    .logout-btn{background:none;border:1px solid var(--border2);color:var(--muted);padding:5px 12px;cursor:pointer;font-size:.78rem;border-radius:4px}
+    .logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+    .layout{display:flex;flex:1}
+    .sidebar{width:200px;background:var(--surface);border-right:1px solid var(--border);padding:16px 0;flex-shrink:0}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:.85rem;color:var(--muted);cursor:pointer;border-left:3px solid transparent}
+    .nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+    .nav-item.active{color:var(--text);border-left-color:var(--accent);background:rgba(102,126,234,.08)}
+    .nav-section{font-size:.65rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:16px 20px 6px}
+
+    .main{flex:1;padding:32px;overflow-y:auto}
+    .page{display:none}
+    .page.active{display:block}
+
+    /* STATS */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);padding:20px;border-radius:6px}
+    .stat-val{font-size:2rem;font-weight:700;color:var(--text);margin-bottom:4px}
+    .stat-label{font-size:.78rem;color:var(--muted)}
+    .stat-card.green .stat-val{color:var(--green)}
+    .stat-card.blue .stat-val{color:var(--accent)}
+
+    /* TABLE */
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .section-title{font-size:1.1rem;font-weight:600}
+    .btn{padding:8px 18px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;letter-spacing:.04em;border-radius:4px}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover{opacity:.9}
+    .btn-danger{background:var(--red);color:#fff}
+    .btn-danger:hover{opacity:.85}
+    .btn-ghost{background:none;border:1px solid var(--border2);color:var(--text)}
+    .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+    .btn-sm{padding:5px 12px;font-size:.76rem}
+    .btn-green{background:var(--green);color:#000}
+
+    .table-wrap{background:var(--surface);border:1px solid var(--border);overflow-x:auto;border-radius:6px}
+    table{width:100%;border-collapse:collapse}
+    th{background:var(--surface2);padding:10px 16px;text-align:left;font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+    td{padding:12px 16px;font-size:.85rem;border-bottom:1px solid var(--border)}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.02)}
+
+    .badge{display:inline-block;padding:2px 10px;font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-radius:3px}
+    .badge-production{background:rgba(63,185,80,.18);color:var(--green)}
+    .badge-demo{background:rgba(212,114,26,.18);color:var(--orange)}
+    .badge-active{background:rgba(63,185,80,.15);color:var(--green)}
+    .badge-inactive{background:rgba(248,81,73,.15);color:var(--red)}
+
+    /* MODAL */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+    .modal-overlay[hidden]{display:none}
+    .modal{background:var(--surface);border:1px solid var(--border2);width:100%;max-width:480px;padding:32px;border-radius:8px}
+    .modal-title{font-size:1.1rem;font-weight:700;margin-bottom:6px}
+    .modal-sub{font-size:.83rem;color:var(--muted);margin-bottom:24px}
+    .form-group{margin-bottom:16px}
+    .form-label{display:block;font-size:.7rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+    .form-input{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:10px 12px;font-size:.9rem;font-family:inherit;outline:none;border-radius:4px}
+    .form-input:focus{border-color:var(--accent)}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+    .form-error{color:var(--red);font-size:.8rem;margin-top:8px;min-height:16px}
+
+    .code-pill{font-family:monospace;background:var(--bg);padding:2px 8px;font-size:.82rem;color:var(--accent);border-radius:3px}
+    .empty-state{text-align:center;padding:48px;color:var(--muted);font-size:.9rem}
+
+    /* CREDENTIALS MODAL */
+    .creds-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:16px;font-family:monospace;font-size:.85rem;margin:16px 0}
+    .cred-item{margin-bottom:12px}
+    .cred-label{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+    .cred-value{color:var(--accent);font-weight:700;margin-top:2px}
+
+    #toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:12px 20px;font-size:.85rem;z-index:9999;border-radius:4px;transform:translateY(80px);opacity:0;transition:all .3s}
+    #toast.show{transform:translateY(0);opacity:1}
+    #toast.success{border-color:var(--green);color:var(--green)}
+    #toast.error{border-color:var(--red);color:var(--red)}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🔐 piAR Admin</div>
+    <h1 class="login-title">Admin Panel</h1>
+    <p class="login-sub">Restricted access — authorized personnel only</p>
+    <label class="login-label">Email</label>
+    <input class="login-input" type="email" id="adminEmail" placeholder="pitsinisf@gmail.com" autocomplete="email">
+    <label class="login-label">Password</label>
+    <input class="login-input" type="password" id="adminPassword" placeholder="••••••••" autocomplete="current-password">
+    <div class="login-error" id="loginErr"></div>
+    <button class="login-btn" id="loginBtn" onclick="handleAdminLogin()">Log In →</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">🔐 piAR Admin</div>
+    <div class="topbar-user">
+      <span id="adminName"></span>
+      <button class="logout-btn" onclick="handleLogout()">Log Out</button>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">📊 Dashboard</div>
+      <div class="nav-item" onclick="showPage('orgs')">🏢 Organizations</div>
+      <div class="nav-section">Admin</div>
+      <div class="nav-item" onclick="showPage('settings')">⚙ Settings</div>
+    </div>
+    <div class="main">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <h2 style="margin-bottom:24px">Dashboard</h2>
+        <div class="stats-grid">
+          <div class="stat-card green"><div class="stat-val" id="statActive">—</div><div class="stat-label">Active Orgs</div></div>
+          <div class="stat-card blue"><div class="stat-val" id="statProd">—</div><div class="stat-label">Production</div></div>
+          <div class="stat-card blue"><div class="stat-val" id="statDemo">—</div><div class="stat-label">Demo</div></div>
+          <div class="stat-card"><div class="stat-val" id="statTotal">—</div><div class="stat-label">Total Orgs</div></div>
+        </div>
+        <div class="section-header">
+          <div class="section-title">Recent Organizations</div>
+          <button class="btn btn-primary" onclick="showPage('orgs')">View All →</button>
+        </div>
+        <div class="table-wrap" id="dashOrgTable">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+
+      <!-- ORGANIZATIONS -->
+      <div class="page" id="page-orgs">
+        <div class="section-header">
+          <div class="section-title">All Organizations</div>
+          <button class="btn btn-primary" onclick="openCreateOrg()">+ New Organization</button>
+        </div>
+        <div class="table-wrap" id="orgTable">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="section-title" style="margin-bottom:20px">Admin Settings</div>
+        <div style="background:var(--surface);border:1px solid var(--border);padding:24px;border-radius:6px;max-width:500px">
+          <div style="font-weight:600;margin-bottom:12px">Change Admin Password</div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input class="form-input" type="password" id="currentPwd">
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input class="form-input" type="password" id="newPwd">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <input class="form-input" type="password" id="confirmPwd">
+          </div>
+          <div class="form-error" id="pwdError"></div>
+          <button class="btn btn-primary" onclick="changeAdminPassword()">Update Password</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- CREATE ORG MODAL -->
+<div class="modal-overlay" id="createOrgModal" hidden>
+  <div class="modal">
+    <div class="modal-title">New Organization</div>
+    <div class="modal-sub">Creates the org and a default admin user (PIN: 000000)</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-input" id="newOrgType">
+          <option value="production">Production</option>
+          <option value="demo">Demo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan</label>
+        <select class="form-input" id="newOrgPlan">
+          <option value="standard">Standard</option>
+          <option value="pro">Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Organization Name *</label>
+      <input class="form-input" type="text" id="newOrgName" placeholder="e.g. Acme Corp">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contact Email</label>
+      <input class="form-input" type="email" id="newOrgEmail" placeholder="client@company.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Admin Username *</label>
+      <input class="form-input" type="text" id="newOrgAdminUser" placeholder="e.g. admin" value="admin">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Default PIN (6 digits)</label>
+      <input class="form-input" type="text" id="newOrgAdminPin" placeholder="000000" maxlength="6" value="000000">
+    </div>
+    <div class="form-error" id="createOrgError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCreateOrg()">Cancel</button>
+      <button class="btn btn-primary" id="createOrgBtn" onclick="submitCreateOrg()">Create Organization</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREDENTIALS MODAL -->
+<div class="modal-overlay" id="credentialsModal" hidden>
+  <div class="modal">
+    <div class="modal-title">✓ Organization Created</div>
+    <p style="color:var(--muted);font-size:.9rem;margin-bottom:16px">Send these credentials to the client:</p>
+    <div class="creds-box">
+      <div class="cred-item">
+        <div class="cred-label">Organization Code</div>
+        <div class="cred-value" id="credOrgCode">—</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-label">App URL</div>
+        <div class="cred-value">https://piar-jet.vercel.app</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-label">Admin Username</div>
+        <div class="cred-value" id="credUsername">—</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-label">Default PIN (change on first login)</div>
+        <div class="cred-value" id="credPin">—</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCredentials()">Close</button>
+      <button class="btn btn-primary" onclick="copyCredentials()">📋 Copy All</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://ivdszujgmhpkebdgwoav.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZHN6dWpnbWhwa2ViZGd3b2F2IiwiKiUiOiJhcGkiLCJpYXQiOjE2OTUwMjUyOTksImV4cCI6MjAxMDYwNTI5OX0.tN2p-_6wJAx0x_sQaQfvDEQvXR1V9sDl2yKBmFpFILA";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let adminSession = null;
+const SESSION_HOURS = 4;
+
+function checkExistingSession() {
+  const s = sessionStorage.getItem("piARAdminSession");
+  if (!s) return false;
+  try {
+    const parsed = JSON.parse(s);
+    if (Date.now() > parsed.expires) { sessionStorage.removeItem("piARAdminSession"); return false; }
+    adminSession = parsed;
+    return true;
+  } catch(e) { return false; }
+}
+
+function saveSession(user) {
+  adminSession = { ...user, expires: Date.now() + SESSION_HOURS * 3600000 };
+  sessionStorage.setItem("piARAdminSession", JSON.stringify(adminSession));
+}
+
+async function handleAdminLogin() {
+  const err = document.getElementById("loginErr");
+  const btn = document.getElementById("loginBtn");
+  const email = document.getElementById("adminEmail").value.trim();
+  const pwd = document.getElementById("adminPassword").value;
+
+  if (!email || !pwd) { err.textContent = "Email and password required."; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Verifying…";
+  err.textContent = "";
+
+  try {
+    const { data, error } = await sb
+      .from("admin_users")
+      .select("id, email, name, active")
+      .eq("email", email.toLowerCase())
+      .eq("password", pwd)
+      .eq("active", true)
+      .single();
+
+    if (error || !data) {
+      err.textContent = "Invalid email or password.";
+      btn.disabled = false;
+      btn.textContent = "Log In →";
+      return;
+    }
+
+    await sb.from("admin_users").update({ last_login: new Date().toISOString() }).eq("id", data.id);
+    saveSession(data);
+    showApp();
+
+  } catch(e) {
+    err.textContent = "Connection error. Try again.";
+    btn.disabled = false;
+    btn.textContent = "Log In →";
+  }
+}
+
+document.getElementById("adminPassword").addEventListener("keydown", e => {
+  if (e.key === "Enter") handleAdminLogin();
+});
+
+function handleLogout() {
+  sessionStorage.removeItem("piARAdminSession");
+  adminSession = null;
+  document.getElementById("app").style.display = "none";
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("adminEmail").value = "";
+  document.getElementById("adminPassword").value = "";
+}
+
+function showApp() {
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  document.getElementById("adminName").textContent = adminSession.name || adminSession.email;
+  loadDashboard();
+}
+
+function showPage(id) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-" + id)?.classList.add("active");
+  document.querySelectorAll(".nav-item").forEach(n => {
+    if (n.textContent.toLowerCase().includes(id)) n.classList.add("active");
+  });
+  if (id === "orgs") loadOrgs();
+  if (id === "dashboard") loadDashboard();
+}
+
+let allOrgs = [];
+
+async function loadOrgs() {
+  const { data } = await sb.from("organizations").select("*").order("created_at", { ascending: false });
+  allOrgs = data || [];
+  renderOrgTable(allOrgs, "orgTable");
+}
+
+async function loadDashboard() {
+  const { data } = await sb.from("organizations").select("*").order("created_at", { ascending: false });
+  allOrgs = data || [];
+  const active = allOrgs.filter(o => o.active).length;
+  const prod = allOrgs.filter(o => o.type === "production" && o.active).length;
+  const demo = allOrgs.filter(o => o.type === "demo" && o.active).length;
+  document.getElementById("statActive").textContent = active;
+  document.getElementById("statProd").textContent = prod;
+  document.getElementById("statDemo").textContent = demo;
+  document.getElementById("statTotal").textContent = allOrgs.length;
+  renderOrgTable(allOrgs.slice(0, 8), "dashOrgTable");
+}
+
+function renderOrgTable(orgs, containerId) {
+  const el = document.getElementById(containerId);
+  if (!orgs.length) { el.innerHTML = '<div class="empty-state">No organizations yet</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr>
+      <th>Code</th><th>Name</th><th>Type</th><th>Plan</th><th>Status</th><th>Created</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+    ${orgs.map(o => `<tr>
+      <td><span class="code-pill">${o.code}</span></td>
+      <td><strong>${o.name}</strong></td>
+      <td><span class="badge badge-${o.type||'production'}">${(o.type||'production').toUpperCase()}</span></td>
+      <td style="color:var(--muted);font-size:.82rem">${o.plan||'standard'}</td>
+      <td><span class="badge badge-${o.active?'active':'inactive'}">${o.active?'Active':'Inactive'}</span></td>
+      <td style="color:var(--muted);font-size:.78rem">${o.created_at ? new Date(o.created_at).toLocaleDateString() : '—'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="toggleOrg('${o.code}', ${!o.active})">
+          ${o.active ? 'Deactivate' : 'Activate'}
+        </button>
+      </td>
+    </tr>`).join("")}
+    </tbody>
+  </table>`;
+}
+
+async function toggleOrg(code, active) {
+  if (!active && !confirm(`Deactivate "${code}"? Users will be locked out.`)) return;
+  await sb.from("organizations").update({ active }).eq("code", code);
+  toast(active ? "✓ Organization activated" : "✓ Organization deactivated", active ? "success" : "");
+  loadDashboard();
+}
+
+function openCreateOrg() {
+  document.getElementById("createOrgModal").removeAttribute("hidden");
+  document.getElementById("createOrgError").textContent = "";
+  document.getElementById("newOrgName").value = "";
+  document.getElementById("newOrgEmail").value = "";
+  document.getElementById("newOrgAdminUser").value = "admin";
+  document.getElementById("newOrgAdminPin").value = "000000";
+}
+
+function closeCreateOrg() {
+  document.getElementById("createOrgModal").setAttribute("hidden", "");
+}
+
+function closeCredentials() {
+  document.getElementById("credentialsModal").setAttribute("hidden", "");
+}
+
+async function submitCreateOrg() {
+  const name = document.getElementById("newOrgName").value.trim();
+  const type = document.getElementById("newOrgType").value;
+  const plan = document.getElementById("newOrgPlan").value;
+  const email = document.getElementById("newOrgEmail").value.trim();
+  const adminUser = document.getElementById("newOrgAdminUser").value.trim() || "admin";
+  const adminPin = document.getElementById("newOrgAdminPin").value.trim() || "000000";
+  const errEl = document.getElementById("createOrgError");
+  const btn = document.getElementById("createOrgBtn");
+
+  if (!name) { errEl.textContent = "Organization name is required"; return; }
+  if (!/^\d{6}$/.test(adminPin)) { errEl.textContent = "PIN must be exactly 6 digits"; return; }
+
+  const prefix = type === "demo" ? "d" : "p";
+  const digits = Math.random().toString().substr(2, 8).padStart(8, "0");
+  const orgCode = prefix + digits;
+
+  btn.disabled = true;
+  btn.textContent = "Creating…";
+
+  try {
+    const { error: orgErr } = await sb.from("organizations").insert([{
+      code: orgCode, name, type, plan, contact_email: email || null, active: true
+    }]);
+    if (orgErr) throw new Error(orgErr.message);
+
+    await sb.from("team_members").insert([{
+      org_code: orgCode,
+      username: adminUser,
+      first_name: "Admin",
+      last_name: "User",
+      email: email || "admin@" + orgCode,
+      pin_hash: adminPin,
+      user_type: "Admin",
+      role: "admin",
+      is_active: true
+    }]);
+
+    closeCreateOrg();
+    document.getElementById("credOrgCode").textContent = orgCode;
+    document.getElementById("credUsername").textContent = adminUser;
+    document.getElementById("credPin").textContent = adminPin;
+    document.getElementById("credentialsModal").removeAttribute("hidden");
+    toast("✓ Organization " + orgCode + " created", "success");
+    loadDashboard();
+
+  } catch(e) {
+    errEl.textContent = e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = "Create Organization";
+}
+
+function copyCredentials() {
+  const code = document.getElementById("credOrgCode").textContent;
+  const user = document.getElementById("credUsername").textContent;
+  const pin = document.getElementById("credPin").textContent;
+  const text = `Organization Code: ${code}\nApp URL: https://piar-jet.vercel.app\nAdmin Username: ${user}\nDefault PIN: ${pin}`;
+  navigator.clipboard.writeText(text).then(() => toast("✓ Copied to clipboard", "success"));
+}
+
+async function changeAdminPassword() {
+  const current = document.getElementById("currentPwd").value;
+  const newPwd = document.getElementById("newPwd").value;
+  const confirm = document.getElementById("confirmPwd").value;
+  const errEl = document.getElementById("pwdError");
+
+  if (!current || !newPwd || !confirm) { errEl.textContent = "All fields required"; return; }
+  if (newPwd.length < 6) { errEl.textContent = "New password must be at least 6 characters"; return; }
+  if (newPwd !== confirm) { errEl.textContent = "Passwords don't match"; return; }
+
+  const { data } = await sb.from("admin_users")
+    .select("id").eq("email", adminSession.email).eq("password", current).single();
+  if (!data) { errEl.textContent = "Current password is incorrect"; return; }
+
+  await sb.from("admin_users").update({ password: newPwd }).eq("id", data.id);
+  toast("✓ Password updated", "success");
+  document.getElementById("currentPwd").value = "";
+  document.getElementById("newPwd").value = "";
+  document.getElementById("confirmPwd").value = "";
+  errEl.textContent = "";
+}
+
+function toast(msg, type = "") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "show " + type;
+  setTimeout(() => t.className = "", 3000);
+}
+
+if (checkExistingSession()) {
+  showApp();
+} else {
+  document.getElementById("loginScreen").style.display = "flex";
+}
+</script>
+</body>
+</html>
