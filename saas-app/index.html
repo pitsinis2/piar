@@ -39,6 +39,10 @@
           PIN (6 digits) — <span style="color: #0077be; font-weight: 600;">Default: 123456</span>
           <input type="password" id="login-pin" placeholder="123456" maxlength="6" required />
         </label>
+        <label style="display: flex; align-items: center; gap: 0.5em; font-size: 0.9em;">
+          <input type="checkbox" id="login-remember" style="width: auto;" />
+          <span>Remember me on this device</span>
+        </label>
         <div id="login-error" class="error-message"></div>
         <button type="submit" class="primary-btn">Login</button>
       </form>
@@ -1592,7 +1596,7 @@
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="translations.js?v=el-1"></script>
-  <script defer src="appback.js?v=greek-93"></script>
+  <script defer src="appback.js?v=greek-94"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

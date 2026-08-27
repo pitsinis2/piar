@@ -19038,6 +19038,18 @@ document.addEventListener('DOMContentLoaded', async function() {
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
 
+  // Prefill saved credentials so returning users don't retype them.
+  try {
+    const savedOrg = localStorage.getItem('piar.login.orgCode');
+    const savedUsername = localStorage.getItem('piar.login.username');
+    const savedPin = localStorage.getItem('piar.login.pin');
+    if (savedOrg) document.getElementById('login-orgCode').value = savedOrg;
+    if (savedUsername) document.getElementById('login-username').value = savedUsername;
+    if (savedPin) document.getElementById('login-pin').value = savedPin;
+    const rememberBox = document.getElementById('login-remember');
+    if (rememberBox) rememberBox.checked = !!savedPin;
+  } catch (e) { /* localStorage unavailable */ }
+
   // Wire up handlers first so they exist on every path, including
   // session restore.
   if (loginForm) {
@@ -19050,6 +19062,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       try {
         await loginWithOrgCodeAndPin(orgCode, username, pin);
+        // Remember org code + username always; PIN only when "remember me" is checked.
+        try {
+          localStorage.setItem('piar.login.orgCode', orgCode);
+          localStorage.setItem('piar.login.username', username);
+          if (document.getElementById('login-remember')?.checked) {
+            localStorage.setItem('piar.login.pin', pin);
+          } else {
+            localStorage.removeItem('piar.login.pin');
+          }
+        } catch (e) { /* localStorage unavailable */ }
         loginModal.close();
         updateAuthUI();
         render();

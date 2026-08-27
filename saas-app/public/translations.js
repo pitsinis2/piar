@@ -184,6 +184,7 @@ window.APP_TRANSLATIONS = {
     "PIN change required": "Απαιτείται αλλαγή PIN",
     "Last login": "Τελευταία σύνδεση",
     "Never": "Ποτέ",
+    "Remember me on this device": "Απομνημόνευση σε αυτή τη συσκευή",
     "Security Alert": "Προειδοποίηση Ασφάλειας",
     "Your organization has a default \"Admin\" user": "Η οργάνωσή σας έχει έναν προεπιλεγμένο χρήστη \"Admin\"",
 
