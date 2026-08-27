@@ -317,27 +317,20 @@ async function handleAdminLogin() {
   btn.textContent = "Verifying…";
   err.textContent = "";
 
-  try {
-    const response = await fetch("https://ivdszujgmhpkebdgwoav.functions.supabase.co/admin-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: pwd })
+  // Hardcoded admin credentials
+  const ADMIN_EMAIL = "pitsinisf@gmail.com";
+  const ADMIN_PASSWORD = "123456";
+
+  if (email === ADMIN_EMAIL && pwd === ADMIN_PASSWORD) {
+    saveSession({
+      id: "admin-001",
+      email: ADMIN_EMAIL,
+      name: "Fotis Pitsinis",
+      active: true
     });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      err.textContent = "Invalid email or password.";
-      btn.disabled = false;
-      btn.textContent = "Log In →";
-      return;
-    }
-
-    saveSession(data.user);
     showApp();
-
-  } catch(e) {
-    err.textContent = "Connection error. Try again.";
+  } else {
+    err.textContent = "Invalid email or password.";
     btn.disabled = false;
     btn.textContent = "Log In →";
   }
