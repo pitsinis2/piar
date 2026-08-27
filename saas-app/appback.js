@@ -4449,7 +4449,9 @@ function buildLocalAiSecretaryDraft(mode, transcript, context, settings = getAiA
   ].join("\n");
 }
 
-const AI_SECRETARY_BASE_URL = "http://127.0.0.1:8787";
+// Supabase Edge Function endpoint (secure proxy to OpenAI with plumbing context)
+// Will be set after Supabase initializes
+let AI_SECRETARY_BASE_URL = "";
 
 function formatAiEndpointError(body, fallbackMessage) {
   if (!body) return fallbackMessage;
@@ -19034,6 +19036,12 @@ function selectProject(projectId, rerender = true, skipUnsavedCheck = false) {
 
 // Step 2: Initialize auth on page load
 document.addEventListener('DOMContentLoaded', async function() {
+  // Set up AI Secretary endpoint (calls Supabase Edge Function that proxies to OpenAI)
+  if (typeof supabase !== 'undefined') {
+    const supabaseUrl = supabase._supabaseUrl || window.location.origin;
+    AI_SECRETARY_BASE_URL = `${supabaseUrl}/functions/v1/ai-secretary`;
+  }
+
   const loginModal = document.getElementById('login-modal');
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
