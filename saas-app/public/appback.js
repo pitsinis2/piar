@@ -17714,10 +17714,14 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
     currentRole = member.role;
     isLoggedIn = true;
 
+    // Cloud-first: pull this org's private workspace state. If the org has
+    // no cloud state yet, fall back to legacy normalized tables, then seed
+    // the cloud with the result.
+    const hadCloudState = await loadStateFromCloud();
+    if (!hadCloudState) {
+      await loadOrgData();
+    }
     persist();
-
-    // Step 3: Load org data from Postgres
-    await loadOrgData();
 
     return { user, member };
   } catch (error) {
@@ -17727,6 +17731,9 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
 }
 
 async function logout() {
+  // Push any unsaved changes to the cloud before the session ends.
+  await flushCloudSync();
+  cloudStateReady = false;
   await supabase.auth.signOut();
   currentUserId = null;
   currentUsername = null;
@@ -17757,8 +17764,12 @@ async function initializeAuthState() {
         currentUsername = user.user_metadata?.username;
         currentRole = user.user_metadata?.role || 'worker';
         isLoggedIn = true;
-        // Load org data on session restore
-        await loadOrgData();
+        // Cloud-first state load on session restore
+        const hadCloudState = await loadStateFromCloud();
+        if (!hadCloudState) {
+          await loadOrgData();
+        }
+        persist();
         return true;
       }
     }
@@ -18092,13 +18103,86 @@ async function migrateLocalStorageToDB() {
   showAppMessage(`Synced ${migrated}/${pending.length} items.`, migrated === pending.length ? "success" : "info");
 }
 
-function persist() {
+function buildPersistedState() {
   const persistedState = structuredClone(state);
   persistedState.projects = (persistedState.projects || []).filter((project) => !project.isDraft);
   if (!persistedState.projects.some((project) => project.id === persistedState.selectedProjectId)) {
     persistedState.selectedProjectId = ensureAccessibleSelectedProject(persistedState);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+  return persistedState;
+}
+
+function persist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistedState()));
+  scheduleCloudSync();
+}
+
+// ---- Per-org cloud sync (org_state table, RLS-isolated per tenant) ----
+// Cloud pushes only start after the org's cloud state has been loaded (or
+// confirmed absent), so a stale local session can never clobber the cloud.
+let cloudStateReady = false;
+let cloudSyncTimer = null;
+let cloudSyncInFlight = false;
+let cloudSyncQueued = false;
+
+function scheduleCloudSync() {
+  if (!cloudStateReady || !isLoggedIn || !currentOrgCode || !window.supabase) return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => { pushStateToCloud(); }, 1500);
+}
+
+async function pushStateToCloud() {
+  if (!cloudStateReady || !isLoggedIn || !currentOrgCode || !window.supabase) return;
+  if (cloudSyncInFlight) { cloudSyncQueued = true; return; }
+  cloudSyncInFlight = true;
+  try {
+    const { error } = await supabase.from('org_state').upsert({
+      org_code: currentOrgCode,
+      state: buildPersistedState(),
+      updated_at: new Date().toISOString(),
+      updated_by_user_id: currentUserId,
+    }, { onConflict: 'org_code' });
+    if (error) throw error;
+  } catch (error) {
+    console.error('Cloud sync push failed:', error);
+  } finally {
+    cloudSyncInFlight = false;
+    if (cloudSyncQueued) {
+      cloudSyncQueued = false;
+      scheduleCloudSync();
+    }
+  }
+}
+
+async function flushCloudSync() {
+  clearTimeout(cloudSyncTimer);
+  await pushStateToCloud();
+}
+
+async function loadStateFromCloud() {
+  if (!currentOrgCode || !window.supabase) return false;
+  try {
+    const { data, error } = await supabase
+      .from('org_state')
+      .select('state')
+      .eq('org_code', currentOrgCode)
+      .maybeSingle();
+    if (error) throw error;
+    if (data && data.state) {
+      state = normalizeState({ ...structuredClone(initialState), ...data.state });
+      cloudStateReady = true;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistedState()));
+      return true;
+    }
+    // No cloud state yet: local state becomes the seed for the first push.
+    cloudStateReady = true;
+    return false;
+  } catch (error) {
+    console.error('Cloud sync load failed:', error);
+    // Leave cloudStateReady false: do not risk overwriting cloud data
+    // we could not read.
+    return false;
+  }
 }
 
 function loadState() {
