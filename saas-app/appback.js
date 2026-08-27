@@ -6964,14 +6964,14 @@ function authenticateLoginUser(user) {
     return false;
   }
   if (!user.mustChangePin) return true;
-  const nextPin = window.prompt("This is the first login after a reset. Enter a new 6-digit PIN:");
+  const nextPin = window.prompt("First login after account creation/PIN reset: Enter a new personal 6-digit PIN (not the default 123456):");
   if (nextPin == null) return false;
   const normalizedNextPin = normalizePin(nextPin, "");
   if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === DEFAULT_MEMBER_PIN) {
-    showAppMessage("Please choose a new personal 6-digit PIN (not the temporary one).", "warning", "Login");
+    showAppMessage("Please choose a new personal 6-digit PIN (cannot use default PIN 123456).", "warning", "Login");
     return false;
   }
-  const confirmPin = window.prompt("Confirm the new PIN:");
+  const confirmPin = window.prompt("Confirm your new PIN:");
   if (normalizePin(confirmPin, "") !== normalizedNextPin) {
     showAppMessage("PIN confirmation did not match.", "warning", "Login");
     return false;
@@ -7162,7 +7162,7 @@ function onMemberAdd(event) {
     user.mustChangePin = true;
     notifyUser(user.id, {
       title: "Account created",
-      body: "Your account was created. Use temporary PIN 123456 on first login, then choose a new PIN.",
+      body: "Your account was created. On first login: use default PIN 123456, then change to your personal PIN.",
     });
     logAudit("Member Created", {
       objectType: "member",
@@ -16398,7 +16398,7 @@ function resetMemberPin(memberId) {
   member.mustChangePin = true;
   notifyUser(member.id, {
     title: "PIN reset",
-    body: "An admin reset your login PIN. Use 123456 once, then choose a new PIN.",
+    body: "An admin reset your login PIN. Use default PIN 123456 on next login, then set your personal PIN.",
   });
   logAudit("Member PIN Reset", {
     objectType: "member",
@@ -16407,26 +16407,26 @@ function resetMemberPin(memberId) {
   persist();
   renderMembers();
   renderNotificationsPanel();
-  showAppMessage(`Temporary PIN for ${getMemberDisplayName(member)} is 123456. They must change it at next login.`, "success", "PIN Reset");
+  showAppMessage(`${getMemberDisplayName(member)}'s PIN reset to default (123456). They must set a new PIN on next login.`, "success", "PIN Reset");
 }
 
 function changeOwnPin() {
   const member = getCurrentUser();
   if (!member) return;
-  const currentPin = window.prompt("Enter your current PIN:");
+  const currentPin = window.prompt("Change your PIN — Enter your current PIN:");
   if (currentPin == null) return;
   if (normalizePin(currentPin, "") !== member.pinCode) {
     showAppMessage("Incorrect PIN.", "warning", "Change PIN");
     return;
   }
-  const nextPin = window.prompt("Enter a new 6-digit PIN:");
+  const nextPin = window.prompt("Enter a new personal 6-digit PIN (cannot use default PIN 123456):");
   if (nextPin == null) return;
   const normalizedNextPin = normalizePin(nextPin, "");
   if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === DEFAULT_MEMBER_PIN) {
-    showAppMessage("Please choose a new personal 6-digit PIN (not the temporary one).", "warning", "Change PIN");
+    showAppMessage("Please choose a new personal PIN (cannot use default PIN 123456).", "warning", "Change PIN");
     return;
   }
-  const confirmPin = window.prompt("Confirm the new PIN:");
+  const confirmPin = window.prompt("Confirm your new PIN:");
   if (normalizePin(confirmPin, "") !== normalizedNextPin) {
     showAppMessage("PIN confirmation did not match.", "warning", "Change PIN");
     return;
@@ -17880,6 +17880,13 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
       });
       state.users = [firstUser];
       logAudit("First admin user created on first login", { objectType: "member", objectName: `${member.name || member.username} (admin)` });
+    } else {
+      // Cleanup: remove auto-created "Admin" user if it still exists from before the fix
+      const autoAdmin = state.users.find(u => u.name === "Admin" && !u.surname && u.personalNumber === "1");
+      if (autoAdmin && state.users.length > 1) {
+        state.users = state.users.filter(u => u.id !== autoAdmin.id);
+        logAudit("Auto-created Admin user removed", { objectType: "cleanup", objectName: "Default Admin" });
+      }
     }
 
     persist();
