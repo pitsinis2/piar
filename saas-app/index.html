@@ -22,30 +22,96 @@
   <link rel="stylesheet" href="styles-futuristic.css">
 </head>
 <body>
-  <!-- Step 2: Auth login modal -->
-  <dialog id="login-modal" class="modal">
-    <div class="modal-content">
-      <h2>Project Manager Login</h2>
-      <form id="login-form">
-        <label>
-          Org Code (e.g., P12345678)
-          <input type="text" id="login-orgCode" placeholder="P12345678" required autofocus />
+  <!-- Auth login modal - piAR Login v2 -->
+  <dialog id="login-modal" class="modal login-modal-v2">
+    <div class="modal-content login-content">
+      <!-- Language Selector -->
+      <div class="login-lang-selector">
+        <button class="lang-btn active" data-lang="el">🇬🇷 Ελληνικά</button>
+        <button class="lang-btn" data-lang="en">🇬🇧 English</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="login-form-v2">
+        <h2 class="login-title" data-i18n="login.title">Project Manager Login</h2>
+        <p class="login-subtitle" data-i18n="login.subtitle">Enter your credentials to continue</p>
+
+        <!-- Org Code -->
+        <label class="login-label">
+          <span data-i18n="login.orgCode">Organization Code</span>
+          <input
+            type="text"
+            id="login-orgCode"
+            class="login-input"
+            placeholder="28034222"
+            maxlength="20"
+            autocomplete="off"
+            required
+            autofocus
+          />
+          <small class="login-hint" data-i18n="login.orgCodeHint">8 digits (e.g., 28034222)</small>
         </label>
-        <label>
-          Username
-          <input type="text" id="login-username" placeholder="your username" required />
+
+        <!-- Username -->
+        <label class="login-label">
+          <span data-i18n="login.username">Username</span>
+          <input
+            type="text"
+            id="login-username"
+            class="login-input"
+            placeholder="maria"
+            autocomplete="username"
+            required
+          />
+          <small class="login-hint" data-i18n="login.usernameHint">English characters only</small>
         </label>
-        <label>
-          PIN (6 digits) — <span style="color: #0077be; font-weight: 600;">Default: 123456</span>
-          <input type="password" id="login-pin" placeholder="123456" maxlength="6" required />
+
+        <!-- PIN with Toggle -->
+        <label class="login-label">
+          <span data-i18n="login.pin">PIN (6 digits)</span>
+          <div class="login-pin-wrapper">
+            <input
+              type="password"
+              id="login-pin"
+              class="login-input"
+              placeholder="••••••"
+              maxlength="6"
+              inputmode="numeric"
+              required
+            />
+            <button
+              type="button"
+              class="login-pin-toggle"
+              id="login-pin-toggle"
+              aria-label="Toggle PIN visibility"
+              title="Show/Hide PIN"
+            >👁</button>
+          </div>
         </label>
-        <label style="display: flex; align-items: center; gap: 0.5em; font-size: 0.9em;">
-          <input type="checkbox" id="login-remember" style="width: auto;" />
-          <span>Remember me on this device</span>
+
+        <!-- Remember Org Code -->
+        <label class="login-remember-label">
+          <input
+            type="checkbox"
+            id="login-remember-org"
+            class="login-checkbox"
+            checked
+          />
+          <span data-i18n="login.rememberOrg">Remember Organization Code</span>
         </label>
-        <div id="login-error" class="error-message"></div>
-        <button type="submit" class="primary-btn">Login</button>
+
+        <!-- Error Message -->
+        <div id="login-error" class="login-error-message"></div>
+
+        <!-- Login Button -->
+        <button type="submit" class="login-btn-primary" data-i18n="login.button">Log In</button>
       </form>
+
+      <!-- Help Footer -->
+      <div class="login-footer">
+        <p data-i18n="login.help">First time? Ask your admin for your credentials.</p>
+        <p><span data-i18n="login.defaultPin">Default PIN:</span> <strong>123456</strong></p>
+      </div>
     </div>
   </dialog>
 
@@ -1593,7 +1659,7 @@
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="translations.js?v=el-1"></script>
-  <script defer src="appback.js?v=greek-98"></script>
+  <script defer src="appback.js?v=greek-101"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

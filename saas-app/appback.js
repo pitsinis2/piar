@@ -1928,8 +1928,6 @@ function renderMemberWorkmodeBadge(value, options = {}) {
   return `<span class="member-workmode-badge" title="${escapeHtml(meta.label)}"><span aria-hidden="true">${meta.icon}</span><span>${escapeHtml(meta.label)}</span></span>`;
 }
 
-const DEFAULT_MEMBER_PIN = "123456";
-
 function buildUsernameFromName(name, surname) {
   const clean = (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
   const parts = [clean(name), clean(surname)].filter(Boolean);
@@ -1940,7 +1938,7 @@ function normalizeUsername(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, ".").replace(/[^a-z0-9._-]/g, "");
 }
 
-function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", name, surname, tel, email, username = "", role = "user", qualification = 0, workmode = "none", status = "active", createdAt = new Date().toISOString(), pinCode = DEFAULT_MEMBER_PIN, mustChangePin = true, lastLoginAt = null, loginEnabled = true }) {
+function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", name, surname, tel, email, username = "", role = "user", qualification = 0, workmode = "none", status = "active", createdAt = new Date().toISOString(), pinCode = "123456", mustChangePin = true, lastLoginAt = null, loginEnabled = true }) {
   return {
     id,
     personalNumber: normalizePersonalNumber(personalNumber),
@@ -4449,9 +4447,10 @@ function buildLocalAiSecretaryDraft(mode, transcript, context, settings = getAiA
   ].join("\n");
 }
 
-// Supabase Edge Function endpoint (secure proxy to OpenAI with plumbing context)
+// Supabase Edge Function endpoints
 // Will be set after Supabase initializes
 let AI_SECRETARY_BASE_URL = "";
+let ADMIN_ORG_URL = "";
 
 function formatAiEndpointError(body, fallbackMessage) {
   if (!body) return fallbackMessage;
@@ -6969,7 +6968,7 @@ function authenticateLoginUser(user) {
   const nextPin = window.prompt("First login after account creation/PIN reset: Enter a new personal 6-digit PIN (not the default 123456):");
   if (nextPin == null) return false;
   const normalizedNextPin = normalizePin(nextPin, "");
-  if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === DEFAULT_MEMBER_PIN) {
+  if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === "123456") {
     showAppMessage("Please choose a new personal 6-digit PIN (cannot use default PIN 123456).", "warning", "Login");
     return false;
   }
@@ -7160,7 +7159,7 @@ function onMemberAdd(event) {
   const user = existing || createSystemUser({ personalNumber: getNextPersonalNumber(), name, surname, tel, email, username, role, qualification, workmode });
   if (!existing) {
     state.users.push(user);
-    user.pinCode = DEFAULT_MEMBER_PIN;
+    user.pinCode = "123456";
     user.mustChangePin = true;
     notifyUser(user.id, {
       title: "Account created",
@@ -16451,7 +16450,7 @@ function resetMemberPin(memberId) {
   if (!requirePermission(isAdmin(), "Only admins can reset login PINs.")) return;
   const member = getUserById(memberId);
   if (!member || member.id === state.currentUserId) return;
-  member.pinCode = DEFAULT_MEMBER_PIN;
+  member.pinCode = "123456";
   member.mustChangePin = true;
   notifyUser(member.id, {
     title: "PIN reset",
@@ -16479,7 +16478,7 @@ function changeOwnPin() {
   const nextPin = window.prompt("Enter a new personal 6-digit PIN (cannot use default PIN 123456):");
   if (nextPin == null) return;
   const normalizedNextPin = normalizePin(nextPin, "");
-  if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === DEFAULT_MEMBER_PIN) {
+  if (!normalizedNextPin || normalizedNextPin === "000000" || normalizedNextPin === "123456") {
     showAppMessage("Please choose a new personal PIN (cannot use default PIN 123456).", "warning", "Change PIN");
     return;
   }
@@ -16499,10 +16498,48 @@ function changeOwnPin() {
   showAppMessage("Your PIN was changed successfully.", "success", "Change PIN");
 }
 
-function toggleMemberLoginAccess(memberId) {
+async function toggleMemberLoginAccess(memberId) {
   if (!requirePermission(isAdmin(), "Only admins can change login access.")) return;
   const member = getUserById(memberId);
   if (!member || member.id === state.currentUserId) return;
+
+  // If enabling login, create org-level credentials
+  if (member.loginEnabled !== true) {
+    try {
+      const syntheticEmail = `${member.username}@${currentOrgCode.toLowerCase()}.internal`;
+      const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
+        email: syntheticEmail,
+        password: member.pinCode,
+        email_confirm: true,
+      });
+      if (authErr) {
+        console.error("Auth error:", authErr);
+        showAppMessage(`Failed to create login: ${authErr.message}`, "error");
+        return;
+      }
+
+      const { error: memberErr } = await supabase.from("team_members").upsert(
+        [{
+          org_code: currentOrgCode,
+          supabase_user_id: authUser.user.id,
+          username: member.username,
+          email: member.email || null,
+          role: member.role,
+        }],
+        { onConflict: "org_code,username" }
+      );
+      if (memberErr) {
+        console.error("Team member error:", memberErr);
+        showAppMessage(`Failed to create login: ${memberErr.message}`, "error");
+        return;
+      }
+    } catch (err) {
+      console.error("Error creating member login:", err);
+      showAppMessage("Error creating login credentials", "error");
+      return;
+    }
+  }
+
   member.loginEnabled = member.loginEnabled === false;
   logAudit(member.loginEnabled ? "Member Login Enabled" : "Member Login Disabled", {
     objectType: "member",
@@ -16511,7 +16548,7 @@ function toggleMemberLoginAccess(memberId) {
   notifyUser(member.id, {
     title: member.loginEnabled ? "Login access enabled" : "Login access disabled",
     body: member.loginEnabled
-      ? "An admin enabled your login access. You can log in again."
+      ? "An admin enabled your login access. You can log in again with your username and PIN."
       : "An admin disabled your login access.",
   });
   persist();
@@ -16519,7 +16556,7 @@ function toggleMemberLoginAccess(memberId) {
   render();
   showAppMessage(
     member.loginEnabled
-      ? `Login access for ${getMemberDisplayName(member)} is now enabled.`
+      ? `Login enabled for ${getMemberDisplayName(member)}. They can now login with username "${member.username}" and their PIN.`
       : `Login access for ${getMemberDisplayName(member)} is now disabled.`,
     "success",
     "Login Access"
@@ -17877,7 +17914,7 @@ function removeAutoCreatedAdmin() {
 
 // Make sure the org-level login (e.g. "giannis") has a matching workspace user,
 // and make that user the active one, so the UI shows "giannis (admin)".
-function ensureWorkspaceUserForLogin(member) {
+function ensureWorkspaceUserForLogin(member, loginPin) {
   if (!member?.username) return;
   if (!Array.isArray(state.users)) state.users = [];
   const loginUsername = normalizeUsername(member.username);
@@ -17894,17 +17931,30 @@ function ensureWorkspaceUserForLogin(member) {
       qualification: 0,
       workmode: "none",
     });
-    workspaceUser.mustChangePin = true;
     state.users.push(workspaceUser);
     logAudit("Workspace user created for login account", { objectType: "member", objectName: `${member.username} (${workspaceUser.role})` });
   }
+
+  // Sync workspace PIN with org-level login PIN to avoid confusion
+  // If they logged in with the default PIN, mark it for change
+  if (loginPin) {
+    workspaceUser.pinCode = loginPin;
+    workspaceUser.mustChangePin = (loginPin === "123456");
+  }
+
   state.currentUserId = workspaceUser.id;
 }
 
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
   orgCode = String(orgCode || "").trim().toUpperCase();
+
+  // If only digits provided, add P prefix
+  if (/^\d{8}$/.test(orgCode)) {
+    orgCode = 'P' + orgCode;
+  }
+
   if (!/^[PD]\d{8}$/.test(orgCode)) {
-    throw new Error("Org code must be format P12345678");
+    throw new Error("Organization code must be 8 digits");
   }
   if (!/^\d{6}$/.test(pin)) {
     throw new Error("PIN must be 6 digits");
@@ -17949,7 +17999,7 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
     }
 
     removeAutoCreatedAdmin();
-    ensureWorkspaceUserForLogin(member);
+    ensureWorkspaceUserForLogin(member, pin);
     persist();
 
     return { user, member };
@@ -18014,7 +18064,7 @@ async function initializeAuthState() {
           await loadOrgData();
         }
         removeAutoCreatedAdmin();
-        ensureWorkspaceUserForLogin({ username, role, name: username });
+        ensureWorkspaceUserForLogin({ username, role, name: username }, null);
         persist();
         return true;
       }
@@ -19091,26 +19141,124 @@ function selectProject(projectId, rerender = true, skipUnsavedCheck = false) {
 
 // Step 2: Initialize auth on page load
 document.addEventListener('DOMContentLoaded', async function() {
-  // Set up AI Secretary endpoint (calls Supabase Edge Function that proxies to OpenAI)
+  // Set up Supabase Edge Function endpoints
   if (typeof supabase !== 'undefined') {
     const supabaseUrl = supabase._supabaseUrl || window.location.origin;
     AI_SECRETARY_BASE_URL = `${supabaseUrl}/functions/v1/ai-secretary`;
+    ADMIN_ORG_URL = `${supabaseUrl}/functions/v1/admin-org`;
   }
 
   const loginModal = document.getElementById('login-modal');
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
 
+  // Login Form v2 - Language & Translation System
+  const loginTranslations = {
+    el: {
+      'login.title': 'Σύνδεση Project Manager',
+      'login.subtitle': 'Εισάγετε τα διαπιστευτήριά σας για να συνεχίσετε',
+      'login.orgCode': 'Κωδικός Οργανισμού',
+      'login.orgCodeHint': '8 ψηφία (π.χ. 28034222)',
+      'login.username': 'Όνομα χρήστη',
+      'login.usernameHint': 'Μόνο αγγλικοί χαρακτήρες',
+      'login.pin': 'PIN (6 ψηφία)',
+      'login.rememberOrg': 'Θυμηθείτε τον Κωδικό Οργανισμού',
+      'login.button': 'Σύνδεση',
+      'login.help': 'Πρώτη φορά; Ζητήστε τα διαπιστευτήριά σας από τον διαχειριστή σας.',
+      'login.defaultPin': 'Προεπιλεγμένο PIN:'
+    },
+    en: {
+      'login.title': 'Project Manager Login',
+      'login.subtitle': 'Enter your credentials to continue',
+      'login.orgCode': 'Organization Code',
+      'login.orgCodeHint': '8 digits (e.g. 28034222)',
+      'login.username': 'Username',
+      'login.usernameHint': 'English characters only',
+      'login.pin': 'PIN (6 digits)',
+      'login.rememberOrg': 'Remember Organization Code',
+      'login.button': 'Log In',
+      'login.help': 'First time? Ask your admin for your credentials.',
+      'login.defaultPin': 'Default PIN:'
+    }
+  };
+
+  let currentLoginLang = localStorage.getItem('piar.login.lang') || 'el';
+
+  function getLoginText(key) {
+    return loginTranslations[currentLoginLang]?.[key] || loginTranslations['en'][key] || key;
+  }
+
+  function updateLoginFormLabels() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      el.textContent = getLoginText(key);
+    });
+  }
+
+  // Language selector for login
+  const langBtns = document.querySelectorAll('.lang-btn');
+  langBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const lang = this.getAttribute('data-lang');
+      currentLoginLang = lang;
+      localStorage.setItem('piar.login.lang', lang);
+
+      langBtns.forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+
+      updateLoginFormLabels();
+    });
+  });
+
+  // Set active language button on load
+  document.querySelector(`.lang-btn[data-lang="${currentLoginLang}"]`)?.classList.add('active');
+  updateLoginFormLabels();
+
+  // PIN toggle functionality
+  const pinToggle = document.getElementById('login-pin-toggle');
+  if (pinToggle) {
+    pinToggle.addEventListener('click', function(e) {
+      e.preventDefault();
+      const pinInput = document.getElementById('login-pin');
+      const isPassword = pinInput.type === 'password';
+      pinInput.type = isPassword ? 'text' : 'password';
+      this.textContent = isPassword ? '🙈' : '👁';
+    });
+  }
+
+  // Form validation helpers
+  function validateOrgCode(value) {
+    const digits = String(value).replace(/\D+/g, '');
+    return digits.length === 8 ? digits : null;
+  }
+
+  function validateUsername(value) {
+    const trimmed = String(value).trim();
+    const isEnglish = /^[a-zA-Z0-9_-]+$/.test(trimmed);
+    return isEnglish && trimmed.length > 0 ? trimmed : null;
+  }
+
+  function validatePin(value) {
+    const digits = String(value).replace(/\D+/g, '');
+    return digits.length === 6 ? digits : null;
+  }
+
+  function showLoginError(message) {
+    loginError.textContent = message;
+    loginError.classList.add('show');
+  }
+
+  function clearLoginError() {
+    loginError.textContent = '';
+    loginError.classList.remove('show');
+  }
+
   // Prefill saved credentials so returning users don't retype them.
   try {
     const savedOrg = localStorage.getItem('piar.login.orgCode');
-    const savedUsername = localStorage.getItem('piar.login.username');
-    const savedPin = localStorage.getItem('piar.login.pin');
     if (savedOrg) document.getElementById('login-orgCode').value = savedOrg;
-    if (savedUsername) document.getElementById('login-username').value = savedUsername;
-    if (savedPin) document.getElementById('login-pin').value = savedPin;
-    const rememberBox = document.getElementById('login-remember');
-    if (rememberBox) rememberBox.checked = !!savedPin;
+    const rememberOrgBox = document.getElementById('login-remember-org');
+    if (rememberOrgBox) rememberOrgBox.checked = true;
   } catch (e) { /* localStorage unavailable */ }
 
   // Wire up handlers first so they exist on every path, including
@@ -19118,28 +19266,49 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (loginForm) {
     loginForm.addEventListener('submit', async function(e) {
       e.preventDefault();
-      loginError.textContent = '';
-      const orgCode = document.getElementById('login-orgCode').value.toUpperCase().trim();
-      const username = document.getElementById('login-username').value.trim();
-      const pin = document.getElementById('login-pin').value.trim();
+      clearLoginError();
+
+      const orgCodeInput = document.getElementById('login-orgCode').value.trim();
+      const usernameInput = document.getElementById('login-username').value.trim();
+      const pinInput = document.getElementById('login-pin').value.trim();
+
+      // Validate org code (8 digits only)
+      const orgCode = validateOrgCode(orgCodeInput);
+      if (!orgCode) {
+        showLoginError('Organization code must be 8 digits');
+        return;
+      }
+
+      // Validate username (English characters only)
+      const username = validateUsername(usernameInput);
+      if (!username) {
+        showLoginError('Username must contain only English characters, numbers, hyphens, and underscores');
+        return;
+      }
+
+      // Validate PIN (6 digits)
+      const pin = validatePin(pinInput);
+      if (!pin) {
+        showLoginError('PIN must be 6 digits');
+        return;
+      }
 
       try {
         await loginWithOrgCodeAndPin(orgCode, username, pin);
-        // Remember org code + username always; PIN only when "remember me" is checked.
+
+        // Remember org code
         try {
           localStorage.setItem('piar.login.orgCode', orgCode);
-          localStorage.setItem('piar.login.username', username);
-          if (document.getElementById('login-remember')?.checked) {
-            localStorage.setItem('piar.login.pin', pin);
-          } else {
-            localStorage.removeItem('piar.login.pin');
+          if (document.getElementById('login-remember-org')?.checked) {
+            localStorage.setItem('piar.login.orgCode', orgCode);
           }
         } catch (e) { /* localStorage unavailable */ }
+
         loginModal.close();
         updateAuthUI();
         render();
       } catch (error) {
-        loginError.textContent = error.message || 'Login failed';
+        showLoginError(error.message || 'Login failed');
       }
     });
   }
