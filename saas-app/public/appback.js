@@ -19402,6 +19402,12 @@ function updateAuthUI() {
       Role: ${currentRole || 'N/A'}<br>
       <em style="font-size: 0.9em;">${currentUserId ? '✓ Authenticated' : ''}</em>
     `;
+    // Restore the main app content that is hidden while logged out
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+      mainContent.style.display = '';
+      mainContent.style.pointerEvents = '';
+    }
     // Close login modal when logged in
     if (loginModal && loginModal.open) {
       loginModal.close();
