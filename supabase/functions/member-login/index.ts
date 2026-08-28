@@ -61,7 +61,9 @@ serve(async (req) => {
 
     if (action === "create") {
       const pin = String(body.pin || "123456");
-      const role = body.role === "admin" ? "admin" : "user";
+      // team_members.role only accepts 'admin' or 'worker'; the app's own role
+      // vocabulary (admin/manager/user) has to be mapped onto that.
+      const role = body.role === "admin" ? "admin" : "worker";
       if (!/^\d{6}$/.test(pin)) return json({ error: "PIN must be 6 digits" }, 400);
 
       // If this org already has a login with this username, hand its id back so

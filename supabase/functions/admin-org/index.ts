@@ -173,7 +173,8 @@ serve(async (req) => {
           supabase_user_id: authUser.user.id,
           username,
           email: null,
-          role: "user",
+          // team_members.role only accepts 'admin' or 'worker'.
+          role: "worker",
         }],
         { onConflict: "org_code,username" }
       );
