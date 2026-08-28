@@ -575,6 +575,7 @@ try {
   console.error("Project Manager boot failed", error);
   state = normalizeState(loadState());
 }
+let cloudStateReady = false;
 let cameraStream = null;
 let recognition = null;
 let currentSpeechSummaryItems = [];
@@ -4452,6 +4453,7 @@ function buildLocalAiSecretaryDraft(mode, transcript, context, settings = getAiA
 // Will be set after Supabase initializes
 let AI_SECRETARY_BASE_URL = "";
 let ADMIN_ORG_URL = "";
+let MEMBER_LOGIN_URL = "";
 
 function formatAiEndpointError(body, fallbackMessage) {
   if (!body) return fallbackMessage;
@@ -7115,6 +7117,36 @@ function onWorkspaceClientChange() {
   render();
 }
 
+async function createMemberLoginAccount(user) {
+  // Give a newly created workspace member a real org-level login
+  // (username + default PIN) so they can sign in from the login screen.
+  if (!isLoggedIn || !MEMBER_LOGIN_URL || typeof supabase === "undefined" || !user?.username) return;
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return;
+    const response = await fetch(MEMBER_LOGIN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        action: "create",
+        username: user.username,
+        pin: "123456",
+        role: user.role === "admin" ? "admin" : "user",
+      }),
+    });
+    let result = null;
+    try { result = await response.json(); } catch (error) { /* non-JSON error body */ }
+    if (!response.ok || result?.error) throw new Error(result?.error || `HTTP ${response.status}`);
+    user.authUserId = result?.supabaseUserId || null;
+    persist();
+    showAppMessage(`Login created for "${user.username}". They can sign in with the default PIN 123456.`, "success", "Member");
+  } catch (error) {
+    console.error("Member login setup failed:", error);
+    showAppMessage(`Member saved, but their login could not be created: ${error.message}`, "warning", "Member");
+  }
+}
+
 function onMemberAdd(event) {
   event.preventDefault();
   const isInitialSetup = IS_EMPTY_BOOTSTRAP && getActiveUsers().length === 0;
@@ -7156,6 +7188,11 @@ function onMemberAdd(event) {
     showAppMessage("Another member already uses this username.", "warning", "Member");
     return;
   }
+  if (isEditingMember && editingMember?.authUserId && normalizeUsername(editingMember.username || "") !== normalizeUsername(username)) {
+    showAppMessage("This username is the member's login credential and cannot be changed here. Contact support to rename a login.", "warning", "Member");
+    if (els.memberUsername) els.memberUsername.value = editingMember.username || "";
+    return;
+  }
   const existing = editingMember || state.users.find((user) => user.email === email);
   const user = existing || createSystemUser({ personalNumber: getNextPersonalNumber(), name, surname, tel, email, username, role, qualification, workmode });
   if (!existing) {
@@ -7171,6 +7208,7 @@ function onMemberAdd(event) {
       objectName: `${user.name} ${user.surname}`.trim(),
       projectId: project?.id || "",
     });
+    createMemberLoginAccount(user);
   } else {
     if (existing.role !== role && !isInitialSetup && !requirePermission(hasPermission("changeRoles"), "You do not have permission to change roles.")) return;
     existing.name = name;
@@ -10605,11 +10643,14 @@ function syncProjectContactOverrideFields(project = getCurrentProject()) {
 }
 
 function populateCurrentUserSelect() {
-  const options = getActiveUsers()
-    .filter((user) => user.loginEnabled !== false || user.id === state.currentUserId)
-    .map((user) => `<option value="${user.id}">${escapeHtml(user.username || getMemberDisplayName(user))} (${ROLE_LABELS[user.role]})</option>`).join("");
-  els.currentUserSelect.innerHTML = options;
-  els.currentUserSelect.value = state.currentUserId || "";
+  // The in-app user switcher was removed: the org-code login modal is the only login.
+  if (els.currentUserSelect) {
+    const options = getActiveUsers()
+      .filter((user) => user.loginEnabled !== false || user.id === state.currentUserId)
+      .map((user) => `<option value="${user.id}">${escapeHtml(user.username || getMemberDisplayName(user))} (${ROLE_LABELS[user.role]})</option>`).join("");
+    els.currentUserSelect.innerHTML = options;
+    els.currentUserSelect.value = state.currentUserId || "";
+  }
   const user = getCurrentUser();
   const visibleProjects = getVisibleProjects(state, false).length;
   els.currentUserSummary.textContent = user
@@ -17919,7 +17960,14 @@ function ensureWorkspaceUserForLogin(member, loginPin) {
   if (!member?.username) return;
   if (!Array.isArray(state.users)) state.users = [];
   const loginUsername = normalizeUsername(member.username);
-  let workspaceUser = state.users.find(u => normalizeUsername(u.username || "") === loginUsername);
+  // Match by the permanent Supabase auth id first, so renaming the workspace
+  // username can never orphan the link and spawn a duplicate user.
+  let workspaceUser = member.supabase_user_id
+    ? state.users.find(u => u.authUserId === member.supabase_user_id)
+    : null;
+  if (!workspaceUser) {
+    workspaceUser = state.users.find(u => normalizeUsername(u.username || "") === loginUsername);
+  }
   if (!workspaceUser) {
     workspaceUser = createSystemUser({
       personalNumber: getNextPersonalNumber(),
@@ -17935,6 +17983,10 @@ function ensureWorkspaceUserForLogin(member, loginPin) {
     state.users.push(workspaceUser);
     logAudit("Workspace user created for login account", { objectType: "member", objectName: `${member.username} (${workspaceUser.role})` });
   }
+  // Remember the link and keep the workspace username in sync with the real
+  // login credential (the credential is the source of truth).
+  if (member.supabase_user_id) workspaceUser.authUserId = member.supabase_user_id;
+  workspaceUser.username = member.username;
 
   // Sync workspace PIN with org-level login PIN to avoid confusion
   // If they logged in with the default PIN, mark it for change
@@ -18418,7 +18470,8 @@ function persist() {
 // ---- Per-org cloud sync (org_state table, RLS-isolated per tenant) ----
 // Cloud pushes only start after the org's cloud state has been loaded (or
 // confirmed absent), so a stale local session can never clobber the cloud.
-let cloudStateReady = false;
+// (cloudStateReady is declared near the top of the file: boot-time code
+// like migrateLegacyAssetsToStorage touches it before this point runs.)
 let cloudSyncTimer = null;
 let cloudSyncInFlight = false;
 let cloudSyncQueued = false;
@@ -19147,6 +19200,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const supabaseUrl = supabase._supabaseUrl || window.location.origin;
     AI_SECRETARY_BASE_URL = `${supabaseUrl}/functions/v1/ai-secretary`;
     ADMIN_ORG_URL = `${supabaseUrl}/functions/v1/admin-org`;
+    MEMBER_LOGIN_URL = `${supabaseUrl}/functions/v1/member-login`;
   }
 
   const loginModal = document.getElementById('login-modal');

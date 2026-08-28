@@ -124,13 +124,10 @@
         <p id="access-banner-description" class="muted">Check what the selected role can see and do.</p>
       </div>
       <div class="access-banner-controls">
-        <label>User login
-          <select id="current-user-select"></select>
-        </label>
-        <label id="developer-preview-label">Developer preview
+        <label id="developer-preview-label" class="hidden">Developer preview
           <select id="access-preview-user"></select>
         </label>
-        <button id="reset-access-preview-btn" class="ghost-btn" type="button">Back to Developer</button>
+        <button id="reset-access-preview-btn" class="ghost-btn hidden" type="button">Back to Developer</button>
       </div>
       <div id="current-user-summary" class="session-summary muted"></div>
       <div class="backup-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
@@ -1659,7 +1656,7 @@
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="translations.js?v=el-1"></script>
-  <script defer src="appback.js?v=greek-103"></script>
+  <script defer src="appback.js?v=greek-105"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");
