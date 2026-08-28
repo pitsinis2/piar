@@ -151,6 +151,37 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    // ── CREATE MEMBER LOGIN: add org-level login credentials for a workspace member
+    if (action === "createMemberLogin") {
+      const userId = String(body.userId || "");
+      const username = String(body.username || "").trim().toLowerCase();
+      const pin = String(body.pin || "123456");
+      if (!orgCode || !userId || !username) return json({ error: "Missing orgCode, userId, or username" }, 400);
+      if (!/^\d{6}$/.test(pin)) return json({ error: "PIN must be 6 digits" }, 400);
+
+      const syntheticEmail = `${username}@${orgCode.toLowerCase()}.internal`;
+      const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
+        email: syntheticEmail,
+        password: pin,
+        email_confirm: true,
+      });
+      if (authErr) return json({ error: "auth: " + authErr.message }, 500);
+
+      const { error: memberErr } = await supabase.from("team_members").upsert(
+        [{
+          org_code: orgCode,
+          supabase_user_id: authUser.user.id,
+          username,
+          email: null,
+          role: "user",
+        }],
+        { onConflict: "org_code,username" }
+      );
+      if (memberErr) return json({ error: "team_members: " + memberErr.message }, 500);
+
+      return json({ success: true, message: `Login created for ${username}` });
+    }
+
     // ── CREATE ORG: full provisioning so the client can actually log in
     if (action === "createOrg") {
       const name = String(body.name || "").trim();
@@ -159,6 +190,8 @@ serve(async (req) => {
       const contactEmail = String(body.contactEmail || "").trim() || null;
       const username = String(body.username || "admin").trim().toLowerCase();
       const pin = String(body.pin || "123456");
+      const devUsername = String(body.devUsername || "developer").trim().toLowerCase();
+      const devPin = String(body.devPin || "123456");
 
       if (!/^[PD]\d{8}$/.test(orgCode)) {
         return json({ error: "Code must be P or D + exactly 8 digits" }, 400);
@@ -206,7 +239,28 @@ serve(async (req) => {
       ]);
       if (memberErr) return json({ error: "team_members: " + memberErr.message }, 500);
 
-      // 5. Seed empty workspace state (first user created on first login)
+      // 5. Create developer user for debugging (if devUsername provided)
+      if (devUsername && devPin) {
+        const devEmail = `${devUsername}@${orgCode.toLowerCase()}.internal`;
+        const { data: devAuthUser, error: devAuthErr } = await supabase.auth.admin.createUser({
+          email: devEmail,
+          password: devPin,
+          email_confirm: true,
+        });
+        if (!devAuthErr && devAuthUser) {
+          await supabase.from("team_members").insert([
+            {
+              org_code: orgCode,
+              supabase_user_id: devAuthUser.user.id,
+              username: devUsername,
+              email: null,
+              role: "admin",
+            },
+          ]);
+        }
+      }
+
+      // 6. Seed empty workspace state (first user created on first login)
       const now = new Date().toISOString();
       const { error: stateErr } = await supabase.from("org_state").upsert(
         [{ org_code: orgCode, state: { users: [] }, updated_at: now }],
@@ -214,7 +268,40 @@ serve(async (req) => {
       );
       if (stateErr) console.error("org_state seed failed:", stateErr.message);
 
-      return json({ success: true, orgCode, username, pin });
+      return json({ success: true, orgCode, username, pin, devUsername, devPin });
+    }
+
+    // ── DELETE entire org (all associated data) ─────────────────────────
+    if (action === "deleteOrg") {
+      if (!orgCode) return json({ error: "Missing orgCode" }, 400);
+
+      const tables = ["org_backups", "team_members", "org_state", "organizations", "org_codes"];
+      for (const table of tables) {
+        const { error: deleteErr } = await supabase
+          .from(table)
+          .delete()
+          .eq(table === "organizations" ? "code" : "org_code", orgCode);
+        if (deleteErr) {
+          console.error(`${table} deletion failed:`, deleteErr.message);
+          return json({ error: `${table}: ${deleteErr.message}` }, 500);
+        }
+      }
+
+      return json({ success: true, message: `Organization ${orgCode} deleted completely` });
+    }
+
+    // ── RESET ALL: delete all organizations and data (total format) ──────
+    if (action === "resetAll") {
+      const tables = ["org_backups", "team_members", "org_state", "organizations", "org_codes"];
+      for (const table of tables) {
+        const { error: deleteErr } = await supabase.from(table).delete().neq("id", "");
+        if (deleteErr) {
+          console.error(`${table} reset failed:`, deleteErr.message);
+          return json({ error: `${table}: ${deleteErr.message}` }, 500);
+        }
+      }
+
+      return json({ success: true, message: "All organizations and data deleted. System reset complete." });
     }
 
     return json({ error: "Unknown action" }, 400);

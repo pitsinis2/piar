@@ -1,3 +1,4 @@
+console.log('🎯 appback.js loaded v3.0 - DEFAULT_MEMBER_PIN fix applied');
 const STORAGE_KEY = document.body.dataset.storageKey || "project-manager-web-state-v3";
 const IS_EMPTY_BOOTSTRAP = document.body.dataset.bootstrapMode === "empty";
 const LANGUAGE_STORAGE_KEY = "project-manager-web-language";
@@ -19356,6 +19357,13 @@ function updateAuthUI() {
     sessionSummary.innerHTML = '<em>Not logged in</em>';
     // Show login modal when not logged in
     if (loginModal) {
+      // Hide main app content
+      const mainContent = document.querySelector('main');
+      if (mainContent) {
+        mainContent.style.display = 'none';
+        mainContent.style.pointerEvents = 'none';
+      }
+
       console.log('Showing login modal. Currently open:', loginModal.open);
       try {
         if (!loginModal.open) {
