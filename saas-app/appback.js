@@ -576,6 +576,13 @@ try {
   state = normalizeState(loadState());
 }
 let cloudStateReady = false;
+// Auth/session state. Declared here rather than beside the login code because
+// the first render runs long before that point and reads these.
+let isLoggedIn = false;
+let currentUserId = null;
+let currentUsername = null;
+let currentOrgCode = null;
+let currentRole = 'worker';
 let cameraStream = null;
 let recognition = null;
 let currentSpeechSummaryItems = [];
@@ -1134,6 +1141,8 @@ const els = {
   bookmarkNav: document.querySelector(".bookmark-nav"),
   userQuickNav: document.querySelector("#user-quick-nav"),
   userProjectsBtn: document.querySelector("#user-projects-btn"),
+  userPlannerBtn: document.querySelector("#user-planner-btn"),
+  userDailyWorksBtn: document.querySelector("#user-daily-works-btn"),
   userAssignedTasksBtn: document.querySelector("#user-assigned-tasks-btn"),
   projectsView: document.querySelector("#projects-view"),
   plannerView: document.querySelector("#planner-view"),
@@ -2138,6 +2147,17 @@ function isAssignedToProject(project, userId) {
   return Boolean(project?.memberIds?.includes(userId));
 }
 
+// A worker belongs to a project either by direct assignment or through one of
+// the project's service teams, which is how workers are usually attached.
+function isInvolvedInProject(project, userId) {
+  if (!project || !userId) return false;
+  if (isAssignedToProject(project, userId)) return true;
+  if (project.projectManagerUserId === userId) return true;
+  return (project.folders || []).some(
+    (team) => !team.archivedAt && (team.memberIds || []).includes(userId),
+  );
+}
+
 function getVisibleProjects(rootState = state, includeArchived = false) {
   const currentUserId = rootState.currentUserId;
   const currentRole = (rootState.users.find((user) => user.id === currentUserId)?.role) || "user";
@@ -2147,8 +2167,8 @@ function getVisibleProjects(rootState = state, includeArchived = false) {
     if (currentRole === "admin") return true;
     if (currentRole === "developer") return true;
     if (currentRole === "manager") return true;
-    if (currentRole === "user") return true;
-    return project.memberIds?.includes(currentUserId);
+    // Workers only see the projects they are actually part of.
+    return isInvolvedInProject(project, currentUserId);
   });
 }
 
@@ -5969,6 +5989,8 @@ function bindEvents() {
     setUserDefaultWorkspace(getCurrentProject());
     render();
   });
+  els.userPlannerBtn?.addEventListener("click", () => navigateToAppView("planner"));
+  els.userDailyWorksBtn?.addEventListener("click", () => navigateToAppView("daily-works"));
   els.plannerPrevBtn?.addEventListener("click", () => shiftPlannerPeriod(-1));
   els.plannerTodayBtn?.addEventListener("click", goToPlannerToday);
   els.plannerNextBtn?.addEventListener("click", () => shiftPlannerPeriod(1));
@@ -10356,6 +10378,8 @@ function renderViews() {
   els.sidebar?.classList.toggle("hidden", userMode);
   els.userQuickNav?.classList.toggle("hidden", !userMode);
   els.userProjectsBtn?.classList.toggle("active", userMode && currentView === "projects");
+  els.userPlannerBtn?.classList.toggle("active", userMode && currentView === "planner");
+  els.userDailyWorksBtn?.classList.toggle("active", userMode && currentView === "daily-works");
   els.userAssignedTasksBtn?.classList.remove("active");
   els.projectsPageRail?.classList.remove("hidden");
   els.projectsWorkspaceColumn?.classList.remove("user-assigned-tasks-mode");
@@ -10665,6 +10689,21 @@ function populateCurrentUserSelect() {
   els.currentUserSummary.textContent = user
     ? `${ROLE_LABELS[user.role]} · ${visibleProjects} visible project${visibleProjects === 1 ? "" : "s"}`
     : "No active user selected";
+  renderOrgSummary();
+  renderBackupControls();
+}
+
+// Backups and folder sync act on the whole organization's data, so they are
+// admin-only. Hidden rather than disabled: there is nothing a worker can do
+// with them.
+function renderBackupControls() {
+  const section = document.querySelector('.access-menu-panel .backup-section');
+  if (!section) return;
+  const allowed = isAdmin() || isDeveloper();
+  section.classList.toggle("hidden", !allowed);
+  for (const control of section.querySelectorAll("button")) {
+    control.disabled = !allowed;
+  }
 }
 
 function renderAccessBanner() {
@@ -17946,11 +17985,7 @@ function createClientPreviewState() {
 }
 
 // Step 2: Auth and tenant separation
-let isLoggedIn = false;
-let currentUserId = null;
-let currentUsername = null;
-let currentOrgCode = null;
-let currentRole = 'worker';
+// (declared near the top of the file: boot-time rendering reads them)
 
 // Remove the legacy auto-created "Admin" workspace user (name "Admin", no surname).
 // New orgs never get one; this cleans up orgs created before the fix.
@@ -19399,20 +19434,33 @@ document.addEventListener('DOMContentLoaded', async function() {
   updateAuthUI();
 });
 
+// Writes the signed-in organization into its own element. Called from
+// updateAuthUI and from every render, so the org line can never be left
+// stale or blank by whichever of the two happens to run last.
+function renderOrgSummary() {
+  const target = document.getElementById('current-org-summary');
+  if (!target) return;
+  if (!isLoggedIn) {
+    target.innerHTML = '';
+    return;
+  }
+  target.innerHTML = `
+    <div class="org-summary-label">Organization</div>
+    <div class="org-summary-code">${escapeHtml(currentOrgCode || '—')}</div>
+    <div class="org-summary-user">${escapeHtml(currentUsername || 'User')} · ${escapeHtml(currentRole || '')}</div>
+  `;
+}
+
 // Helper function to update login/logout UI
 function updateAuthUI() {
   const logoutBtn = document.getElementById('logout-btn');
-  const sessionSummary = document.getElementById('current-user-summary');
+  const sessionSummary = document.getElementById('current-org-summary');
   const loginModal = document.getElementById('login-modal');
+
+  renderOrgSummary();
 
   if (isLoggedIn && logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'block';
-    sessionSummary.innerHTML = `
-      <strong>${currentUsername || 'User'}</strong><br>
-      <span style="font-size: 1.1em; color: #0077be; font-weight: 600;">📍 ${currentOrgCode || 'N/A'}</span><br>
-      Role: ${currentRole || 'N/A'}<br>
-      <em style="font-size: 0.9em;">${currentUserId ? '✓ Authenticated' : ''}</em>
-    `;
     // Restore the main app content that is hidden while logged out
     const mainContent = document.querySelector('main');
     if (mainContent) {
@@ -19425,7 +19473,6 @@ function updateAuthUI() {
     }
   } else if (logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'none';
-    sessionSummary.innerHTML = '<em>Not logged in</em>';
     // Show login modal when not logged in
     if (loginModal) {
       // Hide main app content
@@ -19958,15 +20005,21 @@ function closeRestoreModal() {
   }
 }
 
+function canManageBackups() {
+  if (isAdmin() || isDeveloper()) return true;
+  showAppMessage("Only admins can manage backups and folder sync.", "warning", "Backup");
+  return false;
+}
+
 function setupBackupButtons() {
   const downloadBtn = document.getElementById('download-backup-btn');
   if (downloadBtn) {
-    downloadBtn.addEventListener('click', () => { downloadBackupFile(); });
+    downloadBtn.addEventListener('click', () => { if (canManageBackups()) downloadBackupFile(); });
   }
 
   const restoreBtn = document.getElementById('restore-backup-btn');
   if (restoreBtn) {
-    restoreBtn.addEventListener('click', () => { openRestoreModal(); });
+    restoreBtn.addEventListener('click', () => { if (canManageBackups()) openRestoreModal(); });
   }
 
   const restoreCancelBtn = document.getElementById('restore-cancel-btn');
@@ -19988,6 +20041,7 @@ function setupBackupButtons() {
   const folderBtn = document.getElementById('folder-sync-btn');
   if (folderBtn) {
     folderBtn.addEventListener('click', async () => {
+      if (!canManageBackups()) return;
       if (folderSyncStatus === 'active') {
         await disableFolderSync();
       } else if (folderSyncStatus === 'paused') {

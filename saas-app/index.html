@@ -18,8 +18,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css">
-  <link rel="stylesheet" href="styles-futuristic.css">
+  <link rel="stylesheet" href="stylesback.css?v=greek-111">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-111">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -129,6 +129,7 @@
         </label>
         <button id="reset-access-preview-btn" class="ghost-btn hidden" type="button">Back to Developer</button>
       </div>
+      <div id="current-org-summary" class="session-summary org-summary"></div>
       <div id="current-user-summary" class="session-summary muted"></div>
       <div class="backup-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
         <button id="download-backup-btn" class="primary-btn" type="button" style="width: 100%;">⬇ Download Backup</button>
@@ -174,6 +175,10 @@
         <main class="main-area">
           <div id="user-quick-nav" class="user-quick-nav hidden" aria-label="User navigation">
             <button id="user-projects-btn" class="user-quick-nav-btn active" type="button">Projects</button>
+            <!-- No data-view here: renderNavOrder() relocates every [data-view]
+                 button into the sidebar rail, which would steal these. -->
+            <button id="user-planner-btn" class="user-quick-nav-btn" type="button">Planner</button>
+            <button id="user-daily-works-btn" class="user-quick-nav-btn" type="button">Daily Works</button>
           </div>
           <section id="projects-view" class="page-view active">
             <div id="projects-page-layout" class="page-layout">
@@ -1656,7 +1661,7 @@
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="translations.js?v=el-1"></script>
-  <script defer src="appback.js?v=greek-107"></script>
+  <script defer src="appback.js?v=greek-111"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");
