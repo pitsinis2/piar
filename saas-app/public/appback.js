@@ -11657,10 +11657,13 @@ function getScopedMembers(project = getCurrentProject()) {
   return state.users;
 }
 
+// The member card is a full profile, so it spans every project the member
+// belongs to — not just the one currently selected — and counts service-team
+// membership, which is how workers are usually attached to a project.
 function getMemberProjectsForDirectory(member, project = getCurrentProject()) {
-  const sourceProjects = project ? [project] : state.projects;
-  return sourceProjects
-    .filter((entry) => entry.memberIds?.includes(member.id))
+  return (state.projects || [])
+    .filter((entry) => !entry.isDraft)
+    .filter((entry) => isInvolvedInProject(entry, member.id))
     .filter((entry) => showArchivedMembers || !entry.archivedAt)
     .sort((a, b) => {
       if (a.archivedAt && !b.archivedAt) return 1;
@@ -11672,7 +11675,7 @@ function getMemberProjectsForDirectory(member, project = getCurrentProject()) {
 }
 
 function getMemberTasksForDirectory(member, project = getCurrentProject()) {
-  const sourceProjects = project ? [project] : state.projects.filter((entry) => !entry.archivedAt || showArchivedMembers);
+  const sourceProjects = (state.projects || []).filter((entry) => !entry.archivedAt || showArchivedMembers);
   return sourceProjects.flatMap((entry) => collectProjectItems(entry, "task", true)
     .filter((task) => task.assigneeId === member.id)
     .map((task) => ({ ...task, projectId: entry.id, projectName: getProjectDisplayName(entry), projectArchivedAt: entry.archivedAt })));
@@ -11720,6 +11723,10 @@ function renderMemberDetail(member, project = getCurrentProject()) {
     }).join("")
     : `<p class="muted">No project schedule assigned yet.</p>`;
   const personalNumber = getMemberPersonalNumber(member) || "-";
+  // The card carries the whole member record so the detail panel is enough on
+  // its own. Only phones start collapsed, where the full card would bury the
+  // member list below a long scroll.
+  const startExpanded = !isMobileProjectViewport();
   els.memberDetailCard.innerHTML = `
     <div class="member-card-compact">
       <!-- HEADER: Always visible on mobile -->
@@ -11727,9 +11734,11 @@ function renderMemberDetail(member, project = getCurrentProject()) {
         <div class="member-card-title-area">
           <h4>${escapeHtml(getMemberDisplayName(member))}</h4>
           <span class="meta-pill role-pill-${member.role}">${escapeHtml(roleLabel)}</span>
+          ${qualificationBadge || ""}
+          ${workmodeBadge || ""}
           ${member.status === "archived" ? '<span class="meta-pill status-pill-archived">Inactive</span>' : ""}
         </div>
-        <button type="button" class="member-card-toggle-btn" aria-label="Toggle details" aria-expanded="false">
+        <button type="button" class="member-card-toggle-btn" aria-label="Toggle details" aria-expanded="${startExpanded}">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -11737,7 +11746,7 @@ function renderMemberDetail(member, project = getCurrentProject()) {
       </div>
 
       <!-- DETAILS: Collapsible section -->
-      <div class="member-card-details" style="display: none;">
+      <div class="member-card-details" style="display: ${startExpanded ? "block" : "none"};">
         <!-- Contact Info -->
         <div class="member-card-section">
           <h5>Επικοινωνία</h5>
@@ -11767,7 +11776,7 @@ function renderMemberDetail(member, project = getCurrentProject()) {
           <div class="member-card-rows">
             <div class="member-card-row">
               <span class="label">Created</span>
-              <span class="value">${escapeHtml(formatDateDisplay(member.createdAt))}</span>
+              <span class="value">${escapeHtml(member.createdAt ? formatDateDisplay(String(member.createdAt).slice(0, 10)) : "-")}</span>
             </div>
             <div class="member-card-row">
               <span class="label">Last login</span>
@@ -11782,6 +11791,28 @@ function renderMemberDetail(member, project = getCurrentProject()) {
             </div>
           </div>
         </div>
+
+        <!-- Projects this member is part of -->
+        <div class="member-card-section">
+          <h5>Projects (${memberProjects.length})</h5>
+          <div class="directory-detail-list">${scheduleMarkup}</div>
+        </div>
+
+        <!-- Task workload -->
+        <div class="member-card-section">
+          <h5>Tasks</h5>
+          <div class="member-card-rows">
+            <div class="member-card-row">
+              <span class="label">Open</span>
+              <span class="value">${activeTaskCount}</span>
+            </div>
+            <div class="member-card-row">
+              <span class="label">Completed</span>
+              <span class="value">${completedTaskCount}</span>
+            </div>
+          </div>
+          <div class="directory-detail-list">${recentTasksMarkup}</div>
+        </div>
       </div>
 
       <!-- ACTIONS: Always at bottom -->
@@ -11793,11 +11824,12 @@ function renderMemberDetail(member, project = getCurrentProject()) {
   const toggleBtn = els.memberDetailCard.querySelector(".member-card-toggle-btn");
   const detailsSection = els.memberDetailCard.querySelector(".member-card-details");
   if (toggleBtn && detailsSection) {
+    toggleBtn.classList.toggle("expanded", startExpanded);
     toggleBtn.addEventListener("click", () => {
       const isExpanded = detailsSection.style.display !== "none";
       detailsSection.style.display = isExpanded ? "none" : "block";
-      toggleBtn.setAttribute("aria-expanded", !isExpanded);
-      toggleBtn.classList.toggle("expanded");
+      toggleBtn.setAttribute("aria-expanded", String(!isExpanded));
+      toggleBtn.classList.toggle("expanded", !isExpanded);
     });
   }
   const actionsHost = els.memberDetailCard.querySelector("#member-detail-actions");
