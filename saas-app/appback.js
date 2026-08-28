@@ -7140,7 +7140,13 @@ async function createMemberLoginAccount(user) {
     if (!response.ok || result?.error) throw new Error(result?.error || `HTTP ${response.status}`);
     user.authUserId = result?.supabaseUserId || null;
     persist();
-    showAppMessage(`Login created for "${user.username}". They can sign in with the default PIN 123456.`, "success", "Member");
+    showAppMessage(
+      result?.adopted
+        ? `"${user.username}" is now linked to the existing login of the same name.`
+        : `Login created for "${user.username}". They can sign in with the default PIN 123456.`,
+      "success",
+      "Member",
+    );
   } catch (error) {
     console.error("Member login setup failed:", error);
     showAppMessage(`Member saved, but their login could not be created: ${error.message}`, "warning", "Member");
@@ -7228,6 +7234,9 @@ function onMemberAdd(event) {
       objectName: `${existing.name} ${existing.surname}`.trim(),
       projectId: project?.id || "",
     });
+    // Members saved before logins were provisioned automatically have no
+    // login account yet; re-saving them repairs that.
+    if (!existing.authUserId) createMemberLoginAccount(existing);
   }
   // New members should not be auto-assigned to the currently selected project.
   if (!state.currentUserId) {
@@ -19197,7 +19206,9 @@ function selectProject(projectId, rerender = true, skipUnsavedCheck = false) {
 document.addEventListener('DOMContentLoaded', async function() {
   // Set up Supabase Edge Function endpoints
   if (typeof supabase !== 'undefined') {
-    const supabaseUrl = supabase._supabaseUrl || window.location.origin;
+    // supabase-js v2 exposes this as `supabaseUrl`; the old `_supabaseUrl`
+    // is undefined, which silently pointed every endpoint at the app origin.
+    const supabaseUrl = supabase.supabaseUrl || supabase._supabaseUrl || window.location.origin;
     AI_SECRETARY_BASE_URL = `${supabaseUrl}/functions/v1/ai-secretary`;
     ADMIN_ORG_URL = `${supabaseUrl}/functions/v1/admin-org`;
     MEMBER_LOGIN_URL = `${supabaseUrl}/functions/v1/member-login`;

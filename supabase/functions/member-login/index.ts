@@ -64,13 +64,22 @@ serve(async (req) => {
       const role = body.role === "admin" ? "admin" : "user";
       if (!/^\d{6}$/.test(pin)) return json({ error: "PIN must be 6 digits" }, 400);
 
+      // If this org already has a login with this username, hand its id back so
+      // the caller can link to it instead of creating a duplicate account.
       const { data: existing } = await supabase
         .from("team_members")
-        .select("username")
+        .select("username, supabase_user_id")
         .eq("org_code", orgCode)
         .eq("username", username)
         .maybeSingle();
-      if (existing) return json({ error: `Login "${username}" already exists in this organization` }, 409);
+      if (existing) {
+        return json({
+          success: true,
+          adopted: true,
+          username,
+          supabaseUserId: existing.supabase_user_id,
+        });
+      }
 
       const syntheticEmail = `${username}@${orgCode.toLowerCase()}.internal`;
       const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
