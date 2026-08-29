@@ -841,6 +841,8 @@ window.APP_TRANSLATIONS = {
     "Show Archived": "Εμφάνιση αρχειοθετημένων",
     "Hide archived elements": "Απόκρυψη αρχειοθετημένων στοιχείων",
     "Show archived elements": "Εμφάνιση αρχειοθετημένων στοιχείων",
+    "Show archived": "Αρχειοθετημένα",
+    "Hide archived": "Απόκρυψη",
     "List view": "Προβολή λίστας",
     "Grid view": "Προβολή πλέγματος",
     "Box view": "Προβολή κουτιών",

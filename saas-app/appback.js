@@ -10417,8 +10417,12 @@ function renderViews() {
 function syncMobileBottomNav() {
   const nav = document.getElementById("mobile-bottom-nav");
   const bottomButtons = Array.from(document.querySelectorAll(".mobile-bottom-btn[data-view]"));
-  // The sidebar is hidden below 1180px, so the bar is the only navigation there.
-  const showBar = isLoggedIn && window.innerWidth <= 1180;
+  // The sidebar is hidden below 1180px, so the bar is the only navigation
+  // there and must always be present. Gate it on the login screen rather than
+  // isLoggedIn, which is only true for cloud sessions and would hide the bar
+  // for anyone working against local state.
+  const loginOpen = document.getElementById("login-modal")?.open === true;
+  const showBar = !loginOpen && window.innerWidth <= 1180;
   nav?.classList.toggle("mobile-bottom-nav-visible", showBar);
   document.body.classList.toggle("mobile-bottom-nav-active", showBar);
   if (!showBar && nav) {
@@ -14184,7 +14188,7 @@ function renderWorkspaceTabs(project) {
     const archivedCount = (project?.areas || []).filter((area) => area.archivedAt).length;
     els.workspaceShowArchivedAreasBtn.classList.toggle("hidden", !showToggle);
     els.workspaceShowArchivedAreasBtn.disabled = archivedCount === 0 && !showArchivedWorkspaceItems;
-    els.workspaceShowArchivedAreasBtn.textContent = showArchivedWorkspaceItems ? "Hide archived elements" : "Show archived elements";
+    els.workspaceShowArchivedAreasBtn.textContent = showArchivedWorkspaceItems ? "Hide archived" : "Show archived";
   }
   if (els.workspaceAreaFilterBtn) {
     const showToggle = currentView === "projects" && Boolean(project);

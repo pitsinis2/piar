@@ -6865,7 +6865,28 @@ button.area-comment-preview-thumb:focus-visible,
   .project-team-rail {
     position: static;
     width: auto;
+    min-width: 0;
     margin-top: 0;
+  }
+  /* The list and its buttons were already un-rotated here, but the header and
+     the empty message were not, so they stayed sideways. */
+  .project-team-rail-header {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 2px 0 8px;
+  }
+  .project-team-rail-header strong {
+    writing-mode: horizontal-tb;
+    transform: none;
+    font-size: 0.68rem;
+  }
+  .project-team-rail-empty {
+    writing-mode: horizontal-tb;
+    transform: none;
+    min-height: 0;
+    padding: 12px 4px;
+    justify-content: flex-start;
+    text-align: left;
   }
   .project-team-rail-list {
     flex-direction: row;
@@ -8282,6 +8303,121 @@ button.area-comment-preview-thumb:focus-visible,
 .planner-static-week-day.weekend span,
 .planner-static-week-day.weekend strong {
   color: #b42318;
+}
+
+/* Workspace tabs on small screens: the 14px/20px desktop padding meant only
+   two tabs fit, and the trailing actions used margin-left:auto inside a
+   scrolling flex row, which pushed them into the tabs instead of after them. */
+@media (max-width: 760px) {
+  .workspace-tabbar {
+    gap: 6px;
+    padding: 10px 10px 0;
+    scrollbar-width: thin;
+  }
+  .workspace-tabbar-group {
+    gap: 4px;
+  }
+  .workspace-tab {
+    padding: 9px 12px;
+    font-size: 0.82rem;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    max-width: 46vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .workspace-tab.add-tab {
+    padding: 9px 11px;
+  }
+  /* Let the actions sit after the tabs rather than being pushed by auto margin */
+  .workspace-area-menu,
+  .workspace-area-archived-toggle,
+  #workspace-ai-voice-btn,
+  #workspace-area-filter-btn {
+    margin-left: 0;
+    flex: 0 0 auto;
+    align-self: center;
+    white-space: nowrap;
+  }
+  .workspace-tabbar .ghost-btn {
+    padding: 7px 10px;
+    font-size: 0.76rem;
+  }
+}
+
+/* A whole week across the screen. The default auto-fit track needs 110px per
+   day (770px for seven), so on a phone the week wrapped into several rows and
+   stopped reading as a calendar. */
+@media (max-width: 760px) {
+  /* Grid and flex children default to min-width:auto, so the wide header row
+     forced the shell's track past the viewport and took the week grid with it.
+     Without these the 7 columns are laid out correctly but clipped. */
+  .planner-static-shell,
+  .planner-static-shell > * {
+    min-width: 0;
+  }
+  .planner-minimal-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .planner-static-right {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .planner-static-controls {
+    flex-wrap: wrap;
+  }
+  .planner-static-week-days {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+  }
+  .planner-static-week-day {
+    min-height: 0;
+    border-radius: 8px;
+  }
+  .planner-static-week-day-head {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 1px;
+  }
+  .planner-static-week-day-heading-copy {
+    justify-items: center;
+    text-align: center;
+  }
+  .planner-static-week-day span {
+    font-size: 0.5rem;
+    letter-spacing: 0;
+  }
+  .planner-static-week-day strong {
+    font-size: 0.6rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+  .planner-static-week-day-body .muted,
+  .planner-static-week-day-body p {
+    font-size: 0.55rem;
+    line-height: 1.15;
+  }
+  .planner-static-day-add-btn {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    font-size: 0.7rem;
+  }
+  .planner-static-week-day-body {
+    padding: 2px;
+    gap: 2px;
+    min-height: 84px;
+  }
+  /* Cards shrink to a readable chip at this width */
+  .planner-static-assignment-card {
+    padding: 2px;
+    gap: 2px;
+    font-size: 0.56rem;
+    border-radius: 6px;
+  }
 }
 
 .planner-static-assignment-card {
