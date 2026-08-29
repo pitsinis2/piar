@@ -1137,7 +1137,10 @@ function updateProjectSaveButtonState(project = getCurrentProject()) {
 
 const els = {
   appLanguageSelect: document.querySelector("#app-language-select"),
-  viewButtons: Array.from(document.querySelectorAll("[data-view]")),
+  // Scoped to the sidebar: renderBookmarkNav() appends each of these into the
+  // bookmark nav, so a global [data-view] query would drag the mobile bottom
+  // bar's buttons out of the bar and into the sidebar.
+  viewButtons: Array.from(document.querySelectorAll(".bookmark-nav [data-view]")),
   appShell: document.querySelector(".app-shell"),
   backButton: document.querySelector("#back-button"),
   workspaceBackButton: document.querySelector("#workspace-back-button"),
@@ -6554,6 +6557,9 @@ function getActiveMobileProjectsPane() {
 
 function onViewportResize() {
   closeActiveCardMenu();
+  // The bottom bar has its own breakpoint (1180, where the sidebar goes away),
+  // so it has to be synced before the 760px early return below.
+  syncMobileBottomNav();
   const isMobileViewport = isMobileProjectViewport();
   if (isMobileViewport === wasMobileProjectViewport) return;
   wasMobileProjectViewport = isMobileViewport;
@@ -10409,10 +10415,28 @@ function renderViews() {
 }
 
 function syncMobileBottomNav() {
+  const nav = document.getElementById("mobile-bottom-nav");
   const bottomButtons = Array.from(document.querySelectorAll(".mobile-bottom-btn[data-view]"));
+  // The sidebar is hidden below 1180px, so the bar is the only navigation there.
+  const showBar = isLoggedIn && window.innerWidth <= 1180;
+  nav?.classList.toggle("mobile-bottom-nav-visible", showBar);
+  document.body.classList.toggle("mobile-bottom-nav-active", showBar);
+  if (!showBar && nav) {
+    const moreMenu = nav.querySelector("#mobile-more-menu");
+    if (moreMenu instanceof HTMLDetailsElement) moreMenu.removeAttribute("open");
+  }
+  // The click handler refuses audit for non-admins; don't offer it either.
+  const auditItem = document.getElementById("mobile-more-audit");
+  auditItem?.classList.toggle("hidden", !isAdmin());
   if (!bottomButtons.length) return;
   for (const btn of bottomButtons) {
     btn.classList.toggle("active", btn.dataset.view === currentView);
+  }
+  const moreItems = Array.from(document.querySelectorAll(".mobile-more-item[data-view]"));
+  const moreTrigger = nav?.querySelector(".mobile-more-trigger");
+  moreTrigger?.classList.toggle("active", moreItems.some((item) => item.dataset.view === currentView));
+  for (const item of moreItems) {
+    item.classList.toggle("active", item.dataset.view === currentView);
   }
 }
 
@@ -19587,6 +19611,8 @@ function updateAuthUI() {
 
   if (isLoggedIn && logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'block';
+    // The bar is hidden while logged out; re-evaluate once a session exists.
+    syncMobileBottomNav();
     // Restore the main app content that is hidden while logged out
     const mainContent = document.querySelector('main');
     if (mainContent) {
@@ -19599,6 +19625,8 @@ function updateAuthUI() {
     }
   } else if (logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'none';
+    // No navigation bar over the login screen.
+    syncMobileBottomNav();
     // Show login modal when not logged in
     if (loginModal) {
       // Hide main app content

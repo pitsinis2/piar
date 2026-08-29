@@ -970,6 +970,12 @@ window.APP_TRANSLATIONS = {
     "The quick brown fox jumps over the lazy dog. 1234567890":
       "Ξεσκεπάζω την ψυχοφθόρα βδελυγμία. 1234567890",
 
+    // ---- Mobile bottom navigation (deliberately short, to fit 5-up) ----
+    "Daily": "Ημερήσιες",
+    "Others": "Άλλα",
+    "More views": "Περισσότερες προβολές",
+    "Main navigation": "Κύρια πλοήγηση",
+
     // ---- Project hero ----
     "Deadline": "Προθεσμία",
     "No telephone added": "Χωρίς τηλέφωνο",

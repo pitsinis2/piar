@@ -5810,12 +5810,14 @@ button.area-comment-preview-thumb:focus-visible,
   display: none !important;
 }
 
+/* The bar itself must clear the AI button so the More panel is not trapped
+   beneath it by a lower stacking context. */
 .mobile-bottom-nav.mobile-bottom-nav-visible {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 9999;
+  z-index: 10025;
   display: flex !important;
   align-items: center;
   justify-content: space-around;
@@ -5844,6 +5846,107 @@ button.area-comment-preview-thumb:focus-visible,
 
 .mobile-bottom-nav-active .main-area {
   padding-bottom: 78px;
+}
+
+/* Icon over a small label: Greek view names are long and would otherwise be
+   clipped at the edges of a 5-up bar on a 375px screen. */
+.mobile-bottom-nav-visible .mobile-bottom-btn,
+.mobile-bottom-nav-visible .mobile-more-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 2px;
+  min-width: 0;
+}
+
+.mobile-bottom-nav-visible .mobile-bottom-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+/* One line, truncated: long Greek names become "Ημερήσιε…" rather than
+   wrapping and making the bar two rows tall. */
+.mobile-bottom-nav-visible .mobile-bottom-label {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* "More" holds the views that do not fit as primary buttons */
+.mobile-bottom-nav-visible .mobile-more-menu {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.mobile-bottom-nav-visible .mobile-more-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+  text-align: center;
+}
+
+.mobile-bottom-nav-visible .mobile-more-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-bottom-nav-visible .mobile-more-trigger.active,
+.mobile-more-menu[open] .mobile-more-trigger {
+  background: rgba(13, 122, 115, 0.12);
+  color: var(--accent-strong);
+}
+
+.mobile-bottom-nav-visible .mobile-more-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  /* Above the floating AI button (10020), which sits in the same corner */
+  z-index: 10030;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(31, 42, 42, 0.12);
+  background: var(--panel-strong, #fffdf8);
+  box-shadow: 0 12px 30px rgba(31, 42, 42, 0.18);
+}
+
+.mobile-bottom-nav-visible .mobile-more-item {
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  padding: 11px 12px;
+  text-align: left;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mobile-bottom-nav-visible .mobile-more-item.active {
+  background: rgba(13, 122, 115, 0.12);
+  color: var(--accent-strong);
+}
+
+.mobile-bottom-nav-visible .mobile-more-item.hidden {
+  display: none;
 }
 
 .demo-status-badge {
