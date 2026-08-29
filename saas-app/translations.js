@@ -964,5 +964,103 @@ window.APP_TRANSLATIONS = {
     "No address yet.": "Χωρίς διεύθυνση ακόμα",
     "Company:": "Εταιρεία:",
     "UID:": "ΑΦΜ:",
+
+    // Font preview sample: a Greek pangram shows Greek glyphs, which is the
+    // point of the preview when the UI is in Greek.
+    "The quick brown fox jumps over the lazy dog. 1234567890":
+      "Ξεσκεπάζω την ψυχοφθόρα βδελυγμία. 1234567890",
+
+    // ---- Planner / daily works ----
+    "7 days week": "Εβδομάδα 7 ημερών",
+    "No projects": "Κανένα έργο",
+    "No daily works": "Καμία ημερήσια εργασία",
+    "Planner controls": "Χειριστήρια προγράμματος",
+    "Daily works controls": "Χειριστήρια ημερήσιων εργασιών",
+    "Add daily work": "Προσθήκη ημερήσιας εργασίας",
+    "Add work at": "Προσθήκη εργασίας στις",
+    "visible projects": "ορατά έργα",
+
+    // ---- Team members ----
+    "Add member": "Προσθήκη μέλους",
+    "Team members sections": "Ενότητες μελών ομάδας",
+    "Collapse members list": "Σύμπτυξη λίστας μελών",
+    "Collapse member details": "Σύμπτυξη στοιχείων μέλους",
+    "Toggle details": "Εναλλαγή λεπτομερειών",
+
+    // ---- Equipment ----
+    "Add equipment": "Προσθήκη εξοπλισμού",
+    "Add category": "Προσθήκη κατηγορίας",
+    "Collapse equipment list": "Σύμπτυξη λίστας εξοπλισμού",
+    "Collapse equipment details": "Σύμπτυξη στοιχείων εξοπλισμού",
+    "No equipment yet. Add the first item on the left.": "Κανένας εξοπλισμός ακόμα. Προσθέστε το πρώτο αντικείμενο αριστερά.",
+    "active equipment": "ενεργός εξοπλισμός",
+    "Active": "Ενεργά",
+
+    // ---- Clients ----
+    "Add new client": "Προσθήκη νέου πελάτη",
+    "Add client": "Προσθήκη πελάτη",
+
+    // ---- Settings ----
+    "Set the app timezone and schedule automatic Google Drive export twice per day (15-minute steps).":
+      "Ορίστε τη ζώνη ώρας και προγραμματίστε αυτόματη εξαγωγή στο Google Drive δύο φορές την ημέρα (βήματα 15 λεπτών).",
+
+    // ---- Access banner ----
+    "Access": "Πρόσβαση",
+    "Visible projects": "Ορατά έργα",
+    "can manage": "μπορεί να διαχειριστεί",
+    "can work inside": "μπορεί να εργαστεί στο",
+    "cannot open": "δεν έχει πρόσβαση στο",
+    "no project selected": "κανένα επιλεγμένο έργο",
+    "Original developer": "Αρχικός προγραμματιστής",
+    "Previewing exactly what this user can see.": "Προεπισκόπηση όσων βλέπει αυτός ο χρήστης.",
+    "Worker": "Τεχνίτης",
+    "worker": "Τεχνίτης",
+
+    // ---- Session / organization panel ----
+    "Organization": "Οργανισμός",
+    "Restore Backup": "Επαναφορά αντιγράφου",
+    "Download Backup": "Λήψη αντιγράφου",
+    "Enable Folder Sync": "Ενεργοποίηση συγχρονισμού φακέλου",
+    "Not logged in": "Χωρίς σύνδεση",
+    "Logout": "Αποσύνδεση",
+
+    // ---- Empty states ----
+    "Create your first project": "Δημιουργήστε το πρώτο σας έργο",
+    "Start with Team Members, create the first admin or manager, then add the first project.":
+      "Ξεκινήστε από τα Μέλη ομάδας, δημιουργήστε τον πρώτο διαχειριστή ή υπεύθυνο και μετά προσθέστε το πρώτο έργο.",
+    "Project and client details will appear here.": "Τα στοιχεία έργου και πελάτη θα εμφανιστούν εδώ.",
+    "Select a member on the left to open the details.":
+      "Επιλέξτε μέλος από τα αριστερά για να δείτε τις λεπτομέρειες.",
+
+    // ---- Member detail card ----
+    "Contact": "Επικοινωνία",
+    "Account": "Λογαριασμός",
+    "Personal No.": "Αρ. προσωπικού",
+    "Telephone": "Τηλέφωνο",
+    "Username": "Όνομα χρήστη",
+    "Created": "Δημιουργήθηκε",
+    "Last login": "Τελευταία σύνδεση",
+    "Never": "Ποτέ",
+    "No email": "Χωρίς email",
+    "No telephone": "Χωρίς τηλέφωνο",
+    "Tasks": "Εργασίες",
+    "Open": "Ανοιχτές",
+    "Completed": "Ολοκληρωμένες",
+    "No assigned tasks yet.": "Καμία ανατεθειμένη εργασία ακόμα.",
+    "No project schedule assigned yet.": "Δεν έχει ανατεθεί πρόγραμμα έργου ακόμα.",
+    "PIN change required": "Απαιτείται αλλαγή PIN",
+    "Enabled": "Ενεργό",
+    "Disabled": "Ανενεργό",
+    "Project manager": "Υπεύθυνος έργου",
+    "Inactive": "Ανενεργό",
+
+    // ---- Selects & filters ----
+    "Select client": "Επιλέξτε πελάτη",
+    "No project manager assigned": "Χωρίς υπεύθυνο έργου",
+    "1 star+": "1 αστέρι+",
+    "2 stars+": "2 αστέρια+",
+    "3 stars": "3 αστέρια",
+    "PPE": "ΜΑΠ",
+    "AI Assistant for this project": "Βοηθός AI για αυτό το έργο",
   },
 };

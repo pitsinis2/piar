@@ -82,6 +82,14 @@ function getDefaultTimezone() {
   }
 }
 
+// Dates must follow the language chosen in the app, not the browser's own
+// locale — otherwise a Greek UI renders German weekday names.
+const APP_LOCALES = { en: "en-GB", de: "de-DE", el: "el-GR", it: "it-IT" };
+
+function getAppLocale() {
+  return APP_LOCALES[normalizeLanguageCode(currentAppLanguage)] || "en-GB";
+}
+
 function getAppTimezone() {
   try {
     const settings = normalizeDriveSyncSettings(state?.driveSyncSettings || {});
@@ -4928,7 +4936,7 @@ function renderAiConversationDrafts() {
         <button class="ai-conversation-draft-main" data-ai-draft-open="${escapeHtml(draft.id)}" type="button">
           <span class="meta-pill">${escapeHtml(draft.language || "AI")}</span>
           <strong>${escapeHtml(title)}</strong>
-          <span class="muted">${escapeHtml(savedAt ? new Date(savedAt).toLocaleString() : "")}</span>
+          <span class="muted">${escapeHtml(savedAt ? new Date(savedAt).toLocaleString(getAppLocale()) : "")}</span>
           <p>${escapeHtml(preview)}</p>
         </button>
         <button class="ghost-btn ai-conversation-draft-delete" data-ai-draft-delete="${escapeHtml(draft.id)}" type="button">Delete</button>
@@ -6441,10 +6449,14 @@ function translateFromEnglishText(sourceText) {
   const withoutPunctuation = normalizedLower.replace(/[.:!?]+$/g, "").trim();
   if (withoutPunctuation && normalizedMap[withoutPunctuation]) return normalizedMap[withoutPunctuation];
 
-  if (normalized.startsWith("+ ")) {
-    const plusBase = normalized.slice(2).trim();
-    const plusMatch = translateFromEnglishText(plusBase);
-    if (plusMatch && plusMatch !== plusBase) return `+ ${plusMatch}`;
+  // Labels are often prefixed with an icon ("💻 Office", "↩️ Restore Backup",
+  // "+ Add note"). Translate the words and put the prefix back, so the
+  // dictionary only ever has to carry the plain English phrase.
+  const prefixed = normalized.match(/^([^\p{L}\p{N}]+?)\s*(\p{L}[\s\S]*)$/u);
+  if (prefixed) {
+    const [, prefix, base] = prefixed;
+    const baseMatch = translateFromEnglishText(base);
+    if (baseMatch && baseMatch !== base) return `${prefix} ${baseMatch}`;
   }
 
   if (currentAppLanguage === "el") {
@@ -9163,7 +9175,7 @@ function auditEntryMatchesSearch(entry, query) {
     entry.reason,
     actor ? getMemberDisplayName(actor) : "",
     ROLE_LABELS[entry.userRole] || entry.userRole,
-    new Date(entry.timestamp).toLocaleString(),
+    new Date(entry.timestamp).toLocaleString(getAppLocale()),
   ]
     .map((value) => normalizeSearchText(value))
     .filter(Boolean);
@@ -9718,7 +9730,7 @@ function renderNotificationsPanel(project = getCurrentProject()) {
     row.innerHTML = `
       <strong>${escapeHtml(title)}</strong>
       <span class="muted">${escapeHtml(body)}</span>
-      <span class="muted">${escapeHtml(new Date(entry.createdAt).toLocaleString())}</span>
+      <span class="muted">${escapeHtml(new Date(entry.createdAt).toLocaleString(getAppLocale()))}</span>
     `;
     row.addEventListener("click", () => openMentionNotification(entry.id));
     els.notificationsList.append(row);
@@ -10021,7 +10033,7 @@ function buildChatAttachmentGalleryEntries(messages = [], channelTitle = "") {
   for (const message of messages) {
     const sender = getUserById(message.createdByUserId);
     const senderLabel = sender ? getMemberDisplayName(sender) : "Team member";
-    const createdLabel = message.createdAt ? new Date(message.createdAt).toLocaleString() : "";
+    const createdLabel = message.createdAt ? new Date(message.createdAt).toLocaleString(getAppLocale()) : "";
     for (const attachment of message.attachments || []) {
       if (!attachment.isImage || !(attachment.storagePath || attachment.dataUrl)) continue;
       entries.push({
@@ -10680,14 +10692,14 @@ function populateCurrentUserSelect() {
   if (els.currentUserSelect) {
     const options = getActiveUsers()
       .filter((user) => user.loginEnabled !== false || user.id === state.currentUserId)
-      .map((user) => `<option value="${user.id}">${escapeHtml(user.username || getMemberDisplayName(user))} (${ROLE_LABELS[user.role]})</option>`).join("");
+      .map((user) => `<option value="${user.id}">${escapeHtml(user.username || getMemberDisplayName(user))} (${escapeHtml(translateFromEnglishText(ROLE_LABELS[user.role] || "User"))})</option>`).join("");
     els.currentUserSelect.innerHTML = options;
     els.currentUserSelect.value = state.currentUserId || "";
   }
   const user = getCurrentUser();
   const visibleProjects = getVisibleProjects(state, false).length;
   els.currentUserSummary.textContent = user
-    ? `${ROLE_LABELS[user.role]} · ${visibleProjects} visible project${visibleProjects === 1 ? "" : "s"}`
+    ? `${translateFromEnglishText(ROLE_LABELS[user.role] || "User")} · ${visibleProjects} ${translateFromEnglishText("visible projects")}`
     : "No active user selected";
   renderOrgSummary();
   renderBackupControls();
@@ -10722,26 +10734,32 @@ function renderAccessBanner() {
   }
 
   const previewOptions = getActiveUsers()
-    .map((user) => `<option value="${user.id}">${escapeHtml(getMemberDisplayName(user))} (${ROLE_LABELS[user.role]})</option>`)
+    .map((user) => `<option value="${user.id}">${escapeHtml(getMemberDisplayName(user))} (${escapeHtml(translateFromEnglishText(ROLE_LABELS[user.role] || "User"))})</option>`)
     .join("");
   els.accessPreviewUser.innerHTML = previewOptions;
   els.accessPreviewUser.value = state.currentUserId || "";
 
+  // Built from translated fragments: these sentences interpolate names and
+  // counts, so the DOM translator can never match them as whole strings.
+  const t = translateFromEnglishText;
+  const roleLabel = t(ROLE_LABELS[currentUser.role] || "User");
+  const projectName = project ? (project.name || t("Untitled project")) : "";
+
   els.accessBannerTitle.textContent = isDeveloperPreviewMode
-    ? `Developer preview: ${getMemberDisplayName(currentUser)}`
-    : `${ROLE_LABELS[currentUser.role]} access: ${getMemberDisplayName(currentUser)}`;
+    ? `${t("Developer preview")}: ${getMemberDisplayName(currentUser)}`
+    : `${t("Access")}: ${getMemberDisplayName(currentUser)} (${roleLabel})`;
 
   const projectAccessText = project
     ? canManage
-      ? `can manage "${project.name || "Untitled project"}"`
+      ? `${t("can manage")} "${projectName}"`
       : canWork
-        ? `can work inside "${project.name || "Untitled project"}"`
-        : `cannot open "${project.name || "Untitled project"}"`
-    : "has no visible project selected";
+        ? `${t("can work inside")} "${projectName}"`
+        : `${t("cannot open")} "${projectName}"`
+    : t("no project selected");
 
   els.accessBannerDescription.textContent = isDeveloperPreviewMode
-    ? `Previewing exactly what this user can see. ${projectAccessText}. Visible projects: ${visibleProjects}.${previewSource ? ` Original developer: ${getMemberDisplayName(previewSource)}.` : ""}`
-    : `${ROLE_LABELS[currentUser.role]} sees ${visibleProjects} visible project${visibleProjects === 1 ? "" : "s"} and ${projectAccessText}.`;
+    ? `${t("Previewing exactly what this user can see.")} ${projectAccessText} · ${t("Visible projects")}: ${visibleProjects}${previewSource ? ` · ${t("Original developer")}: ${getMemberDisplayName(previewSource)}` : ""}`
+    : `${t("Visible projects")}: ${visibleProjects} · ${projectAccessText}`;
 
   const developerCanPreview = isDeveloper() || isDeveloperPreviewMode;
   els.developerPreviewLabel?.classList.toggle("hidden", !developerCanPreview);
@@ -10752,8 +10770,8 @@ function renderAccessBanner() {
 
 function populateProjectManagerSelect(project) {
   if (!els.projectManagerUser) return;
-  const managerOptions = ['<option value="">No project manager assigned</option>']
-    .concat(getActiveUsers().filter((user) => user.role === "admin" || user.role === "manager").map((user) => `<option value="${user.id}">${escapeHtml(getMemberDisplayName(user))} (${ROLE_LABELS[user.role]})</option>`))
+  const managerOptions = [`<option value="">${escapeHtml(translateFromEnglishText("No project manager assigned"))}</option>`]
+    .concat(getActiveUsers().filter((user) => user.role === "admin" || user.role === "manager").map((user) => `<option value="${user.id}">${escapeHtml(getMemberDisplayName(user))} (${escapeHtml(translateFromEnglishText(ROLE_LABELS[user.role] || "User"))})</option>`))
     .join("");
   els.projectManagerUser.innerHTML = managerOptions;
   els.projectManagerUser.value = project?.projectManagerUserId || "";
@@ -11413,10 +11431,10 @@ function renderEquipmentCategories() {
   allCard.innerHTML = `
     <div class="equipment-category-card-main">
       <strong>All categories</strong>
-      <span class="muted">${activeItems.length} active equipment</span>
+      <span class="muted">${activeItems.length} ${translateFromEnglishText("active equipment")}</span>
     </div>
     <div class="meta-row equipment-category-card-pills">
-      <span class="meta-pill">Active: ${activeItems.length}</span>
+      <span class="meta-pill">${translateFromEnglishText("Active")}: ${activeItems.length}</span>
       ${archivedItems.length ? `<span class="meta-pill status-pill-archived">Archived: ${archivedItems.length}</span>` : ""}
     </div>
   `;
@@ -11441,10 +11459,10 @@ function renderEquipmentCategories() {
     card.innerHTML = `
       <div class="equipment-category-card-main">
         <strong>${escapeHtml(category.name)}</strong>
-        <span class="muted">${activeCount} active equipment</span>
+        <span class="muted">${activeCount} ${translateFromEnglishText("active equipment")}</span>
       </div>
       <div class="meta-row equipment-category-card-pills">
-        <span class="meta-pill">Active: ${activeCount}</span>
+        <span class="meta-pill">${translateFromEnglishText("Active")}: ${activeCount}</span>
         ${archivedCount ? `<span class="meta-pill status-pill-archived">Archived: ${archivedCount}</span>` : ""}
       </div>
     `;
@@ -11749,10 +11767,10 @@ function renderMemberDetail(member, project = getCurrentProject()) {
       <div class="member-card-details" style="display: ${startExpanded ? "block" : "none"};">
         <!-- Contact Info -->
         <div class="member-card-section">
-          <h5>Επικοινωνία</h5>
+          <h5>Contact</h5>
           <div class="member-card-rows">
             <div class="member-card-row">
-              <span class="label">Αρ. προσωπικού</span>
+              <span class="label">Personal No.</span>
               <span class="value">${escapeHtml(personalNumber)}</span>
             </div>
             <div class="member-card-row">
@@ -11764,7 +11782,7 @@ function renderMemberDetail(member, project = getCurrentProject()) {
               <span class="value">${escapeHtml(member.email || "No email")}</span>
             </div>
             <div class="member-card-row">
-              <span class="label">Τηλέφωνο</span>
+              <span class="label">Telephone</span>
               <span class="value">${escapeHtml(member.tel || "No telephone")}</span>
             </div>
           </div>
@@ -11772,7 +11790,7 @@ function renderMemberDetail(member, project = getCurrentProject()) {
 
         <!-- Account Info -->
         <div class="member-card-section">
-          <h5>Λογαριασμός</h5>
+          <h5>Account</h5>
           <div class="member-card-rows">
             <div class="member-card-row">
               <span class="label">Created</span>
@@ -11794,7 +11812,7 @@ function renderMemberDetail(member, project = getCurrentProject()) {
 
         <!-- Projects this member is part of -->
         <div class="member-card-section">
-          <h5>Projects (${memberProjects.length})</h5>
+          <h5>${translateFromEnglishText("Projects")} (${memberProjects.length})</h5>
           <div class="directory-detail-list">${scheduleMarkup}</div>
         </div>
 
@@ -11980,7 +11998,7 @@ function renderMembers() {
             ${qualificationBadge}
             ${workmodeBadge}
           </div>
-          <div class="directory-select-subtitle">Personal No: ${escapeHtml(personalNumber)} | ${escapeHtml(member.email || "No email")}</div>
+          <div class="directory-select-subtitle">${escapeHtml(translateFromEnglishText("Personal No."))} ${escapeHtml(personalNumber)} | ${escapeHtml(member.email || translateFromEnglishText("No email"))}</div>
         </div>
         <span class="meta-pill role-pill-${member.role} directory-select-status">${escapeHtml(roleLabel)}</span>
       </div>
@@ -12347,7 +12365,7 @@ function renderAuditLog() {
     card.innerHTML = `
       <div class="audit-entry-header">
         <strong>${escapeHtml(entry.action)}</strong>
-        <span class="meta-pill">${escapeHtml(new Date(entry.timestamp).toLocaleString())}</span>
+        <span class="meta-pill">${escapeHtml(new Date(entry.timestamp).toLocaleString(getAppLocale()))}</span>
       </div>
       <div class="meta-row">
         <span class="meta-pill">${escapeHtml(actor ? getMemberDisplayName(actor) : "Unknown user")}</span>
@@ -12544,7 +12562,7 @@ function getStartOfIsoWeek(value) {
 function formatPlannerDate(value, options = {}) {
   const date = parseIsoDateValue(value);
   if (!date) return value || "";
-  return date.toLocaleDateString(undefined, { timeZone: getAppTimezone(), ...options });
+  return date.toLocaleDateString(getAppLocale(), { timeZone: getAppTimezone(), ...options });
 }
 
 function timeStringToMinutes(value) {
@@ -13257,7 +13275,7 @@ function renderDailyWorks() {
     addBtn.type = "button";
     addBtn.className = "icon-btn daily-work-add-btn";
     addBtn.textContent = "+";
-    addBtn.setAttribute("aria-label", `Add daily work on ${formatPlannerDate(dateValue)}`);
+    addBtn.setAttribute("aria-label", `${translateFromEnglishText("Add daily work")} · ${formatPlannerDate(dateValue)}`);
     addBtn.addEventListener("click", () => openDailyWorkDialog("", { date: dateValue }));
     header.append(addBtn);
     column.append(header);
@@ -13284,7 +13302,7 @@ function renderDailyWorks() {
       const slot = document.createElement("button");
       slot.type = "button";
       slot.className = "daily-work-hour-slot";
-      slot.title = `Add work at ${String(hour).padStart(2, "0")}:00`;
+      slot.title = `${translateFromEnglishText("Add work at")} ${String(hour).padStart(2, "0")}:00`;
       slot.addEventListener("click", () => openDailyWorkDialog("", {
         date: dateValue,
         startTime: `${String(hour).padStart(2, "0")}:00`,
@@ -14575,7 +14593,7 @@ function createTaskDetails(task) {
           <span class="meta-pill">Assigned: ${escapeHtml(getTaskAssigneeLabel(task))}</span>
           <span class="meta-pill">Area: ${escapeHtml(getTaskLocationLabel(task))}</span>
           <span class="meta-pill">Due: ${escapeHtml(getTaskDueLabel(task))}</span>
-          <span class="meta-pill">${escapeHtml(new Date(task.createdAt).toLocaleString())}</span>
+          <span class="meta-pill">${escapeHtml(new Date(task.createdAt).toLocaleString(getAppLocale()))}</span>
         </div>
       </section>
     </div>
@@ -14736,7 +14754,7 @@ function buildGalleryEntriesFromItems(items = [], options = {}) {
   const entries = [];
   for (const item of items) {
     if (!item) continue;
-    const createdLabel = item.createdAt ? new Date(item.createdAt).toLocaleString() : "";
+    const createdLabel = item.createdAt ? new Date(item.createdAt).toLocaleString(getAppLocale()) : "";
     if (item.type === "photo" && (item.storagePath || item.previewUrl)) {
       entries.push({
         key: `photo:${item.id}`,
@@ -15064,7 +15082,7 @@ function buildCollectedCommentEntry(comment, project) {
   button.innerHTML = `
     <div class="collected-comment-copy">
       <strong>${escapeHtml(comment.title || "Untitled comment")}</strong>
-      <span class="muted">${escapeHtml(sourceLabel)} • ${escapeHtml(new Date(comment.createdAt).toLocaleString())}</span>
+      <span class="muted">${escapeHtml(sourceLabel)} • ${escapeHtml(new Date(comment.createdAt).toLocaleString(getAppLocale()))}</span>
       ${snippet ? `<p>${escapeHtml(snippet.length > 180 ? `${snippet.slice(0, 177)}...` : snippet)}</p>` : '<p class="muted">No text yet.</p>'}
     </div>
     ${(comment.imageStoragePath || comment.imageUrl) ? `<div class="collected-comment-thumb"><img src="${getAssetUrl(comment)}" alt="${escapeHtml(comment.imageName || comment.title || "Comment image")}"></div>` : ""}
@@ -15091,7 +15109,7 @@ function buildAreaCommentPreview(areaNotes, galleryEntries = []) {
       </div>
       <div class="meta-row">
         ${note.showOnMasterPlan ? '<span class="meta-pill">Master plan</span>' : ""}
-        <span class="meta-pill">${escapeHtml(new Date(note.createdAt).toLocaleString())}</span>
+        <span class="meta-pill">${escapeHtml(new Date(note.createdAt).toLocaleString(getAppLocale()))}</span>
       </div>
       ${(note.imageStoragePath || note.imageUrl) ? `<button class="area-comment-preview-thumb image-open-trigger" type="button" aria-label="Open ${escapeHtml(note.imageName || note.title || "Comment image")}"><img src="${getAssetUrl(note)}" alt="${escapeHtml(note.imageName || note.title || "Comment image")}"></button>` : ""}
     `;
@@ -15856,7 +15874,7 @@ function createProjectChatMessageElement(message, galleryEntries, channelTitle =
     <div class="project-chat-message-bubble">
       <div class="project-chat-message-meta">
         <strong>${escapeHtml(senderName)}</strong>
-        <span>${escapeHtml(new Date(message.createdAt).toLocaleString())}</span>
+        <span>${escapeHtml(new Date(message.createdAt).toLocaleString(getAppLocale()))}</span>
         ${importantBadge}
         ${canMarkImportant ? `<button class="ghost-btn chat-important-btn" type="button">${message.importantNoteId ? "Added to Notes" : "Mark Important"}</button>` : ""}
       </div>
@@ -15925,7 +15943,7 @@ function markChatMessageAsImportant(messageId, channelTitle = "") {
     content: [
       `Source: ${channelTitle || "Project chat"}`,
       `From: ${senderName}`,
-      `Time: ${new Date(message.createdAt).toLocaleString()}`,
+      `Time: ${new Date(message.createdAt).toLocaleString(getAppLocale())}`,
       previewText ? `Message: ${previewText}` : "Message: (attachment only)",
     ].join("\n"),
     showOnMasterPlan: false,
@@ -16378,7 +16396,7 @@ function renderItem(item, options = {}) {
   const wrapper = document.createElement("div");
   applyItemBadgeTheme(wrapper);
   const project = getCurrentProject();
-  const dateLabel = new Date(item.createdAt).toLocaleString();
+  const dateLabel = new Date(item.createdAt).toLocaleString(getAppLocale());
   const archiveBadge = item.archivedAt ? `<span class="meta-pill status-pill-archived">Archived</span>` : "";
   const linkedFolders = resolveLinkedFolders(item.linkedFolderIds || []);
   const linkedPhotos = resolveLinkedPhotos(item.linkedPhotoIds || []);
@@ -19298,7 +19316,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.rememberOrg': 'Θυμηθείτε τον Κωδικό Οργανισμού',
       'login.button': 'Σύνδεση',
       'login.help': 'Πρώτη φορά; Ζητήστε τα διαπιστευτήριά σας από τον διαχειριστή σας.',
-      'login.defaultPin': 'Προεπιλεγμένο PIN:'
+      'login.defaultPin': 'Προεπιλεγμένο PIN:',
+      'login.pinToggle': 'Εμφάνιση/απόκρυψη PIN'
     },
     en: {
       'login.title': 'Project Manager Login',
@@ -19311,7 +19330,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.rememberOrg': 'Remember Organization Code',
       'login.button': 'Log In',
       'login.help': 'First time? Ask your admin for your credentials.',
-      'login.defaultPin': 'Default PIN:'
+      'login.defaultPin': 'Default PIN:',
+      'login.pinToggle': 'Show/hide PIN'
     }
   };
 
@@ -19325,6 +19345,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
       el.textContent = getLoginText(key);
+    });
+    // Labels that live in attributes rather than text (screen readers, tooltips)
+    document.querySelectorAll('[data-i18n-label]').forEach(el => {
+      const text = getLoginText(el.getAttribute('data-i18n-label'));
+      el.setAttribute('aria-label', text);
+      el.setAttribute('title', text);
     });
   }
 
@@ -19477,9 +19503,9 @@ function renderOrgSummary() {
     return;
   }
   target.innerHTML = `
-    <div class="org-summary-label">Organization</div>
+    <div class="org-summary-label">${escapeHtml(translateFromEnglishText("Organization"))}</div>
     <div class="org-summary-code">${escapeHtml(currentOrgCode || '—')}</div>
-    <div class="org-summary-user">${escapeHtml(currentUsername || 'User')} · ${escapeHtml(currentRole || '')}</div>
+    <div class="org-summary-user">${escapeHtml(currentUsername || 'User')} · ${escapeHtml(translateFromEnglishText(ROLE_LABELS[currentRole] || currentRole || ''))}</div>
   `;
 }
 
@@ -19947,7 +19973,7 @@ function updateFolderSyncUI() {
     btn.textContent = '📁 Folder Sync: On (click to turn off)';
     const folderName = folderSyncHandle?.name ? `"${folderSyncHandle.name}"` : 'your folder';
     status.textContent = `Mirroring workspace into ${folderName}`
-      + (lastFolderSyncTime ? ` · last sync ${lastFolderSyncTime.toLocaleTimeString()}` : '');
+      + (lastFolderSyncTime ? ` · last sync ${lastFolderSyncTime.toLocaleTimeString(getAppLocale())}` : '');
   } else if (folderSyncStatus === 'paused') {
     btn.textContent = '📁 Resume Folder Sync';
     status.textContent = 'Click to allow access to your sync folder again.';
@@ -20023,7 +20049,7 @@ function openRestoreModal() {
     list.innerHTML = backups.map((b, i) => `
       <label style="display: flex; align-items: center; padding: 0.75em; border-bottom: 1px solid #eee; cursor: pointer;">
         <input type="radio" name="backup-select" value="${b.id}" ${i === 0 ? 'checked' : ''} style="margin-right: 0.75em;">
-        <span>${new Date(b.backed_up_at).toLocaleString()}</span>
+        <span>${new Date(b.backed_up_at).toLocaleString(getAppLocale())}</span>
       </label>
     `).join('');
   });

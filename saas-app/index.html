@@ -14,12 +14,27 @@
         document.documentElement.classList.add("mobile-preview-mode");
       }
     })();
+
+    // Date locale for the inline planner widgets below. appback.js defines the
+    // authoritative getAppLocale() but loads deferred, so fall back to the same
+    // sources it uses when this runs first.
+    function plannerLocale() {
+      try {
+        if (typeof getAppLocale === "function") return getAppLocale();
+      } catch (error) { /* appback.js not evaluated yet */ }
+      const map = { en: "en-GB", de: "de-DE", el: "el-GR", it: "it-IT" };
+      let lang = new URLSearchParams(window.location.search).get("lang");
+      if (!lang) {
+        try { lang = localStorage.getItem("project-manager-web-language"); } catch (error) { lang = null; }
+      }
+      return map[lang] || "en-GB";
+    }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-114">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-114">
+  <link rel="stylesheet" href="stylesback.css?v=greek-119">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-119">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -83,8 +98,9 @@
               type="button"
               class="login-pin-toggle"
               id="login-pin-toggle"
-              aria-label="Toggle PIN visibility"
-              title="Show/Hide PIN"
+              data-i18n-label="login.pinToggle"
+              aria-label="Show/hide PIN"
+              title="Show/hide PIN"
             >👁</button>
           </div>
         </label>
@@ -1660,8 +1676,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="translations.js?v=el-1"></script>
-  <script defer src="appback.js?v=greek-114"></script>
+  <script src="translations.js?v=el-6"></script>
+  <script defer src="appback.js?v=greek-119"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");
@@ -1767,7 +1783,7 @@
       function formatCardDate(iso) {
         const date = parseIsoDate(iso);
         if (!date) return iso || "";
-        return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+        return date.toLocaleDateString(plannerLocale(), { day: "2-digit", month: "short" });
       }
 
       function loadUnavailableState() {
@@ -2327,9 +2343,9 @@
         const weekEndIso = toIsoDate(weekEnd);
         const cw = getIsoWeek(weekStart);
         selectedWeekRange.textContent = "CW " + cw + " - "
-          + weekStart.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+          + weekStart.toLocaleDateString(plannerLocale(), { day: "2-digit", month: "short", year: "numeric" })
           + " - "
-          + weekEnd.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+          + weekEnd.toLocaleDateString(plannerLocale(), { day: "2-digit", month: "short", year: "numeric" });
 
         // Build stable "lanes" so multi-day projects stay on the same row across the week.
         const relevantAssignments = assignments
@@ -2457,8 +2473,8 @@
             '<div class="' + classes + '">'
             + '<div class="planner-static-week-day-head">'
             + '<div class="planner-static-week-day-heading-copy">'
-            + '<span>' + day.toLocaleDateString("en-GB", { weekday: "short" }) + '</span>'
-            + '<strong>' + String(day.getDate()).padStart(2, "0") + '-' + day.toLocaleDateString("en-GB", { month: "short" }) + '</strong>'
+            + '<span>' + day.toLocaleDateString(plannerLocale(), { weekday: "short" }) + '</span>'
+            + '<strong>' + String(day.getDate()).padStart(2, "0") + '-' + day.toLocaleDateString(plannerLocale(), { month: "short" }) + '</strong>'
             + '</div>'
             + '<button type="button" class="planner-static-day-add-btn" data-day="' + dayIso + '">+</button>'
             + '</div>'
@@ -2529,7 +2545,7 @@
       }
 
       function renderMonth() {
-        title.textContent = activeMonth.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        title.textContent = activeMonth.toLocaleDateString(plannerLocale(), { month: "long", year: "numeric" });
         const monthStart = new Date(activeMonth.getFullYear(), activeMonth.getMonth(), 1, 12, 0, 0, 0);
         const gridStart = new Date(monthStart);
         gridStart.setDate(gridStart.getDate() - ((gridStart.getDay() + 6) % 7));
@@ -2573,7 +2589,7 @@
 
       function renderUnavailablePicker() {
         if (!unavailTitle || !unavailDays) return;
-        unavailTitle.textContent = unavailableMonth.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        unavailTitle.textContent = unavailableMonth.toLocaleDateString(plannerLocale(), { month: "long", year: "numeric" });
         const monthStart = new Date(unavailableMonth.getFullYear(), unavailableMonth.getMonth(), 1, 12, 0, 0, 0);
         const gridStart = new Date(monthStart);
         gridStart.setDate(gridStart.getDate() - ((gridStart.getDay() + 6) % 7));
