@@ -1415,8 +1415,8 @@ const els = {
   workspaceLockOverlay: document.querySelector("#workspace-lock-overlay"),
   workspaceHero: document.querySelector("#workspace-hero"),
   workspaceTitle: document.querySelector("#workspace-title"),
-  workspaceSubtitle: document.querySelector("#workspace-subtitle"),
-  workspaceContext: document.querySelector("#workspace-context"),
+  workspaceDigest: document.querySelector("#workspace-digest"),
+  projectMetaToggle: document.querySelector("#project-meta-toggle"),
   projectRoomChatBtn: document.querySelector("#project-room-chat-btn"),
   viberRoomBtn: document.querySelector("#viber-room-btn"),
   notificationsBtn: document.querySelector("#notifications-btn"),
@@ -6035,6 +6035,7 @@ function bindEvents() {
   els.mobileGlobalSearch?.addEventListener("input", onMobileGlobalSearchInput);
   els.mobileHeroToggleBtn?.addEventListener("click", toggleMobileHeroHeader);
   els.currentUserSelect?.addEventListener("change", onCurrentUserChange);
+  els.projectMetaToggle?.addEventListener("click", toggleProjectMeta);
   els.accessPreviewUser?.addEventListener("change", onAccessPreviewChange);
   els.resetAccessPreviewBtn?.addEventListener("click", resetAccessPreview);
   els.projectForm.addEventListener("submit", onProjectSave);
@@ -10286,8 +10287,7 @@ function applyPendingItemFocus() {
 
 function renderEmptyWorkspace() {
   els.workspaceTitle.textContent = "Create your first project";
-  els.workspaceSubtitle.textContent = "Start with Team Members, create the first admin or manager, then add the first project.";
-  if (els.workspaceContext) els.workspaceContext.textContent = "Project and client details will appear here.";
+  if (els.workspaceDigest) els.workspaceDigest.textContent = translateFromEnglishText("Start with Team Members, create the first admin or manager, then add the first project.");
   els.projectMetaBar.innerHTML = `<span class="meta-pill">Empty start</span>`;
   renderViberRoomButton(null);
   els.projectTeamInfoBar?.classList.add("hidden");
@@ -11094,7 +11094,7 @@ function renderProjectBucket(target, projects, emptyText, expanded, toggleButton
     tile.style.setProperty("--project-frame", theme.frame);
     tile.style.setProperty("--project-soft", theme.soft);
     const projectNumber = formatProjectNumberValue(project.projectNumber);
-    tile.innerHTML = `<div class="project-meta"><strong>${projectNumber ? `<span class="project-number-badge">${escapeHtml(projectNumber)}</span>` : ""}${escapeHtml(project.name || "Untitled project")}</strong><span class="muted">Client: ${escapeHtml(client ? formatClientName(client) : "Not assigned")}</span><span class="muted">Start: ${escapeHtml(formatDateDisplay(project.startDate))}</span></div>`;
+    tile.innerHTML = `<div class="project-meta"><strong>${projectNumber ? `<span class="project-number-badge">${escapeHtml(projectNumber)}</span>` : ""}${escapeHtml(project.name || "Untitled project")}</strong><span class="muted">${translateFromEnglishText("Client")}: ${escapeHtml(client ? formatClientName(client) : translateFromEnglishText("Not assigned"))}</span><span class="muted">${translateFromEnglishText("Start")}: ${escapeHtml(formatDateDisplay(project.startDate))}</span></div>`;
     if (selectable) {
       const selectLabel = document.createElement("label");
       selectLabel.className = "project-select-check";
@@ -12939,8 +12939,8 @@ function buildAddressActionMarkup(address, options = {}) {
   const cleanAddress = String(address || "").trim();
   if (!cleanAddress) return "";
   const mapLink = buildGoogleMapsSearchLink(cleanAddress);
-  const label = options.label || "Address";
-  const buttonLabel = options.buttonLabel || "Go";
+  const label = translateFromEnglishText(options.label || "Address");
+  const buttonLabel = translateFromEnglishText(options.buttonLabel || "Go");
   return `
     <span class="${escapeHtml(options.className || "meta-pill project-contact-action-pill")}">
       <span>${escapeHtml(label)}: ${escapeHtml(cleanAddress)}</span>
@@ -12952,8 +12952,8 @@ function buildAddressActionMarkup(address, options = {}) {
 function buildPhoneActionMarkup(phone, options = {}) {
   const cleanPhone = normalizePhoneValue(phone);
   if (!cleanPhone) return "";
-  const label = options.label || "Tel";
-  const buttonLabel = options.buttonLabel || "Call";
+  const label = translateFromEnglishText(options.label || "Tel");
+  const buttonLabel = translateFromEnglishText(options.buttonLabel || "Call");
   return `
     <span class="${escapeHtml(options.className || "meta-pill project-contact-action-pill")}">
       <span>${escapeHtml(label)}: ${escapeHtml(cleanPhone)}</span>
@@ -16332,8 +16332,7 @@ function renderAssignedTasksOverview() {
   els.folderSummary.classList.add("hidden");
   els.folderItems.innerHTML = "";
   els.workspaceTitle.textContent = project?.name || "Project Tasks";
-  els.workspaceSubtitle.textContent = "Tasks for the currently selected project";
-  if (els.workspaceContext) els.workspaceContext.textContent = "Quick task overview for the current project.";
+  if (els.workspaceDigest) els.workspaceDigest.textContent = translateFromEnglishText("Tasks for the currently selected project");
   els.projectMetaBar.innerHTML = `<span class="meta-pill">Project tasks: ${tasks.length}</span>`;
   if (!tasks.length) {
     els.folderItems.innerHTML = `<section class="empty-state"><h3>No assigned tasks</h3><p>You have no open tasks assigned right now.</p></section>`;
@@ -16370,26 +16369,77 @@ function renderProjectMeta(project) {
   const managerName = manager ? getMemberDisplayName(manager) : "No project manager";
   const startDate = formatDateDisplay(project.startDate || "");
   const deadlineDate = formatDateDisplay(project.endDate || "");
-  const contextLine = [
-    client?.company?.trim() || "",
-    clientName !== client?.company?.trim() ? clientName : "",
-    `Project manager: ${managerName}`,
-  ].filter(Boolean).join(" | ");
+  const t = translateFromEnglishText;
   els.workspaceTitle.textContent = getProjectDisplayName(project);
-  els.workspaceSubtitle.textContent = address || "No address added";
-  if (els.workspaceContext) els.workspaceContext.textContent = contextLine || "Project context";
+  // One-line digest for the collapsed state only. The expanded pill row below
+  // is the single source for these facts, so the two are never shown together.
+  if (els.workspaceDigest) {
+    els.workspaceDigest.textContent = [
+      clientName,
+      address || t("No address added"),
+    ].filter(Boolean).join(" · ");
+  }
   els.projectMetaBar.innerHTML = `
-    <span class="meta-pill">Project: ${escapeHtml(formatProjectNumberValue(project.projectNumber) || "----")}</span>
-    <span class="meta-pill">Client: ${escapeHtml(clientName)}</span>
-    <span class="meta-pill">Manager: ${escapeHtml(managerName)}</span>
-    <span class="meta-pill">Start: ${escapeHtml(startDate || "-")}</span>
-    <span class="meta-pill">Deadline: ${escapeHtml(deadlineDate || "-")}</span>
-    ${address ? buildAddressActionMarkup(address) : `<span class="meta-pill">Address: No address added</span>`}
-    ${tel ? buildPhoneActionMarkup(tel) : `<span class="meta-pill">Tel: No telephone added</span>`}
-    ${email ? `<span class="meta-pill">Email: ${escapeHtml(email)}</span>` : ""}
-    <span class="meta-pill">Status: ${escapeHtml(project.lifecycle || "active")}</span>
+    <span class="meta-pill">${t("Project")}: ${escapeHtml(formatProjectNumberValue(project.projectNumber) || "----")}</span>
+    <span class="meta-pill">${t("Client")}: ${escapeHtml(clientName)}</span>
+    <span class="meta-pill">${t("Manager")}: ${escapeHtml(managerName)}</span>
+    <span class="meta-pill">${t("Start")}: ${escapeHtml(startDate || "-")}</span>
+    <span class="meta-pill">${t("Deadline")}: ${escapeHtml(deadlineDate || "-")}</span>
+    ${address ? buildAddressActionMarkup(address) : `<span class="meta-pill">${t("Address")}: ${t("No address added")}</span>`}
+    ${tel ? buildPhoneActionMarkup(tel) : `<span class="meta-pill">${t("Tel")}: ${t("No telephone added")}</span>`}
+    ${email ? `<span class="meta-pill">${t("Email")}: ${escapeHtml(email)}</span>` : ""}
+    <span class="meta-pill">${t("Status")}: ${escapeHtml(t(project.lifecycle || "active"))}</span>
   `;
+  applyProjectMetaCollapsed();
   return project;
+}
+
+// Project details collapse to just the title + a one-line digest. Phones start
+// collapsed, where the full pill row costs most of the first screen.
+let projectMetaCollapsed = null;
+
+function isProjectMetaCollapsed() {
+  if (projectMetaCollapsed === null) {
+    try {
+      const stored = localStorage.getItem("piar.projectMeta.collapsed");
+      projectMetaCollapsed = stored === null ? isMobileProjectViewport() : stored === "1";
+    } catch (error) {
+      projectMetaCollapsed = isMobileProjectViewport();
+    }
+  }
+  return projectMetaCollapsed;
+}
+
+function applyProjectMetaCollapsed() {
+  // Views without a pill row (empty workspace, task overview) keep their digest
+  // visible and hide the toggle, which would otherwise collapse to nothing.
+  const hasDetails = Boolean(els.projectMetaBar?.children.length);
+  const collapsed = hasDetails && isProjectMetaCollapsed();
+  els.projectMetaBar?.classList.toggle("is-collapsed", collapsed);
+  els.workspaceDigest?.classList.toggle("is-hidden", hasDetails && !collapsed);
+  const toggle = els.projectMetaToggle;
+  if (!toggle) return;
+  toggle.classList.toggle("is-hidden", !hasDetails);
+  toggle.classList.toggle("is-collapsed", collapsed);
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  // applyLanguageToDocument re-translates attributes from a cached English
+  // source, so that cache has to move with the label or it snaps back.
+  const english = collapsed ? "Show project details" : "Hide project details";
+  toggle.dataset.i18nSourceAriaLabel = english;
+  toggle.dataset.i18nSourceTitle = english;
+  const label = translateFromEnglishText(english);
+  toggle.setAttribute("aria-label", label);
+  toggle.setAttribute("title", label);
+}
+
+function toggleProjectMeta() {
+  projectMetaCollapsed = !isProjectMetaCollapsed();
+  try {
+    localStorage.setItem("piar.projectMeta.collapsed", projectMetaCollapsed ? "1" : "0");
+  } catch (error) {
+    // Collapse still works for this session without storage permission.
+  }
+  applyProjectMetaCollapsed();
 }
 
 function renderItem(item, options = {}) {

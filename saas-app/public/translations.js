@@ -970,6 +970,17 @@ window.APP_TRANSLATIONS = {
     "The quick brown fox jumps over the lazy dog. 1234567890":
       "Ξεσκεπάζω την ψυχοφθόρα βδελυγμία. 1234567890",
 
+    // ---- Project hero ----
+    "Deadline": "Προθεσμία",
+    "No telephone added": "Χωρίς τηλέφωνο",
+    "active": "ενεργό",
+    "completed": "ολοκληρωμένο",
+    "archived": "αρχειοθετημένο",
+    "Show project details": "Εμφάνιση στοιχείων έργου",
+    "Hide project details": "Απόκρυψη στοιχείων έργου",
+    "No address added": "Χωρίς διεύθυνση",
+    "Tasks for the currently selected project": "Εργασίες για το επιλεγμένο έργο",
+
     // ---- Planner / daily works ----
     "7 days week": "Εβδομάδα 7 ημερών",
     "No projects": "Κανένα έργο",

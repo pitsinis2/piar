@@ -762,6 +762,67 @@ body:has(.popup-shell.popup-shell-open) {
   margin-top: 0;
 }
 
+/* ---- Project hero: collapsible details ---- */
+.hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.hero-title-row #workspace-title {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hero-digest {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-meta-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.project-meta-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.project-meta-toggle-icon {
+  display: inline-flex;
+  transition: transform 0.18s ease;
+}
+
+/* Chevron points down when the details are hidden, up when they are shown */
+.project-meta-toggle.is-collapsed .project-meta-toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.project-meta-toggle.is-hidden,
+.hero-digest.is-hidden {
+  display: none;
+}
+
+.hero-digest:empty {
+  display: none;
+}
+
+#project-meta-bar.is-collapsed {
+  display: none;
+}
+
 .org-summary:empty {
   display: none;
 }
@@ -6941,6 +7002,18 @@ button.area-comment-preview-thumb:focus-visible,
     }
   .modal-actions { flex-direction: column-reverse; }
   .hero { padding: 16px; gap: 12px; }
+  /* Side-by-side, the action buttons squeeze the title until it wraps one
+     word per line. Stack them so the title keeps the full width. */
+  #workspace-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #workspace-hero .hero-notifications {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
   .workspace-tabbar {
     padding: 12px 12px 0;
     gap: 6px;
