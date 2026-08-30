@@ -972,6 +972,12 @@ window.APP_TRANSLATIONS = {
     "The quick brown fox jumps over the lazy dog. 1234567890":
       "Ξεσκεπάζω την ψυχοφθόρα βδελυγμία. 1234567890",
 
+    // ---- Calendar range toggle (Google-Calendar style day / week views) ----
+    "7 days week": "Εβδομάδα 7 ημερών",
+    "5 days week": "Εβδομάδα 5 ημερών",
+    "1 day": "1 ημέρα",
+    "Selected day": "Επιλεγμένη ημέρα",
+
     // ---- Mobile bottom navigation (deliberately short, to fit 5-up) ----
     "Daily": "Ημερήσιες",
     "Others": "Άλλα",

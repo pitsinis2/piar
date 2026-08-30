@@ -681,6 +681,8 @@ let plannerMode = "week";
 let plannerSlotHours = 1;
 let plannerAnchorDate = todayInputValue();
 let dailyWorksAnchorDate = todayInputValue();
+// Google-Calendar style range: 7 = week, 5 = work week, 1 = single day.
+let dailyWorksDayCount = 7;
 let editingDailyWorkId = "";
 let dailyWorkSelectedMemberIds = new Set();
 let draggedDailyWorkId = "";
@@ -1262,6 +1264,7 @@ const els = {
   planner2hBtn: document.querySelector("#planner-2h-btn"),
   planner4hBtn: document.querySelector("#planner-4h-btn"),
   dailyWorksBoard: document.querySelector("#daily-works-board"),
+  dailyWorksRangeToggle: document.querySelector("#daily-works-range-toggle"),
   dailyWorkContactsList: document.querySelector("#daily-work-contacts-list"),
   dailyWorkContactsCount: document.querySelector("#daily-work-contacts-count"),
   dailyWorksWeekRange: document.querySelector("#daily-works-week-range"),
@@ -6023,6 +6026,7 @@ function bindEvents() {
     event.preventDefault();
     closePlannerAssignmentDialog();
   });
+  els.dailyWorksRangeToggle?.addEventListener("click", cycleDailyWorksDayCount);
   els.dailyWorksPrevWeekBtn?.addEventListener("click", () => shiftDailyWorksWeek(-1));
   els.dailyWorksTodayBtn?.addEventListener("click", goToDailyWorksToday);
   els.dailyWorksNextWeekBtn?.addEventListener("click", () => shiftDailyWorksWeek(1));
@@ -12733,12 +12737,24 @@ function goToPlannerToday() {
 }
 
 function getDailyWorksWeekDates(anchorDate = dailyWorksAnchorDate) {
-  const start = getStartOfIsoWeek(anchorDate || todayInputValue());
-  return Array.from({ length: 7 }, (_, index) => addDaysToIsoDate(start, index));
+  const anchor = anchorDate || todayInputValue();
+  // Day view shows the selected day itself; week views start on Monday.
+  const start = dailyWorksDayCount === 1 ? anchor : getStartOfIsoWeek(anchor);
+  return Array.from({ length: dailyWorksDayCount }, (_, index) => addDaysToIsoDate(start, index));
+}
+
+function cycleDailyWorksDayCount() {
+  dailyWorksDayCount = dailyWorksDayCount === 7 ? 5 : dailyWorksDayCount === 5 ? 1 : 7;
+  render();
+}
+
+function getDailyWorksRangeLabel() {
+  return dailyWorksDayCount === 7 ? "7 days week" : dailyWorksDayCount === 5 ? "5 days week" : "1 day";
 }
 
 function shiftDailyWorksWeek(direction) {
-  dailyWorksAnchorDate = addDaysToIsoDate(dailyWorksAnchorDate || todayInputValue(), direction * 7);
+  const step = dailyWorksDayCount === 1 ? 1 : 7;
+  dailyWorksAnchorDate = addDaysToIsoDate(dailyWorksAnchorDate || todayInputValue(), direction * step);
   render();
 }
 
@@ -13281,7 +13297,19 @@ function renderDailyWorks() {
   if (!dailyWorksAnchorDate) dailyWorksAnchorDate = todayInputValue();
   const dates = getDailyWorksWeekDates(dailyWorksAnchorDate);
   if (els.dailyWorksWeekRange) {
-    els.dailyWorksWeekRange.textContent = `${formatPlannerDate(dates[0], { day: "numeric", month: "short", year: "numeric" })} - ${formatPlannerDate(dates[dates.length - 1], { day: "numeric", month: "short", year: "numeric" })}`;
+    els.dailyWorksWeekRange.textContent = dates.length === 1
+      ? formatPlannerDate(dates[0], { weekday: "long", day: "numeric", month: "short", year: "numeric" })
+      : `${formatPlannerDate(dates[0], { day: "numeric", month: "short", year: "numeric" })} - ${formatPlannerDate(dates[dates.length - 1], { day: "numeric", month: "short", year: "numeric" })}`;
+  }
+  // One track per visible day so 5-day and 1-day fill the width instead of
+  // leaving the 7-column template half empty.
+  const onPhone = isMobileProjectViewport();
+  const minCol = onPhone ? "0px" : "150px";
+  const rulerWidth = onPhone ? "34px" : "58px";
+  els.dailyWorksBoard.style.gridTemplateColumns = `${rulerWidth} repeat(${dates.length}, minmax(${minCol}, 1fr))`;
+  els.dailyWorksBoard.dataset.dayCount = String(dates.length);
+  if (els.dailyWorksRangeToggle) {
+    els.dailyWorksRangeToggle.textContent = translateFromEnglishText(getDailyWorksRangeLabel());
   }
   els.dailyWorksBoard.innerHTML = "";
   const hourRuler = document.createElement("aside");

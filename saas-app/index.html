@@ -33,8 +33,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-136">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-136">
+  <link rel="stylesheet" href="stylesback.css?v=greek-142">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-142">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -423,7 +423,7 @@
               </div>
             </div>
             <div class="planner-static-selected-week">
-              <div class="planner-static-selected-week-label">Selected week</div>
+              <div id="planner-static-selected-range-label" class="planner-static-selected-week-label">Selected week</div>
               <div id="planner-static-selected-week-range" class="planner-static-selected-week-range">CW 16 - 13 Apr 2026 - 19 Apr 2026</div>
               <div id="planner-static-selected-week-days" class="planner-static-week-days"></div>
             </div>
@@ -541,6 +541,7 @@
               <button id="daily-works-prev-week-btn" class="ghost-btn" type="button" aria-label="Previous week">&#8592;</button>
               <button id="daily-works-today-btn" class="ghost-btn" type="button">Today</button>
               <button id="daily-works-next-week-btn" class="ghost-btn" type="button" aria-label="Next week">&#8594;</button>
+              <button id="daily-works-range-toggle" class="ghost-btn planner-static-week-toggle" type="button">7 days week</button>
             </div>
           </div>
 
@@ -1722,8 +1723,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="translations.js?v=el-10"></script>
-  <script defer src="appback.js?v=greek-136"></script>
+  <script src="translations.js?v=el-12"></script>
+  <script defer src="appback.js?v=greek-142"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");
@@ -2381,17 +2382,26 @@
         return monday;
       }
 
+      // Google-Calendar style: the week views start on Monday, the day view
+      // shows whichever day is selected.
+      function getRangeStart(date) {
+        return weekDayCount === 1 ? new Date(date) : getWeekStart(date);
+      }
+
       function renderSelectedWeek() {
-        const weekStart = getWeekStart(selectedDate);
+        const weekStart = getRangeStart(selectedDate);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + (weekDayCount - 1));
         const weekStartIso = toIsoDate(weekStart);
         const weekEndIso = toIsoDate(weekEnd);
         const cw = getIsoWeek(weekStart);
-        selectedWeekRange.textContent = "CW " + cw + " - "
-          + weekStart.toLocaleDateString(plannerLocale(), { day: "2-digit", month: "short", year: "numeric" })
-          + " - "
-          + weekEnd.toLocaleDateString(plannerLocale(), { day: "2-digit", month: "short", year: "numeric" });
+        // Day view names the day; the week views show the calendar-week range.
+        selectedWeekRange.textContent = weekDayCount === 1
+          ? weekStart.toLocaleDateString(plannerLocale(), { weekday: "long", day: "2-digit", month: "short", year: "numeric" })
+          : "CW " + cw + " - "
+            + weekStart.toLocaleDateString(plannerLocale(), { day: "2-digit", month: "short", year: "numeric" })
+            + " - "
+            + weekEnd.toLocaleDateString(plannerLocale(), { day: "2-digit", month: "short", year: "numeric" });
 
         // Build stable "lanes" so multi-day projects stay on the same row across the week.
         const relevantAssignments = assignments
@@ -2528,7 +2538,21 @@
             + '</div>'
           );
         }
+        // Lets the stylesheet give a single day the room it has earned
+        const rangeLabelEl = document.getElementById("planner-static-selected-range-label");
+        if (rangeLabelEl) {
+          rangeLabelEl.textContent = weekDayCount === 1 ? "Selected day" : "Selected week";
+          if (typeof window.applyLanguageToDocument === "function") {
+            window.applyLanguageToDocument(rangeLabelEl);
+          }
+        }
+        selectedWeekDays.dataset.dayCount = String(weekDayCount);
         selectedWeekDays.innerHTML = dayParts.join("");
+        // This planner renders its own markup outside the app's i18n pass, so
+        // translate the freshly written nodes or they stay English.
+        if (typeof window.applyLanguageToDocument === "function") {
+          window.applyLanguageToDocument(selectedWeekDays);
+        }
         selectedWeekDays.querySelectorAll(".planner-static-assignment-card").forEach(function (card) {
           card.addEventListener("click", function (event) {
             if (event.target && event.target.closest && event.target.closest(".planner-static-day-add-btn")) return;
@@ -2586,7 +2610,13 @@
           });
         });
         if (weekToggle) {
-          weekToggle.textContent = weekDayCount === 7 ? "7 days week" : "5 days week";
+          weekToggle.textContent = weekDayCount === 7 ? "7 days week"
+            : weekDayCount === 5 ? "5 days week" : "1 day";
+          // Replacing textContent makes a new text node the i18n pass has not
+          // seen, so re-translate this button or it reverts to English.
+          if (typeof window.applyLanguageToDocument === "function") {
+            window.applyLanguageToDocument(weekToggle);
+          }
         }
       }
 
@@ -2730,7 +2760,7 @@
 
       if (weekToggle) {
         weekToggle.addEventListener("click", function () {
-          weekDayCount = weekDayCount === 7 ? 5 : 7;
+          weekDayCount = weekDayCount === 7 ? 5 : weekDayCount === 5 ? 1 : 7;
           renderSelectedWeek();
         });
       }
@@ -2802,8 +2832,9 @@
         });
       }
 
-      if (prevWeekBtn) prevWeekBtn.addEventListener("click", function () { shiftSelectedDateByDays(-7); });
-      if (nextWeekBtn) nextWeekBtn.addEventListener("click", function () { shiftSelectedDateByDays(7); });
+      // Step by whatever is on screen: a day in day view, a week otherwise.
+      if (prevWeekBtn) prevWeekBtn.addEventListener("click", function () { shiftSelectedDateByDays(-(weekDayCount === 1 ? 1 : 7)); });
+      if (nextWeekBtn) nextWeekBtn.addEventListener("click", function () { shiftSelectedDateByDays(weekDayCount === 1 ? 1 : 7); });
       if (todayBtn) {
         todayBtn.addEventListener("click", function () {
           selectedDate = new Date();
