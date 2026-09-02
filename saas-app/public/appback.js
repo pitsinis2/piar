@@ -683,6 +683,8 @@ let plannerAnchorDate = todayInputValue();
 let dailyWorksAnchorDate = todayInputValue();
 // Google-Calendar style range: 7 = week, 5 = work week, 1 = single day.
 let dailyWorksDayCount = 7;
+// Month shown in the Daily Works overview calendar (ISO date of the 1st).
+let dailyWorksMiniMonth = "";
 let editingDailyWorkId = "";
 let dailyWorkSelectedMemberIds = new Set();
 let draggedDailyWorkId = "";
@@ -1265,6 +1267,12 @@ const els = {
   planner4hBtn: document.querySelector("#planner-4h-btn"),
   dailyWorksBoard: document.querySelector("#daily-works-board"),
   dailyWorksRangeToggle: document.querySelector("#daily-works-range-toggle"),
+  dailyWorksNonWorkingBtn: document.querySelector("#daily-works-nonworking-btn"),
+  dailyWorksMiniTitle: document.querySelector("#daily-works-mini-title"),
+  dailyWorksMiniWeekdays: document.querySelector("#daily-works-mini-weekdays"),
+  dailyWorksMiniDays: document.querySelector("#daily-works-mini-days"),
+  dailyWorksMiniPrev: document.querySelector("#daily-works-mini-prev"),
+  dailyWorksMiniNext: document.querySelector("#daily-works-mini-next"),
   dailyWorkContactsList: document.querySelector("#daily-work-contacts-list"),
   dailyWorkContactsCount: document.querySelector("#daily-work-contacts-count"),
   dailyWorksWeekRange: document.querySelector("#daily-works-week-range"),
@@ -6027,6 +6035,13 @@ function bindEvents() {
     closePlannerAssignmentDialog();
   });
   els.dailyWorksRangeToggle?.addEventListener("click", cycleDailyWorksDayCount);
+  els.dailyWorksNonWorkingBtn?.addEventListener("click", openNonWorkingDaysDialog);
+  els.dailyWorksMiniPrev?.addEventListener("click", () => shiftDailyWorksMiniMonth(-1));
+  els.dailyWorksMiniNext?.addEventListener("click", () => shiftDailyWorksMiniMonth(1));
+  // The Planner edits the shared non-working days; repaint when it does.
+  window.addEventListener("piar:unavailable-days-changed", () => {
+    if (currentView === "daily-works") render();
+  });
   els.dailyWorksPrevWeekBtn?.addEventListener("click", () => shiftDailyWorksWeek(-1));
   els.dailyWorksTodayBtn?.addEventListener("click", goToDailyWorksToday);
   els.dailyWorksNextWeekBtn?.addEventListener("click", () => shiftDailyWorksWeek(1));
@@ -12743,6 +12758,108 @@ function getDailyWorksWeekDates(anchorDate = dailyWorksAnchorDate) {
   return Array.from({ length: dailyWorksDayCount }, (_, index) => addDaysToIsoDate(start, index));
 }
 
+// ---- Daily Works overview calendar ----
+// Non-working days live in the Planner's store so both calendars agree; the
+// Planner exposes the reader and the editor dialog on window.
+
+function isNonWorkingIsoDate(iso) {
+  try {
+    return typeof window.piarIsNonWorkingDay === "function"
+      ? Boolean(window.piarIsNonWorkingDay(iso))
+      : false;
+  } catch (error) {
+    return false;
+  }
+}
+
+function openNonWorkingDaysDialog() {
+  if (typeof window.piarOpenNonWorkingDays === "function") {
+    window.piarOpenNonWorkingDays();
+    return;
+  }
+  showAppMessage("The not-working-days picker is not available yet.", "warning", "Daily Works");
+}
+
+function shiftDailyWorksMiniMonth(direction) {
+  const base = parseIsoDateValue(dailyWorksMiniMonth) || parseIsoDateValue(dailyWorksAnchorDate) || new Date();
+  const next = new Date(base.getFullYear(), base.getMonth() + direction, 1, 12, 0, 0, 0);
+  dailyWorksMiniMonth = toIsoDateValue(next);
+  renderDailyWorksMiniCalendar();
+}
+
+function renderDailyWorksMiniCalendar() {
+  if (!els.dailyWorksMiniDays || !els.dailyWorksMiniTitle) return;
+  const anchor = dailyWorksAnchorDate || todayInputValue();
+  if (!dailyWorksMiniMonth) {
+    const a = parseIsoDateValue(anchor) || new Date();
+    dailyWorksMiniMonth = toIsoDateValue(new Date(a.getFullYear(), a.getMonth(), 1, 12, 0, 0, 0));
+  }
+  const monthStart = parseIsoDateValue(dailyWorksMiniMonth) || new Date();
+  els.dailyWorksMiniTitle.textContent = monthStart.toLocaleDateString(getAppLocale(), {
+    timeZone: getAppTimezone(), month: "long", year: "numeric",
+  });
+
+  // Weekday initials, Monday first, with a slot for the week-number column.
+  if (els.dailyWorksMiniWeekdays && !els.dailyWorksMiniWeekdays.childElementCount) {
+    const weekno = document.createElement("span");
+    weekno.className = "weekno";
+    els.dailyWorksMiniWeekdays.append(weekno);
+    const monday = parseIsoDateValue(getStartOfIsoWeek(todayInputValue())) || new Date();
+    for (let i = 0; i < 7; i += 1) {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      const cell = document.createElement("span");
+      cell.textContent = d.toLocaleDateString(getAppLocale(), { timeZone: getAppTimezone(), weekday: "narrow" });
+      els.dailyWorksMiniWeekdays.append(cell);
+    }
+  }
+
+  const visibleDates = new Set(getDailyWorksWeekDates(anchor));
+  const today = todayInputValue();
+  const gridStart = getStartOfIsoWeek(toIsoDateValue(monthStart));
+  els.dailyWorksMiniDays.innerHTML = "";
+  for (let row = 0; row < 6; row += 1) {
+    const rowStartIso = addDaysToIsoDate(gridStart, row * 7);
+    const weekno = document.createElement("span");
+    weekno.className = "planner-mini-weekno";
+    weekno.textContent = String(getIsoWeekNumber(rowStartIso));
+    els.dailyWorksMiniDays.append(weekno);
+    for (let col = 0; col < 7; col += 1) {
+      const iso = addDaysToIsoDate(rowStartIso, col);
+      const date = parseIsoDateValue(iso);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      // Same class vocabulary as the Planner's calendar, so it inherits its styling.
+      btn.className = "planner-mini-day";
+      btn.textContent = String(date.getDate());
+      if (date.getMonth() !== monthStart.getMonth()) btn.classList.add("outside");
+      if (isNonWorkingIsoDate(iso)) {
+        btn.classList.add("unavailable");
+        btn.title = translateFromEnglishText("Not working day");
+      }
+      if (iso === today) btn.classList.add("is-today");
+      if (visibleDates.has(iso)) btn.classList.add("selected");
+      btn.addEventListener("click", () => {
+        dailyWorksAnchorDate = iso;
+        dailyWorksMiniMonth = toIsoDateValue(new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0, 0));
+        render();
+      });
+      els.dailyWorksMiniDays.append(btn);
+    }
+  }
+}
+
+// ISO-8601 week number (Monday-first, week 1 contains the first Thursday).
+function getIsoWeekNumber(isoDate) {
+  const date = parseIsoDateValue(isoDate);
+  if (!date) return "";
+  const utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+  return Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+}
+
 function cycleDailyWorksDayCount() {
   dailyWorksDayCount = dailyWorksDayCount === 7 ? 5 : dailyWorksDayCount === 5 ? 1 : 7;
   render();
@@ -13311,6 +13428,7 @@ function renderDailyWorks() {
   if (els.dailyWorksRangeToggle) {
     els.dailyWorksRangeToggle.textContent = translateFromEnglishText(getDailyWorksRangeLabel());
   }
+  renderDailyWorksMiniCalendar();
   els.dailyWorksBoard.innerHTML = "";
   const hourRuler = document.createElement("aside");
   hourRuler.className = "daily-works-hour-ruler";
@@ -13325,6 +13443,7 @@ function renderDailyWorks() {
     const column = document.createElement("section");
     column.className = "daily-work-day-column";
     if ([0, 6].includes(day?.getDay())) column.classList.add("weekend");
+    if (isNonWorkingIsoDate(dateValue)) column.classList.add("unavailable");
     const header = document.createElement("div");
     header.className = "daily-work-day-header";
     header.innerHTML = `

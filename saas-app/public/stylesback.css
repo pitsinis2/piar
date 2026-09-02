@@ -7884,6 +7884,25 @@ button.area-comment-preview-thumb:focus-visible,
   background: linear-gradient(180deg, rgba(255, 243, 243, 0.82) 0%, rgba(245, 248, 253, 0.88) 100%);
 }
 
+/* Daily Works marks non-working days the same way the Planner does */
+.daily-work-day-column.unavailable {
+  border-color: rgba(182, 70, 70, 0.55);
+  background: linear-gradient(180deg, rgba(255, 243, 243, 0.72) 0%, rgba(245, 248, 253, 0.86) 100%);
+}
+
+.daily-work-day-column.unavailable .daily-work-day-header {
+  color: #b64646;
+}
+
+.planner-mini-day.is-today {
+  font-weight: 800;
+  border-color: rgba(13, 122, 115, 0.55);
+}
+
+.daily-works-overview {
+  align-items: flex-start;
+}
+
 .planner-static-week-day.past {
   opacity: 0.5;
   filter: grayscale(0.35);

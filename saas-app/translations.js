@@ -977,6 +977,7 @@ window.APP_TRANSLATIONS = {
     "5 days week": "Εβδομάδα 5 ημερών",
     "1 day": "1 ημέρα",
     "Selected day": "Επιλεγμένη ημέρα",
+    "Not working day": "Μη εργάσιμη ημέρα",
 
     // ---- Mobile bottom navigation (deliberately short, to fit 5-up) ----
     "Daily": "Ημερήσιες",
