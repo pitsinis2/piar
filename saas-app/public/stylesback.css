@@ -6895,12 +6895,14 @@ button.area-comment-preview-thumb:focus-visible,
     overflow-y: hidden;
     padding-bottom: 2px;
   }
+  /* A short team name sat in a 74px box with 32px of left padding reserved for
+     the checkbox. Sized to the label instead, with room kept for the tick. */
   .project-team-rail-item {
-    min-width: 132px;
-    min-height: 74px;
-    align-items: flex-start;
+    min-width: 104px;
+    min-height: 0;
+    align-items: center;
     justify-content: flex-start;
-    padding: 10px 10px 10px 32px;
+    padding: 8px 10px 8px 28px;
   }
   .project-team-rail-button {
     min-height: auto;
@@ -7124,6 +7126,60 @@ button.area-comment-preview-thumb:focus-visible,
   .audit-search-bar input[type="search"] {
       min-width: 0;
     }
+  /* These carry flex:1 1 280px / 240px for the row layout. Once the form is a
+     column the basis applies to the main axis, which is now height, so the
+     search fields rendered 240-280px tall. Reset the basis here. */
+  .inline-form > input,
+  .inline-form > select,
+  .inline-form > textarea,
+  .inline-form > label {
+    flex: 0 0 auto;
+  }
+  /* Same specificity as the row-layout rules above, or those win and the
+     280px basis stays applied to the height. */
+  .client-search-bar input[type="search"],
+  .member-search-bar input[type="search"],
+  .equipment-search-bar input[type="search"],
+  .audit-search-bar input[type="search"],
+  .client-search-bar select,
+  .member-search-bar select,
+  .equipment-search-bar select {
+    flex: 0 0 auto;
+  }
+  /* Empty states reserved a fixed 220-280px block for one line of text. Keep
+     them comfortable but let them size to the message. */
+  .directory-detail-empty {
+    min-height: 0;
+    padding: 20px 16px;
+  }
+  /* Reserves 280px whether it holds a full record or one line of "nothing yet" */
+  .directory-detail-card {
+    min-height: 0;
+    padding: 14px;
+  }
+  /* List rows: real content, so only the padding and gaps come down. The text
+     itself keeps its size. */
+  .directory-select-row {
+    gap: 6px;
+    padding: 10px 12px;
+  }
+  .directory-select-top {
+    gap: 8px;
+  }
+  .directory-select-meta {
+    gap: 4px 10px;
+  }
+  .directory-select-list {
+    gap: 6px;
+  }
+  .directory-detail-panel {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .directory-detail-header {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
   .modal-actions { flex-direction: column-reverse; }
   .hero { padding: 16px; gap: 12px; }
   /* Side-by-side, the action buttons squeeze the title until it wraps one
