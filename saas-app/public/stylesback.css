@@ -10267,19 +10267,39 @@ button.area-comment-preview-thumb:focus-visible,
 }
 
 /* Step 2: Login modal */
+/* Centred with inset:0 + margin:auto rather than a 50%/50% translate: with a
+   translate the dialog is centred on its own midpoint, so once it grows taller
+   than the viewport its head and foot are pushed off-screen with no way to
+   scroll to them. This keeps it inside the screen and scrolls internally. */
 #login-modal {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  margin: auto;
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
   box-shadow: var(--shadow-strong);
-  padding: 2rem;
-  max-width: 400px;
-  width: 90%;
+  padding: 1.75rem;
+  width: min(400px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--panel-strong);
   z-index: 9999;
+}
+
+/* dvh is not universal; vh keeps older browsers inside the screen too. */
+@supports not (height: 100dvh) {
+  #login-modal { max-height: calc(100vh - 24px); }
+}
+
+@media (max-width: 480px) {
+  #login-modal {
+    padding: 1.1rem;
+    border-radius: 12px;
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
 }
 
 #login-modal::backdrop {
