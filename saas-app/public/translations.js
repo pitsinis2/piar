@@ -982,8 +982,12 @@ window.APP_TRANSLATIONS = {
     // ---- Install as app / top bar ----
     "Install app": "Εγκατάσταση",
     "Change language": "Αλλαγή γλώσσας",
-    "To install: open the Share menu and choose \"Add to Home Screen\".":
-      "Για εγκατάσταση: ανοίξτε το μενού Κοινή χρήση και επιλέξτε «Προσθήκη στην αρχική οθόνη».",
+    "On iPhone: tap Share, then \"Add to Home Screen\".":
+      "Σε iPhone: πατήστε Κοινή χρήση και μετά «Προσθήκη στην αρχική οθόνη».",
+    "On Android: open the browser menu, then \"Install app\" or \"Add to Home screen\".":
+      "Σε Android: ανοίξτε το μενού του προγράμματος περιήγησης και μετά «Εγκατάσταση εφαρμογής» ή «Προσθήκη στην αρχική οθόνη».",
+    "In your browser: use the install icon in the address bar, or the browser menu, then \"Install\".":
+      "Στο πρόγραμμα περιήγησης: χρησιμοποιήστε το εικονίδιο εγκατάστασης στη γραμμή διευθύνσεων ή το μενού και μετά «Εγκατάσταση».",
 
     // ---- Mobile bottom navigation (deliberately short, to fit 5-up) ----
     "Daily": "Ημερήσιες",

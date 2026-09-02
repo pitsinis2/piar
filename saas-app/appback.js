@@ -5878,15 +5878,12 @@ if (els.appLanguageSelect) {
   els.installAppBtn?.addEventListener("click", onInstallAppClick);
   syncAppLanguageToggle();
   syncInstallAppButton();
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();          // keep Chrome's own banner out of the way
-    deferredInstallPrompt = event;
+  window.addEventListener("piar:install-available", () => {
+    deferredInstallPrompt = window.__piarInstallPrompt;
     syncInstallAppButton();
   });
-  window.addEventListener("appinstalled", () => {
-    deferredInstallPrompt = null;
-    syncInstallAppButton();
-  });
+  // Pick up an event that arrived before this script ran.
+  if (window.__piarInstallPrompt) deferredInstallPrompt = window.__piarInstallPrompt;
 }
 applyAppLanguage();
 renderProjectColorPalette();
@@ -6463,32 +6460,47 @@ function isRunningAsInstalledApp() {
     || window.navigator.standalone === true;
 }
 
+function getInstallPrompt() {
+  // Captured by the early listener in index.html, which runs before this
+  // deferred script and so cannot miss the one-shot event.
+  return deferredInstallPrompt || window.__piarInstallPrompt || null;
+}
+
 function syncInstallAppButton() {
   const btn = els.installAppBtn;
   if (!btn) return;
-  // iOS gives no prompt API, so offer instructions there instead of hiding it.
-  const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const show = !isRunningAsInstalledApp() && (Boolean(deferredInstallPrompt) || iOS);
-  btn.classList.toggle("hidden", !show);
+  // Always offer it until the app is actually installed. Hiding it whenever
+  // the browser has not fired its prompt event just makes it unfindable -
+  // Safari never fires one at all, and Chrome fires it only once.
+  btn.classList.toggle("hidden", isRunningAsInstalledApp());
+}
+
+function getManualInstallHint() {
+  const ua = navigator.userAgent;
+  if (/iphone|ipad|ipod/i.test(ua)) {
+    return "On iPhone: tap Share, then \"Add to Home Screen\".";
+  }
+  if (/android/i.test(ua)) {
+    return "On Android: open the browser menu, then \"Install app\" or \"Add to Home screen\".";
+  }
+  return "In your browser: use the install icon in the address bar, or the browser menu, then \"Install\".";
 }
 
 async function onInstallAppClick() {
-  if (deferredInstallPrompt) {
-    deferredInstallPrompt.prompt();
+  const prompt = getInstallPrompt();
+  if (prompt) {
+    prompt.prompt();
     try {
-      await deferredInstallPrompt.userChoice;
+      await prompt.userChoice;
     } catch (error) {
-      // The user dismissed it; nothing to report.
+      // Dismissed; nothing to report.
     }
     deferredInstallPrompt = null;
+    window.__piarInstallPrompt = null;
     syncInstallAppButton();
     return;
   }
-  showAppMessage(
-    "To install: open the Share menu and choose \"Add to Home Screen\".",
-    "info",
-    "Install app",
-  );
+  showAppMessage(getManualInstallHint(), "info", "Install app");
 }
 
 function onAppLanguageChange() {
