@@ -979,6 +979,12 @@ window.APP_TRANSLATIONS = {
     "Selected day": "Επιλεγμένη ημέρα",
     "Not working day": "Μη εργάσιμη ημέρα",
 
+    // ---- Install as app / top bar ----
+    "Install app": "Εγκατάσταση",
+    "Change language": "Αλλαγή γλώσσας",
+    "To install: open the Share menu and choose \"Add to Home Screen\".":
+      "Για εγκατάσταση: ανοίξτε το μενού Κοινή χρήση και επιλέξτε «Προσθήκη στην αρχική οθόνη».",
+
     // ---- Mobile bottom navigation (deliberately short, to fit 5-up) ----
     "Daily": "Ημερήσιες",
     "Others": "Άλλα",

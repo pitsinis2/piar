@@ -629,6 +629,10 @@ let editingMemberId = null;
 // here with the other UI state: render() runs during setup, long before the
 // hero helpers appear in source order.
 let projectMetaCollapsed = null;
+// Chrome fires beforeinstallprompt when the app qualifies for installation;
+// stashed so the button can trigger the real prompt on tap. Declared up here
+// with the other UI state because setup reads it before the helpers below.
+let deferredInstallPrompt = null;
 let editingEquipmentId = null;
 let editingEquipmentCategoryId = null;
 let formValidationMessageLocked = false;
@@ -1141,6 +1145,9 @@ function updateProjectSaveButtonState(project = getCurrentProject()) {
 
 const els = {
   appLanguageSelect: document.querySelector("#app-language-select"),
+  appLanguageToggle: document.querySelector("#app-language-toggle"),
+  appLanguageToggleLabel: document.querySelector("#app-language-toggle-label"),
+  installAppBtn: document.querySelector("#install-app-btn"),
   // Scoped to the sidebar: renderBookmarkNav() appends each of these into the
   // bookmark nav, so a global [data-view] query would drag the mobile bottom
   // bar's buttons out of the bar and into the sidebar.
@@ -5867,6 +5874,19 @@ bindEvents();
 if (els.appLanguageSelect) {
   els.appLanguageSelect.value = currentAppLanguage || "en";
   els.appLanguageSelect.addEventListener("change", onAppLanguageChange);
+  els.appLanguageToggle?.addEventListener("click", toggleAppLanguage);
+  els.installAppBtn?.addEventListener("click", onInstallAppClick);
+  syncAppLanguageToggle();
+  syncInstallAppButton();
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();          // keep Chrome's own banner out of the way
+    deferredInstallPrompt = event;
+    syncInstallAppButton();
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    syncInstallAppButton();
+  });
 }
 applyAppLanguage();
 renderProjectColorPalette();
@@ -6410,8 +6430,65 @@ function onMobileShortcutNavClick(event) {
 
 function applyAppLanguage() {
   document.documentElement.lang = currentAppLanguage || "en";
+  syncAppLanguageToggle();
   syncLanguageInUrl(currentAppLanguage || "en");
   applyLanguageToDocument();
+}
+
+// The select in the user menu stays as the full picker; this is the one-tap
+// switch in the top bar. Both write the same setting.
+function getAppLanguageOptions() {
+  const fromSelect = Array.from(els.appLanguageSelect?.options || [])
+    .map((option) => normalizeLanguageCode(option.value))
+    .filter(Boolean);
+  return fromSelect.length ? fromSelect : ["el", "en"];
+}
+
+function syncAppLanguageToggle() {
+  if (!els.appLanguageToggleLabel) return;
+  els.appLanguageToggleLabel.textContent = String(currentAppLanguage || "en").toUpperCase();
+}
+
+function toggleAppLanguage() {
+  const options = getAppLanguageOptions();
+  const index = options.indexOf(currentAppLanguage);
+  const next = options[(index + 1) % options.length] || options[0];
+  if (els.appLanguageSelect) els.appLanguageSelect.value = next;
+  currentAppLanguage = next;
+  onAppLanguageChange();
+}
+
+function isRunningAsInstalledApp() {
+  return window.matchMedia?.("(display-mode: standalone)").matches
+    || window.navigator.standalone === true;
+}
+
+function syncInstallAppButton() {
+  const btn = els.installAppBtn;
+  if (!btn) return;
+  // iOS gives no prompt API, so offer instructions there instead of hiding it.
+  const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const show = !isRunningAsInstalledApp() && (Boolean(deferredInstallPrompt) || iOS);
+  btn.classList.toggle("hidden", !show);
+}
+
+async function onInstallAppClick() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    try {
+      await deferredInstallPrompt.userChoice;
+    } catch (error) {
+      // The user dismissed it; nothing to report.
+    }
+    deferredInstallPrompt = null;
+    syncInstallAppButton();
+    return;
+  }
+  showAppMessage(
+    "To install: open the Share menu and choose \"Add to Home Screen\".",
+    "info",
+    "Install app",
+  );
 }
 
 function onAppLanguageChange() {

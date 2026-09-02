@@ -1,11 +1,16 @@
 {
-  "name": "Project Manager",
-  "short_name": "Projects",
+  "name": "piAR Project Manager",
+  "short_name": "piAR",
   "description": "Project management for service teams.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#fffaf2",
   "theme_color": "#0d7a73",
-  "icons": []
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }
-

@@ -712,6 +712,60 @@ body:has(.popup-shell.popup-shell-open) {
   z-index: 1000;
 }
 
+/* Language switch (and the install prompt) sit beside the user menu, always
+   reachable with a thumb instead of buried inside it. */
+.top-quick-actions {
+  position: fixed;
+  top: 4px;
+  right: 44px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--panel-strong, #fff) 88%, transparent);
+  color: var(--accent-strong);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(31, 42, 42, 0.1);
+}
+
+.top-quick-btn:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.top-install-btn {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.top-quick-btn.hidden {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .top-quick-btn {
+    min-height: 34px;
+    padding: 4px 9px;
+  }
+  /* The install button keeps its label; the language button is clear from
+     the code alone once space is tight. */
+  .top-install-btn .top-quick-label {
+    font-size: 0.72rem;
+  }
+}
+
 .access-menu-trigger {
   list-style: none;
   min-width: 28px;

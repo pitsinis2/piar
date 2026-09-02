@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Project Manager Workspace - Index V2</title>
+
+  <!-- Installable app: manifest + icons for Android/Chrome, meta tags for iOS,
+       which ignores the manifest's display mode. -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0d7a73">
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="piAR">
   <script>
     (function () {
       const params = new URLSearchParams(window.location.search);
@@ -33,8 +44,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-147">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-147">
+  <link rel="stylesheet" href="stylesback.css?v=greek-150">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-150">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -130,6 +141,17 @@
       </div>
     </div>
   </dialog>
+
+  <!-- Always-visible top controls. The language switch used to be buried in
+       the menu below, which is awkward on a phone. -->
+  <div class="top-quick-actions">
+    <button id="install-app-btn" class="top-quick-btn top-install-btn hidden" type="button">
+      <span aria-hidden="true">⬇</span><span class="top-quick-label">Install app</span>
+    </button>
+    <button id="app-language-toggle" class="top-quick-btn" type="button" aria-label="Change language">
+      <span aria-hidden="true">🌐</span><span id="app-language-toggle-label" class="top-quick-label">EL</span>
+    </button>
+  </div>
 
   <details class="access-menu" id="access-menu">
     <summary class="access-menu-trigger" aria-label="Open user menu">...</summary>
@@ -1740,8 +1762,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="translations.js?v=el-13"></script>
-  <script defer src="appback.js?v=greek-147"></script>
+  <script src="translations.js?v=el-14"></script>
+  <script defer src="appback.js?v=greek-150"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");
@@ -2894,5 +2916,17 @@
     </div>
   </dialog>
 
+  <script>
+    // Registering a service worker is what makes the app installable. It is
+    // network-first, so it never serves stale app code (see public/sw.js).
+    // Only on https/localhost: registration throws on plain http.
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/sw.js").catch(function (error) {
+          console.warn("Service worker registration failed:", error && error.message);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

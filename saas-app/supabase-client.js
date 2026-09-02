@@ -22,7 +22,18 @@ const SUPABASE_ANON_KEY = cleanEnvValue(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZHN6dWpnbWhwa2ViZGd3b2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MjE1NDQsImV4cCI6MjEwMTA5NzU0NH0.KZMYtxCF0uzM-BlgEsqPEWOu689S3RnOCzbAg8jTCFQ"
 );
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Installed as a home-screen app, people expect to stay signed in until they
+// explicitly log out. These are the supabase-js defaults, set explicitly so a
+// future change cannot silently sign everyone out on relaunch.
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,        // keep the session in localStorage
+    autoRefreshToken: true,      // refresh before it expires
+    detectSessionInUrl: true,
+    // storageKey deliberately left at the default: changing it would orphan
+    // every stored session and sign all current users out once.
+  },
+});
 
 export const STORAGE_BUCKET = "project-files";
 
