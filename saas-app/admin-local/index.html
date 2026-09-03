@@ -119,10 +119,10 @@
     <div class="login-logo">🔐 piAR Admin</div>
     <h1 class="login-title">Admin Panel</h1>
     <p class="login-sub">Restricted access — authorized personnel only</p>
-    <label class="login-label">Email</label>
-    <input class="login-input" type="email" id="adminEmail" placeholder="your@email.com" autocomplete="email">
-    <label class="login-label">Password</label>
-    <input class="login-input" type="password" id="adminPassword" placeholder="••••••••" autocomplete="current-password">
+    <label class="login-label">Name (optional)</label>
+    <input class="login-input" type="text" id="adminEmail" placeholder="who is using this" autocomplete="off">
+    <label class="login-label">Admin token</label>
+    <input class="login-input" type="password" id="adminPassword" placeholder="ADMIN_PANEL_TOKEN" autocomplete="off">
     <div class="login-error" id="loginErr"></div>
     <button class="login-btn" id="loginBtn" onclick="handleAdminLogin()">Log In →</button>
   </div>
@@ -379,20 +379,29 @@ async function handleAdminLogin() {
   btn.textContent = "Verifying…";
   err.textContent = "";
 
-  // Hardcoded admin credentials
-  const ADMIN_EMAIL = "pitsinisf@gmail.com";
-  const ADMIN_PASSWORD = "123456";
-
-  if (email === ADMIN_EMAIL && pwd === ADMIN_PASSWORD) {
-    saveSession({
-      id: "admin-001",
-      email: ADMIN_EMAIL,
-      name: "Fotis Pitsinis",
-      active: true
+  // The password field is the ADMIN_PANEL_TOKEN. The old check compared against
+  // credentials written in this file, which any visitor could read or skip by
+  // calling showApp() from the console. The token is now verified by the server:
+  // we make a real call and only continue if it is accepted.
+  setAdminToken(pwd);
+  try {
+    const probe = await fetch(ADMIN_FN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": pwd },
+      body: JSON.stringify({ action: "info", orgCode: "__probe__" }),
     });
+    if (probe.status === 401) {
+      clearAdminToken();
+      err.textContent = "Invalid admin token.";
+      btn.disabled = false;
+      btn.textContent = "Log In →";
+      return;
+    }
+    saveSession({ id: "admin", email: email || "admin", name: "Administrator", active: true });
     showApp();
-  } else {
-    err.textContent = "Invalid email or password.";
+  } catch (error) {
+    clearAdminToken();
+    err.textContent = "Could not reach the server: " + error.message;
     btn.disabled = false;
     btn.textContent = "Log In →";
   }
@@ -416,6 +425,7 @@ function handleLogout() {
   document.getElementById("loginScreen").style.display = "flex";
   document.getElementById("adminEmail").value = "";
   document.getElementById("adminPassword").value = "";
+  clearAdminToken();
 }
 
 function showApp() {
@@ -518,12 +528,18 @@ function closeCreateOrg() {
 let editingOrgCode = null;
 
 const ADMIN_FN_URL = SUPABASE_URL + "/functions/v1/admin-org";
-const ADMIN_TOKEN = "fe0d3cfc4232f0bd407969c4d236272ac3a31a05d3e0f860";
+// The token is never stored in this file. It is entered once and kept in this
+// browser's localStorage. This panel is served from disk, not from the public
+// site, so the token never travels to the internet.
+const ADMIN_TOKEN_KEY = "piar.admin.token";
+function getAdminToken() { try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ""; } catch (e) { return ""; } }
+function setAdminToken(value) { try { localStorage.setItem(ADMIN_TOKEN_KEY, value); } catch (e) {} }
+function clearAdminToken() { try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch (e) {} }
 
 async function adminFn(payload) {
   const res = await fetch(ADMIN_FN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-admin-token": ADMIN_TOKEN },
+    headers: { "Content-Type": "application/json", "x-admin-token": getAdminToken() },
     body: JSON.stringify(payload),
   });
   const data = await res.json();

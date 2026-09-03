@@ -3,3 +3,6 @@ dist/
 .env
 .env.*
 *.local
+
+# Local-only admin panel: never let a token be committed here again
+saas-app/admin-local/*.local.*
