@@ -37,28 +37,19 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 export const STORAGE_BUCKET = "project-files";
 
-// Step 2: Get tenant ID from Supabase JWT, fallback to state
+// Storage paths are prefixed with the org code, and the storage policies check
+// that prefix, so this has to return the real org or every upload is rejected.
+//
+// It must stay synchronous (callers build a path inline). getSession() is async
+// in supabase-js v2, so the JWT cannot be read here; appback.js publishes the
+// org code on window as soon as it logs in or restores a session.
 export function getTenantId() {
-  // Try to get from session JWT
-  if (typeof window !== 'undefined' && window.supabase) {
-    try {
-      const session = window.supabase.auth.getSession?.()?.data?.session;
-      if (session?.user?.user_metadata?.org_code) {
-        return session.user.user_metadata.org_code;
-      }
-    } catch (e) {
-      // Fall through to state
-    }
+  if (typeof window !== 'undefined' && window.__piarOrgCode) {
+    return window.__piarOrgCode;
   }
 
-  // Fallback to current state
-  if (typeof state !== 'undefined' && state.currentOrgCode) {
-    return state.currentOrgCode;
-  }
-
-  // Dev default
-  console.warn("No org_code in session; using dev default P00000000");
-  return "P00000000";
+  console.warn("No org code available yet; storage paths would be wrong.");
+  return "";
 }
 
 // appback.js is a classic (non-module) script and cannot use `import`.

@@ -590,6 +590,18 @@ let isLoggedIn = false;
 let currentUserId = null;
 let currentUsername = null;
 let currentOrgCode = null;
+
+// supabase-client's getTenantId() builds every storage path from this. It has
+// to be synchronous, and the JWT carries no org claim, so the value is
+// published here whenever the session changes.
+function setCurrentOrgCode(orgCode) {
+  currentOrgCode = orgCode || null;
+  try {
+    window.__piarOrgCode = currentOrgCode || "";
+  } catch (error) {
+    // Non-browser context; storage uploads are not reachable there anyway.
+  }
+}
 let currentRole = 'worker';
 let cameraStream = null;
 let recognition = null;
@@ -18465,7 +18477,7 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
 
     currentUserId = user.id;
     currentUsername = member.username;
-    currentOrgCode = orgCode;
+    setCurrentOrgCode(orgCode);
     currentRole = member.role;
     isLoggedIn = true;
 
@@ -18495,7 +18507,7 @@ async function logout() {
   await supabase.auth.signOut();
   currentUserId = null;
   currentUsername = null;
-  currentOrgCode = null;
+  setCurrentOrgCode(null);
   currentRole = 'worker';
   isLoggedIn = false;
   persist();
@@ -18532,7 +18544,7 @@ async function initializeAuthState() {
         }
       }
       if (orgCode) {
-        currentOrgCode = orgCode;
+        setCurrentOrgCode(orgCode);
         currentUserId = user.id;
         currentUsername = username;
         currentRole = role || 'worker';
@@ -19026,8 +19038,14 @@ function getFileExtension(file) {
 }
 
 async function uploadAssetToStorage(blob, assetId, extension) {
+  const orgCode = window.getTenantId?.() || "";
+  // Without the org prefix the object lands in another tenant's folder and the
+  // storage policy rejects it, so stop with a message that says why.
+  if (!orgCode) {
+    throw new Error("Not signed in to an organization yet - please log in and try again.");
+  }
   const projectId = state.selectedProjectId || "no-project";
-  const path = `${window.getTenantId()}/${projectId}/${assetId}.${extension}`;
+  const path = `${orgCode}/${projectId}/${assetId}.${extension}`;
 
   const { error } = await window.supabase.storage
     .from(window.STORAGE_BUCKET)
