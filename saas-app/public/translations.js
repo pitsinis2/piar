@@ -978,6 +978,16 @@ window.APP_TRANSLATIONS = {
     "1 day": "1 ημέρα",
     "Selected day": "Επιλεγμένη ημέρα",
     "Not working day": "Μη εργάσιμη ημέρα",
+    // ---- Upload errors ----
+    "Upload failed": "Η μεταφόρτωση απέτυχε",
+    "That file is too large for the server (limit 10 MB).":
+      "Το αρχείο είναι πολύ μεγάλο για τον διακομιστή (όριο 10 MB).",
+    "The server refused the upload. Please log out and log in again, then retry.":
+      "Ο διακομιστής απέρριψε τη μεταφόρτωση. Αποσυνδεθείτε, συνδεθείτε ξανά και δοκιμάστε πάλι.",
+    "No connection to the server. Check your internet and try again.":
+      "Δεν υπάρχει σύνδεση με τον διακομιστή. Ελέγξτε το internet και δοκιμάστε ξανά.",
+    "Not signed in to an organization yet - please log in and try again.":
+      "Δεν έχετε συνδεθεί σε οργανισμό - συνδεθείτε και δοκιμάστε ξανά.",
 
     // ---- Install as app / top bar ----
     "Install app": "Εγκατάσταση",

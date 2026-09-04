@@ -9444,7 +9444,21 @@ async function handleFileSelection(event, type) {
     return;
   }
   const dateStamp = formatDateStamp(new Date());
-  const prepared = await Promise.all(uploadFiles.map((file, index) => toStoredAsset(file, type, baseName || getDefaultAssetBaseName(file, type), index, dateStamp)));
+  // Uploads can fail (offline, file too large, not signed in). Without this the
+  // promise rejected silently: nothing was saved and nothing was shown, which
+  // looks exactly like the button doing nothing.
+  let prepared;
+  try {
+    prepared = await Promise.all(uploadFiles.map((file, index) => toStoredAsset(file, type, baseName || getDefaultAssetBaseName(file, type), index, dateStamp)));
+  } catch (error) {
+    reportUploadFailure(error, type === "photo" ? "Upload Pictures" : "Upload Files");
+    delete event.target.dataset.baseName;
+    delete event.target.dataset.areaIds;
+    event.target.value = "";
+    pendingAssetTarget = null;
+    pendingPhotoUploadAreaIds = new Set();
+    return;
+  }
   if (type === "photo" && selectedAreaIds.length) {
     for (const asset of prepared) {
       asset.linkedAreaIds = [...selectedAreaIds];
@@ -9567,7 +9581,13 @@ async function onCapturePhoto() {
   if (!shouldSave) return;
   const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
   const id = crypto.randomUUID();
-  const storagePath = await uploadAssetToStorage(blob, id, "jpg");
+  let storagePath;
+  try {
+    storagePath = await uploadAssetToStorage(blob, id, "jpg");
+  } catch (error) {
+    reportUploadFailure(error, "Take Photo");
+    return;
+  }
   const selectedAreaIds = [...pendingCameraAreaIds];
   const capturedPhoto = {
     id,
@@ -19133,14 +19153,65 @@ async function migrateLegacyAssetsToStorage() {
   showAppMessage("Migration finished.", "success", "Migration");
 }
 
+// Turns a raw upload error into an actionable message. Shared by every upload
+// path so a failure can never be silent again.
+function reportUploadFailure(error, contextLabel) {
+  console.error("Upload failed:", error);
+  const reason = String(error?.message || error || "Unknown error");
+  const friendly = /exceeded the maximum allowed size|Payload too large|413/i.test(reason)
+    ? "That file is too large for the server (limit 10 MB)."
+    : /row-level security|Unauthorized|401|403/i.test(reason)
+      ? "The server refused the upload. Please log out and log in again, then retry."
+      : /Failed to fetch|NetworkError|network/i.test(reason)
+        ? "No connection to the server. Check your internet and try again."
+        : reason;
+  showAppMessage(`${translateFromEnglishText("Upload failed")}: ${translateFromEnglishText(friendly)}`, "warning", contextLabel);
+}
+
+// Phone cameras produce 12MP files that regularly exceed the bucket's 10MB
+// limit, and full resolution is far more than this app ever displays. Downscale
+// images before upload; anything that is not an image is sent untouched.
+const MAX_IMAGE_EDGE = 2200;
+const IMAGE_QUALITY = 0.85;
+
+async function compressImageFile(file) {
+  if (!String(file?.type || "").toLowerCase().startsWith("image/")) return file;
+  // Leave small images alone, and never try to re-encode formats canvas cannot
+  // read reliably (HEIC on some browsers, SVG, GIF animations).
+  if (!/jpe?g|png|webp/i.test(file.type)) return file;
+  if (file.size <= 900 * 1024) return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", IMAGE_QUALITY));
+    if (!blob || blob.size >= file.size) return file;   // no gain, keep the original
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    return file;   // if anything goes wrong, upload what we were given
+  }
+}
+
 async function toStoredAsset(file, type, baseName, index, dateStamp) {
   const id = crypto.randomUUID();
-  const storagePath = await uploadAssetToStorage(file, id, getFileExtension(file));
+  const uploadable = await compressImageFile(file);
+  const storagePath = await uploadAssetToStorage(uploadable, id, getFileExtension(uploadable));
   const normalizedName = createSequencedName(baseName, index, dateStamp);
   if (type === "photo") {
-    return { id, type: "photo", title: normalizedName, storagePath, previewUrl: "", mimeType: file.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, source: "upload", archivedAt: null, archivedByUserId: null, showOriginalName: false };
+    return { id, type: "photo", title: normalizedName, storagePath, previewUrl: "", mimeType: uploadable.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, source: "upload", archivedAt: null, archivedByUserId: null, showOriginalName: false };
   }
-  return { id, type: "file", title: normalizedName, storagePath, objectUrl: "", mimeType: file.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, archivedAt: null, archivedByUserId: null, showOriginalName: false };
+  return { id, type: "file", title: normalizedName, storagePath, objectUrl: "", mimeType: uploadable.type, originalName: file.name, createdAt: new Date().toISOString(), createdByUserId: state.currentUserId, archivedAt: null, archivedByUserId: null, showOriginalName: false };
 }
 
 function readAsDataUrl(file) {
