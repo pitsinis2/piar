@@ -2,13 +2,13 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 // Admin-panel backend. All reads/writes run with the service role, so the
-// panel never needs direct table grants. Access is gated by a shared token
-// (ADMIN_PANEL_TOKEN secret) sent as x-admin-token.
+// panel never needs direct table grants. Access requires a signed-in Supabase
+// user who is listed in public.platform_admins - see the auth check below.
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-admin-token",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 function json(body: unknown, status = 200): Response {
@@ -29,14 +29,40 @@ serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
-    const adminToken = req.headers.get("x-admin-token");
-    if (!adminToken || adminToken !== getEnv("ADMIN_PANEL_TOKEN")) {
-      return json({ error: "Unauthorized" }, 401);
-    }
-
     const supabase = createClient(getEnv("SUPABASE_URL"), getEnv("SUPABASE_SERVICE_ROLE_KEY"), {
       auth: { persistSession: false },
     });
+
+    // Access is a real signed-in session plus membership of platform_admins.
+    // The previous gate was a static token that the panel shipped in its own
+    // page source, so anyone who opened the page could read and reuse it.
+    const authHeader = req.headers.get("Authorization") || "";
+    const accessToken = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+    if (!accessToken) return json({ error: "Not signed in" }, 401);
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+    const caller = userData?.user;
+    if (userError || !caller) return json({ error: "Session expired - sign in again" }, 401);
+
+    // Matched on the email Supabase verified for this session, lowercased.
+    const callerEmail = String(caller.email || "").trim().toLowerCase();
+    if (!callerEmail) return json({ error: "Account has no email" }, 403);
+
+    const { data: adminRow, error: adminError } = await supabase
+      .from("platform_admins")
+      .select("email, active")
+      .eq("email", callerEmail)
+      .maybeSingle();
+    if (adminError) {
+      console.error("platform_admins lookup:", adminError.message);
+      return json({ error: "Could not verify admin access" }, 500);
+    }
+    if (!adminRow?.active) {
+      console.warn("admin-org denied for", callerEmail);
+      return json({ error: "This account is not an administrator" }, 403);
+    }
 
     const body = await req.json();
     const action = String(body.action || "");

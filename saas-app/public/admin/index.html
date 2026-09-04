@@ -119,10 +119,10 @@
     <div class="login-logo">🔐 piAR Admin</div>
     <h1 class="login-title">Admin Panel</h1>
     <p class="login-sub">Restricted access — authorized personnel only</p>
-    <label class="login-label">Name (optional)</label>
-    <input class="login-input" type="text" id="adminEmail" placeholder="who is using this" autocomplete="off">
-    <label class="login-label">Admin token</label>
-    <input class="login-input" type="password" id="adminPassword" placeholder="ADMIN_PANEL_TOKEN" autocomplete="off">
+    <label class="login-label">Email</label>
+    <input class="login-input" type="email" id="adminEmail" placeholder="Email" autocomplete="username">
+    <label class="login-label">Password</label>
+    <input class="login-input" type="password" id="adminPassword" placeholder="Password" autocomplete="current-password">
     <div class="login-error" id="loginErr"></div>
     <button class="login-btn" id="loginBtn" onclick="handleAdminLogin()">Log In →</button>
   </div>
@@ -367,6 +367,12 @@ function saveSession(user) {
   sessionStorage.setItem("piARAdminSession", JSON.stringify(adminSession));
 }
 
+// Returns the signed-in admin's access token, refreshing it if needed.
+async function getAccessToken() {
+  const { data } = await sb.auth.getSession();
+  return data?.session?.access_token || "";
+}
+
 async function handleAdminLogin() {
   const err = document.getElementById("loginErr");
   const btn = document.getElementById("loginBtn");
@@ -379,33 +385,41 @@ async function handleAdminLogin() {
   btn.textContent = "Verifying…";
   err.textContent = "";
 
-  // The password field is the ADMIN_PANEL_TOKEN. The old check compared against
-  // credentials written in this file, which any visitor could read or skip by
-  // calling showApp() from the console. The token is now verified by the server:
-  // we make a real call and only continue if it is accepted.
-  setAdminToken(pwd);
+  // A real Supabase sign-in. The server then checks the account is listed in
+  // platform_admins, so signing in is necessary but not sufficient.
   try {
-    const probe = await fetch(ADMIN_FN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-token": pwd },
-      body: JSON.stringify({ action: "info", orgCode: "__probe__" }),
-    });
-    if (probe.status === 401) {
-      clearAdminToken();
-      err.textContent = "Invalid admin token.";
+    const { error: signInError } = await sb.auth.signInWithPassword({ email, password: pwd });
+    if (signInError) {
+      err.textContent = "Wrong email or password.";
       btn.disabled = false;
       btn.textContent = "Log In →";
       return;
     }
-    saveSession({ id: "admin", email: email || "admin", name: "Administrator", active: true });
+
+    const probe = await fetch(ADMIN_FN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await getAccessToken()) },
+      body: JSON.stringify({ action: "info", orgCode: "__probe__" }),
+    });
+    if (probe.status === 401 || probe.status === 403) {
+      const detail = await probe.json().catch(() => ({}));
+      await sb.auth.signOut();
+      err.textContent = detail.error || "This account is not an administrator.";
+      btn.disabled = false;
+      btn.textContent = "Log In →";
+      return;
+    }
+
+    const { data } = await sb.auth.getUser();
+    saveSession({ id: data?.user?.id || "admin", email: data?.user?.email || email, name: data?.user?.email || "Administrator", active: true });
     showApp();
   } catch (error) {
-    clearAdminToken();
     err.textContent = "Could not reach the server: " + error.message;
     btn.disabled = false;
     btn.textContent = "Log In →";
   }
 }
+
 
 document.getElementById("adminPassword").addEventListener("keydown", e => {
   if (e.key === "Enter") handleAdminLogin();
@@ -425,7 +439,7 @@ function handleLogout() {
   document.getElementById("loginScreen").style.display = "flex";
   document.getElementById("adminEmail").value = "";
   document.getElementById("adminPassword").value = "";
-  clearAdminToken();
+  sb.auth.signOut();
 }
 
 function showApp() {
@@ -528,18 +542,13 @@ function closeCreateOrg() {
 let editingOrgCode = null;
 
 const ADMIN_FN_URL = SUPABASE_URL + "/functions/v1/admin-org";
-// The token is never stored in this file. It is entered once and kept in this
-// browser's localStorage. This panel is served from disk, not from the public
-// site, so the token never travels to the internet.
-const ADMIN_TOKEN_KEY = "piar.admin.token";
-function getAdminToken() { try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ""; } catch (e) { return ""; } }
-function setAdminToken(value) { try { localStorage.setItem(ADMIN_TOKEN_KEY, value); } catch (e) {} }
-function clearAdminToken() { try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch (e) {} }
+// No secret lives in this page. Requests carry the signed-in admin's Supabase
+// session token, which the admin-org function verifies against platform_admins.
 
 async function adminFn(payload) {
   const res = await fetch(ADMIN_FN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-admin-token": getAdminToken() },
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await getAccessToken()) },
     body: JSON.stringify(payload),
   });
   const data = await res.json();
