@@ -1,0 +1,23 @@
+# Only the settings we manage from here. `supabase config push` applies them to
+# the linked project; anything not listed is left as it is in the dashboard.
+project_id = "ivdszujgmhpkebdgwoav"
+
+[auth]
+# Where auth emails (password reset, confirmation) send people back to.
+# Without the live domain here, reset links redirect to localhost and are
+# useless in production.
+site_url = "https://piar.opexpi.com"
+additional_redirect_urls = [
+  "https://piar.opexpi.com/admin/",
+  "https://piar.opexpi.com",
+  "https://piar-jet.vercel.app/admin/",
+  "https://piar-jet.vercel.app",
+  "http://localhost:5173/admin/",
+  "http://localhost:5173"
+]
+
+[storage]
+# Pinned to the project's actual (free-tier) state. Without this the CLI pushes
+# its own default of enabled=true and the whole push fails with a 402.
+[storage.vector]
+enabled = false

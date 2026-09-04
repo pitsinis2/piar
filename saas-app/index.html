@@ -17,6 +17,18 @@
   <meta name="apple-mobile-web-app-title" content="piAR">
 
   <script>
+    // Password-reset links come back to the site root, because that is the
+    // project's Site URL. The admin panel lives at /admin/, so forward the
+    // recovery session there with its fragment intact rather than dropping it.
+    (function () {
+      var hash = window.location.hash || "";
+      if (hash.indexOf("type=recovery") !== -1 && window.location.pathname.indexOf("/admin") !== 0) {
+        window.location.replace("/admin/" + hash);
+      }
+    })();
+  </script>
+
+  <script>
     // beforeinstallprompt fires once, early, and is lost if nothing is
     // listening. appback.js is deferred, so its listener can attach too late.
     // Catch it here and stash it for the install button to use.
@@ -60,8 +72,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-169">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-169">
+  <link rel="stylesheet" href="stylesback.css?v=greek-170">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-170">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -1782,7 +1794,7 @@
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="translations.js?v=el-18"></script>
-  <script defer src="appback.js?v=greek-169"></script>
+  <script defer src="appback.js?v=greek-170"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

@@ -114,6 +114,22 @@
 <body>
 
 <!-- LOGIN -->
+<!-- Shown when arriving from a password-reset link. Supabase puts a recovery
+     session in the URL; setting a new password then completes the flow. -->
+<div id="resetScreen" style="display:none;align-items:center;justify-content:center;min-height:100vh;padding:20px">
+  <div class="login-box">
+    <div class="login-logo">🔐 piAR Admin</div>
+    <h1 class="login-title">Set a new password</h1>
+    <p class="login-sub">Choose the password you will use from now on.</p>
+    <label class="login-label">New password</label>
+    <input class="login-input" type="password" id="resetPassword" placeholder="At least 8 characters" autocomplete="new-password">
+    <label class="login-label">Repeat password</label>
+    <input class="login-input" type="password" id="resetPassword2" placeholder="Repeat it" autocomplete="new-password">
+    <div class="login-error" id="resetErr"></div>
+    <button class="login-btn" id="resetBtn" onclick="handleSetNewPassword()">Save password →</button>
+  </div>
+</div>
+
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-logo">🔐 piAR Admin</div>
@@ -131,6 +147,10 @@
     <button class="login-btn" id="signupBtn" onclick="handleAdminSignup()"
             style="background:transparent;color:var(--muted);border:1px solid var(--border2);margin-top:10px">
       First time? Create my login
+    </button>
+    <button class="login-btn" id="forgotBtn" onclick="handleForgotPassword()"
+            style="background:transparent;color:var(--muted);border:none;margin-top:6px;font-size:.82rem">
+      Forgot my password
     </button>
   </div>
 </div>
@@ -379,6 +399,78 @@ async function getAccessToken() {
   const { data } = await sb.auth.getSession();
   return data?.session?.access_token || "";
 }
+
+async function handleForgotPassword() {
+  const err = document.getElementById("loginErr");
+  const btn = document.getElementById("forgotBtn");
+  const email = document.getElementById("adminEmail").value.trim();
+  if (!email) { err.textContent = "Type your email first, then press this."; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+  err.textContent = "";
+  try {
+    // Comes back to this page, where the recovery session is picked up below.
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname,
+    });
+    if (error) {
+      err.textContent = /rate limit/i.test(error.message)
+        ? "Too many emails for now - Supabase allows only a few per hour. Try again later."
+        : error.message;
+    } else {
+      err.style.color = "var(--muted)";
+      err.textContent = "Check your email for the reset link.";
+    }
+  } catch (error) {
+    err.textContent = "Could not reach the server: " + error.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Forgot my password";
+  }
+}
+
+async function handleSetNewPassword() {
+  const err = document.getElementById("resetErr");
+  const btn = document.getElementById("resetBtn");
+  const a = document.getElementById("resetPassword").value;
+  const b = document.getElementById("resetPassword2").value;
+
+  if (a.length < 8) { err.textContent = "Use at least 8 characters."; return; }
+  if (a !== b) { err.textContent = "The two passwords are not the same."; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  err.textContent = "";
+  try {
+    const { error } = await sb.auth.updateUser({ password: a });
+    if (error) {
+      err.textContent = error.message;
+      btn.disabled = false;
+      btn.textContent = "Save password →";
+      return;
+    }
+    // Signed in already by the recovery link, so go straight in.
+    const { data } = await sb.auth.getUser();
+    document.getElementById("resetScreen").style.display = "none";
+    saveSession({ id: data?.user?.id || "admin", email: data?.user?.email || "", name: data?.user?.email || "Administrator", active: true });
+    history.replaceState(null, "", window.location.pathname);
+    showApp();
+  } catch (error) {
+    err.textContent = "Could not reach the server: " + error.message;
+    btn.disabled = false;
+    btn.textContent = "Save password →";
+  }
+}
+
+// A reset link returns here with a recovery session in the URL fragment.
+sb.auth.onAuthStateChange((event) => {
+  if (event === "PASSWORD_RECOVERY") {
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "none";
+    document.getElementById("resetScreen").style.display = "flex";
+  }
+});
 
 async function handleAdminSignup() {
   const err = document.getElementById("loginErr");
