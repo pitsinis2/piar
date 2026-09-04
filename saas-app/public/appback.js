@@ -19884,6 +19884,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.button': 'Σύνδεση',
       'login.help': 'Πρώτη φορά; Ζητήστε τα διαπιστευτήριά σας από τον διαχειριστή σας.',
       'login.defaultPin': 'Προεπιλεγμένο PIN:',
+      'login.guide': '📘 Κατεβάστε τον οδηγό χρήσης (PDF)',
       'login.pinToggle': 'Εμφάνιση/απόκρυψη PIN'
     },
     en: {
@@ -19898,6 +19899,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.button': 'Log In',
       'login.help': 'First time? Ask your admin for your credentials.',
       'login.defaultPin': 'Default PIN:',
+      'login.guide': '📘 Download the user guide (PDF)',
       'login.pinToggle': 'Show/hide PIN'
     }
   };

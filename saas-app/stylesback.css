@@ -753,6 +753,21 @@ body:has(.popup-shell.popup-shell-open) {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+/* The guide button is an <a>, so it needs the underline removed. */
+a.top-quick-btn {
+  text-decoration: none;
+}
+
+.login-guide-link {
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.login-guide-link:hover {
+  text-decoration: underline;
+}
+
 .top-install-btn {
   color: #fff;
   background: var(--accent);

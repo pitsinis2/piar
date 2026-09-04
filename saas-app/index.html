@@ -72,8 +72,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-180">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-180">
+  <link rel="stylesheet" href="stylesback.css?v=greek-181">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-181">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -166,6 +166,7 @@
       <div class="login-footer">
         <p data-i18n="login.help">First time? Ask your admin for your credentials.</p>
         <p><span data-i18n="login.defaultPin">Default PIN:</span> <strong>123456</strong></p>
+        <p><a class="login-guide-link" href="/piAR-Odigos-Xrisis.pdf" target="_blank" rel="noopener" download data-i18n="login.guide">📘 Download the user guide (PDF)</a></p>
       </div>
     </div>
   </dialog>
@@ -176,6 +177,9 @@
     <button id="install-app-btn" class="top-quick-btn top-install-btn hidden" type="button">
       <span aria-hidden="true">⬇</span><span class="top-quick-label">Install app</span>
     </button>
+    <a id="user-guide-link" class="top-quick-btn" href="/piAR-Odigos-Xrisis.pdf" target="_blank" rel="noopener" download>
+      <span aria-hidden="true">📘</span><span class="top-quick-label">Guide</span>
+    </a>
     <button id="app-language-toggle" class="top-quick-btn" type="button" aria-label="Change language">
       <span aria-hidden="true">🌐</span><span id="app-language-toggle-label" class="top-quick-label">EL</span>
     </button>
@@ -1796,8 +1800,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="translations.js?v=el-24"></script>
-  <script defer src="appback.js?v=greek-180"></script>
+  <script src="translations.js?v=el-25"></script>
+  <script defer src="appback.js?v=greek-181"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

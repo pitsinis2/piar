@@ -1072,6 +1072,7 @@ window.APP_TRANSLATIONS = {
 
     // ---- Install as app / top bar ----
     "Install app": "Εγκατάσταση",
+    "Guide": "Οδηγός",
     "Change language": "Αλλαγή γλώσσας",
     "On iPhone: tap Share, then \"Add to Home Screen\".":
       "Σε iPhone: πατήστε Κοινή χρήση και μετά «Προσθήκη στην αρχική οθόνη».",
