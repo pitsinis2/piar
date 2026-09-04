@@ -72,8 +72,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-172">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-172">
+  <link rel="stylesheet" href="stylesback.css?v=greek-176">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-176">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -694,7 +694,8 @@
                 <section id="member-form-shell" class="member-form-shell popup-shell hidden">
                   <div class="panel-header"><h3 id="member-form-title">New Member</h3><button id="close-member-form-btn" class="icon-btn" type="button" aria-label="Close member form">x</button></div>
                   <form id="member-form" class="inline-form member-edit-form">
-                    <label>Personal No<input id="member-personal-number" type="text" placeholder="Personal number" readonly></label>
+                    <label>Personal No<input id="member-personal-number" type="text" inputmode="numeric" placeholder="Personal number" autocomplete="off"></label>
+                    <label>Initials<input id="member-initials" type="text" maxlength="3" placeholder="e.g. FPI" autocomplete="off" style="text-transform:uppercase"></label>
                     <label>Name<input id="member-name" type="text" placeholder="Name" required></label>
                     <label>Surname<input id="member-surname" type="text" placeholder="Surname" required></label>
                     <label>Username<input id="member-username" type="text" placeholder="Auto from name if empty" autocomplete="off"></label>
@@ -763,6 +764,8 @@
               <section id="client-form-shell" class="client-form-shell popup-shell hidden">
                 <div class="panel-header"><h3 id="client-form-title">New Client</h3><button id="close-client-form-btn" class="icon-btn" type="button" aria-label="Close client form">x</button></div>
                 <form id="client-form" class="stack-form">
+                  <label>Client No<input id="client-number" type="text" inputmode="numeric" placeholder="Client number" autocomplete="off"></label>
+                  <label>Initials<input id="client-initials" type="text" maxlength="3" placeholder="e.g. FPI" autocomplete="off" style="text-transform:uppercase"></label>
                   <label>Name<input id="client-name" type="text" placeholder="Julia"></label>
                   <label>Surname<input id="client-surname" type="text" placeholder="Mayer"></label>
                   <label>Company<input id="client-company" type="text" placeholder="Mayer Bau GmbH"></label>
@@ -1793,8 +1796,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="translations.js?v=el-19"></script>
-  <script defer src="appback.js?v=greek-172"></script>
+  <script src="translations.js?v=el-20"></script>
+  <script defer src="appback.js?v=greek-176"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

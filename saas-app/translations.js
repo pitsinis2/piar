@@ -982,6 +982,17 @@ window.APP_TRANSLATIONS = {
     "1 day": "1 ημέρα",
     "Selected day": "Επιλεγμένη ημέρα",
     "Not working day": "Μη εργάσιμη ημέρα",
+    // ---- Numbers and initials ----
+    "Initials": "Αρχικά",
+    "Personal No": "Αρ. προσωπικού",
+    "Client No": "Αρ. πελάτη",
+    "Client number": "Αριθμός πελάτη",
+    "Personal number": "Αριθμός προσωπικού",
+    "Please give the member a personal number.": "Δώστε αριθμό προσωπικού στο μέλος.",
+    "Please give the client a number.": "Δώστε αριθμό στον πελάτη.",
+    "is already used by": "χρησιμοποιείται ήδη από τον/την",
+    "are already used by": "χρησιμοποιούνται ήδη από τον/την",
+    "The initials": "Τα αρχικά",
     // ---- Permissions matrix ----
     "Create projects": "Δημιουργία έργων",
     "Delete projects permanently": "Οριστική διαγραφή έργων",

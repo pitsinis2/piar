@@ -23,8 +23,38 @@ function normalizePersonalNumber(value) {
   return digits.padStart(3, "0");
 }
 
+// Initials shown beside the number, e.g. Fotis Pitsinis -> FPI. Letters only,
+// so Greek and Latin names behave the same; the field stays editable because
+// two people can easily collide on the obvious three letters.
+function buildInitials(name, surname) {
+  // Greek convention drops accents on capitals, so ΛΈ becomes ΛΕ. Decomposing
+  // first also folds Latin accents (Müller -> MUL).
+  const letters = (value) => String(value || "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .trim().replace(/[^\p{L}]/gu, "").toUpperCase();
+  const first = letters(name);
+  const last = letters(surname);
+  if (!first && !last) return "";
+  if (!last) return first.slice(0, 3);
+  if (!first) return last.slice(0, 3);
+  return (first.slice(0, 1) + last.slice(0, 2)).slice(0, 3);
+}
+
+function normalizeInitials(value) {
+  return String(value || "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .trim().replace(/[^\p{L}]/gu, "").toUpperCase().slice(0, 3);
+}
+
 function getMemberPersonalNumber(member) {
   return normalizePersonalNumber(member?.personalNumber);
+}
+
+function getNextClientNumber(clients = state.clients || []) {
+  const used = new Set((clients || []).map((c) => normalizePersonalNumber(c?.number)).filter(Boolean));
+  let next = 1;
+  while (used.has(String(next).padStart(3, "0"))) next += 1;
+  return String(next).padStart(3, "0");
 }
 
 function getNextPersonalNumber(users = state.users || []) {
@@ -645,6 +675,14 @@ let projectMetaCollapsed = null;
 // stashed so the button can trigger the real prompt on tap. Declared up here
 // with the other UI state because setup reads it before the helpers below.
 let deferredInstallPrompt = null;
+
+// Folder-sync state. Declared here with the other module state because
+// startup work (migrateLegacyAssetsToStorage -> persist) reaches it long
+// before the folder-sync section appears further down the file.
+let folderSyncHandle = null;
+let folderSyncStatus = 'off'; // 'off' | 'active' | 'paused' (needs permission)
+let folderSyncTimer = null;
+let folderSyncInFlight = false;
 let editingEquipmentId = null;
 let editingEquipmentCategoryId = null;
 let formValidationMessageLocked = false;
@@ -1361,6 +1399,8 @@ const els = {
   clientSurname: document.querySelector("#client-surname"),
   clientCompany: document.querySelector("#client-company"),
   clientUid: document.querySelector("#client-uid"),
+  clientNumber: document.querySelector("#client-number"),
+  clientInitials: document.querySelector("#client-initials"),
   clientAddress: document.querySelector("#client-address"),
   clientEmail: document.querySelector("#client-email"),
   clientTel: document.querySelector("#client-tel"),
@@ -1386,6 +1426,7 @@ const els = {
   responsiblePersonTemplate: document.querySelector("#responsible-person-template"),
   memberForm: document.querySelector("#member-form"),
   memberPersonalNumber: document.querySelector("#member-personal-number"),
+  memberInitials: document.querySelector("#member-initials"),
   memberName: document.querySelector("#member-name"),
   memberSurname: document.querySelector("#member-surname"),
   memberUsername: document.querySelector("#member-username"),
@@ -1844,6 +1885,7 @@ function normalizeUser(user) {
     ...createSystemUser(user),
     ...user,
     personalNumber: normalizePersonalNumber(user?.personalNumber),
+    initials: normalizeInitials(user?.initials),
     username: normalizeUsername(user?.username) || buildUsernameFromName(user?.name, user?.surname),
     qualification: normalizeQualification(user?.qualification),
     workmode: normalizeMemberWorkmode(user?.workmode),
@@ -1995,10 +2037,11 @@ function normalizeUsername(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, ".").replace(/[^a-z0-9._-]/g, "");
 }
 
-function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", name, surname, tel, email, username = "", role = "user", qualification = 0, workmode = "none", status = "active", createdAt = new Date().toISOString(), pinCode = "123456", mustChangePin = true, lastLoginAt = null, loginEnabled = true }) {
+function createSystemUser({ id = crypto.randomUUID(), personalNumber = "", initials = "", name, surname, tel, email, username = "", role = "user", qualification = 0, workmode = "none", status = "active", createdAt = new Date().toISOString(), pinCode = "123456", mustChangePin = true, lastLoginAt = null, loginEnabled = true }) {
   return {
     id,
     personalNumber: normalizePersonalNumber(personalNumber),
+    initials: normalizeInitials(initials) || buildInitials(name, surname),
     name,
     surname,
     tel,
@@ -6159,6 +6202,17 @@ function bindEvents() {
   els.toggleClientFormBtn?.addEventListener("click", toggleClientForm);
   els.closeClientFormBtn?.addEventListener("click", () => closeClientForm());
   els.clientForm.addEventListener("submit", onClientSave);
+  const suggestClientInitials = () => {
+    if (!els.clientInitials || els.clientInitials.dataset.touched === "1") return;
+    const base = els.clientName?.value.trim() || els.clientCompany?.value.trim();
+    els.clientInitials.value = buildInitials(base, els.clientSurname?.value);
+  };
+  els.clientName?.addEventListener("input", suggestClientInitials);
+  els.clientSurname?.addEventListener("input", suggestClientInitials);
+  els.clientCompany?.addEventListener("input", suggestClientInitials);
+  els.clientInitials?.addEventListener("input", () => {
+    els.clientInitials.dataset.touched = els.clientInitials.value.trim() ? "1" : "";
+  });
   els.addResponsibleBtn.addEventListener("click", () => addResponsiblePersonRow());
   els.clientSearchScope?.addEventListener("change", onClientSearchScopeChange);
   els.workspaceClientDropdown?.addEventListener("change", onWorkspaceClientChange);
@@ -6185,6 +6239,17 @@ function bindEvents() {
   els.memberWorkmodeFilter?.addEventListener("change", onMemberFilterChange);
   els.memberSearchClearBtn?.addEventListener("click", clearMemberFilters);
   els.memberForm.addEventListener("submit", onMemberAdd);
+  // Suggest the initials from the name, but stop as soon as the admin edits
+  // them: two people can easily land on the same obvious three letters.
+  const suggestMemberInitials = () => {
+    if (!els.memberInitials || els.memberInitials.dataset.touched === "1") return;
+    els.memberInitials.value = buildInitials(els.memberName?.value, els.memberSurname?.value);
+  };
+  els.memberName?.addEventListener("input", suggestMemberInitials);
+  els.memberSurname?.addEventListener("input", suggestMemberInitials);
+  els.memberInitials?.addEventListener("input", () => {
+    els.memberInitials.dataset.touched = els.memberInitials.value.trim() ? "1" : "";
+  });
   els.memberForm?.addEventListener("invalid", onMemberFormInvalid, true);
   // Removed: assigning existing users from the member panel.
   els.serviceTeamExperienceFilter?.addEventListener("change", onServiceTeamMemberFilterChange);
@@ -7027,7 +7092,13 @@ function onClientSave(event) {
   if (!requirePermission(PROJECT_ROLES.has(getCurrentRole()) || isAdmin(), "Only admins or managers can create or edit clients.")) return;
   const existingClient = editingClientId ? getClientById(editingClientId) : null;
   const responsiblePersons = collectResponsiblePersons();
+  const clientNumber = normalizePersonalNumber(els.clientNumber?.value);
+  const nameForInitials = els.clientName.value.trim() || els.clientCompany.value.trim();
+  const clientInitials = normalizeInitials(els.clientInitials?.value)
+    || buildInitials(nameForInitials, els.clientSurname.value.trim());
   const clientDraft = {
+    number: clientNumber,
+    initials: clientInitials,
     name: els.clientName.value.trim(),
     surname: els.clientSurname.value.trim(),
     company: els.clientCompany.value.trim(),
@@ -7041,6 +7112,26 @@ function onClientSave(event) {
   };
   if (!clientDraft.name && !clientDraft.company) {
     showAppMessage("Client name or company is required.", "warning", "Client");
+    return;
+  }
+  if (!clientNumber) {
+    showAppMessage(translateFromEnglishText("Please give the client a number."), "warning", "Client");
+    return;
+  }
+  const numberOwner = state.clients.find((c) =>
+    normalizePersonalNumber(c.number) === clientNumber && c.id !== editingClientId);
+  if (numberOwner) {
+    showAppMessage(
+      `${translateFromEnglishText("Client number")} ${clientNumber} ${translateFromEnglishText("is already used by")} ${formatClientName(numberOwner)}.`,
+      "warning", "Client");
+    return;
+  }
+  const initialsOwner = clientInitials && state.clients.find((c) =>
+    normalizeInitials(c.initials) === clientInitials && c.id !== editingClientId);
+  if (initialsOwner) {
+    showAppMessage(
+      `${translateFromEnglishText("The initials")} ${clientInitials} ${translateFromEnglishText("are already used by")} ${formatClientName(initialsOwner)}.`,
+      "warning", "Client");
     return;
   }
   const project = getCurrentProject();
@@ -7340,6 +7431,8 @@ function onMemberAdd(event) {
   const qualification = normalizeQualification(els.memberQualification?.value);
   const workmode = normalizeMemberWorkmode(els.memberWorkmode?.value);
   const role = els.memberRole.value;
+  const personalNumber = normalizePersonalNumber(els.memberPersonalNumber?.value);
+  const initials = normalizeInitials(els.memberInitials?.value) || buildInitials(name, surname);
   if (isEditingMember && editingMember?.id === state.currentUserId && editingMember.role !== role) {
     showAppMessage("You cannot change your own role.", "warning", "Member");
     if (els.memberRole) els.memberRole.value = editingMember.role || "user";
@@ -7359,6 +7452,26 @@ function onMemberAdd(event) {
     showAppMessage("Another member already uses this email address.", "warning", "Member");
     return;
   }
+  if (!personalNumber) {
+    showAppMessage(translateFromEnglishText("Please give the member a personal number."), "warning", "Member");
+    return;
+  }
+  const numberOwner = state.users.find((user) =>
+    getMemberPersonalNumber(user) === personalNumber && user.id !== editingMemberId);
+  if (numberOwner) {
+    showAppMessage(
+      `${translateFromEnglishText("Personal number")} ${personalNumber} ${translateFromEnglishText("is already used by")} ${getMemberDisplayName(numberOwner)}.`,
+      "warning", "Member");
+    return;
+  }
+  const initialsOwner = initials && state.users.find((user) =>
+    normalizeInitials(user.initials) === initials && user.id !== editingMemberId);
+  if (initialsOwner) {
+    showAppMessage(
+      `${translateFromEnglishText("The initials")} ${initials} ${translateFromEnglishText("are already used by")} ${getMemberDisplayName(initialsOwner)}.`,
+      "warning", "Member");
+    return;
+  }
   const duplicateUsername = state.users.find((user) => user.username === username && user.id !== editingMemberId);
   if (duplicateUsername) {
     showAppMessage("Another member already uses this username.", "warning", "Member");
@@ -7370,7 +7483,8 @@ function onMemberAdd(event) {
     return;
   }
   const existing = editingMember || state.users.find((user) => user.email === email);
-  const user = existing || createSystemUser({ personalNumber: getNextPersonalNumber(), name, surname, tel, email, username, role, qualification, workmode });
+  const user = existing || createSystemUser({ personalNumber, name, surname, tel, email, username, role, qualification, workmode });
+  if (!existing) user.initials = initials;
   if (!existing) {
     state.users.push(user);
     user.pinCode = "123456";
@@ -7390,6 +7504,8 @@ function onMemberAdd(event) {
     existing.name = name;
     existing.surname = surname;
     existing.username = username;
+    existing.personalNumber = personalNumber;
+    existing.initials = initials;
     existing.tel = tel;
     existing.email = email;
     existing.qualification = qualification;
@@ -8833,6 +8949,7 @@ function resetMemberForm() {
   editingMemberId = null;
   els.memberForm?.reset();
   if (els.memberPersonalNumber) els.memberPersonalNumber.value = getNextPersonalNumber();
+  if (els.memberInitials) els.memberInitials.value = "";
   if (IS_EMPTY_BOOTSTRAP && !getActiveUsers().length && els.memberRole) {
     els.memberRole.value = "admin";
   }
@@ -8843,6 +8960,7 @@ function populateMemberForm(member) {
   if (!member) return;
   editingMemberId = member.id;
   if (els.memberPersonalNumber) els.memberPersonalNumber.value = getMemberPersonalNumber(member);
+  if (els.memberInitials) els.memberInitials.value = normalizeInitials(member?.initials);
   if (els.memberName) els.memberName.value = member.name || "";
   if (els.memberSurname) els.memberSurname.value = member.surname || "";
   if (els.memberUsername) els.memberUsername.value = member.username || "";
@@ -9323,6 +9441,11 @@ function auditEntryMatchesSearch(entry, query) {
 function resetClientForm() {
   editingClientId = null;
   els.clientForm?.reset();
+  if (els.clientNumber) els.clientNumber.value = getNextClientNumber();
+  if (els.clientInitials) {
+    els.clientInitials.value = "";
+    els.clientInitials.dataset.touched = "";
+  }
   if (els.responsibleList) {
     els.responsibleList.innerHTML = "";
   }
@@ -9333,6 +9456,11 @@ function resetClientForm() {
 function populateClientForm(client) {
   if (!client) return;
   editingClientId = client.id;
+  if (els.clientNumber) els.clientNumber.value = normalizePersonalNumber(client.number);
+  if (els.clientInitials) {
+    els.clientInitials.value = normalizeInitials(client.initials);
+    els.clientInitials.dataset.touched = client.initials ? "1" : "";
+  }
   if (els.clientName) els.clientName.value = client.name || "";
   if (els.clientSurname) els.clientSurname.value = client.surname || "";
   if (els.clientCompany) els.clientCompany.value = client.company || "";
@@ -9690,6 +9818,8 @@ function renderServiceTeamMemberOptions(project = getCurrentProject()) {
   }
   for (const member of visibleMembers) {
     const personalNumber = getMemberPersonalNumber(member) || "-";
+  const memberInitials = normalizeInitials(member?.initials);
+  const numberWithInitials = memberInitials ? `${personalNumber} · ${memberInitials}` : personalNumber;
     const starMarkup = getQualificationStars(member.qualification);
     const label = createCheckRow(
       "service-team-member-link",
@@ -11931,6 +12061,8 @@ function renderMemberDetail(member, project = getCurrentProject()) {
     }).join("")
     : `<p class="muted">No project schedule assigned yet.</p>`;
   const personalNumber = getMemberPersonalNumber(member) || "-";
+  const memberInitials = normalizeInitials(member?.initials);
+  const numberWithInitials = memberInitials ? `${personalNumber} · ${memberInitials}` : personalNumber;
   // The card carries the whole member record so the detail panel is enough on
   // its own. Only phones start collapsed, where the full card would bury the
   // member list below a long scroll.
@@ -11961,7 +12093,7 @@ function renderMemberDetail(member, project = getCurrentProject()) {
           <div class="member-card-rows">
             <div class="member-card-row">
               <span class="label">Personal No.</span>
-              <span class="value">${escapeHtml(personalNumber)}</span>
+              <span class="value">${escapeHtml(numberWithInitials)}</span>
             </div>
             <div class="member-card-row">
               <span class="label">Username</span>
@@ -12178,6 +12310,8 @@ function renderMembers() {
     row.className = `directory-select-row${expandedMemberId === member.id ? " is-selected" : ""}${member.status === "archived" ? " archived-item-card" : ""}`;
     const roleLabel = isPermissionEdited(member) ? `${ROLE_LABELS[member.role]} (edited)` : ROLE_LABELS[member.role];
     const personalNumber = getMemberPersonalNumber(member) || "-";
+  const memberInitials = normalizeInitials(member?.initials);
+  const numberWithInitials = memberInitials ? `${personalNumber} · ${memberInitials}` : personalNumber;
     const qualificationBadge = renderQualificationBadge(member.qualification);
     const workmodeBadge = renderMemberWorkmodeBadge(member.workmode);
     row.innerHTML = `
@@ -12188,12 +12322,12 @@ function renderMembers() {
             ${qualificationBadge}
             ${workmodeBadge}
           </div>
-          <div class="directory-select-subtitle">${escapeHtml(translateFromEnglishText("Personal No."))} ${escapeHtml(personalNumber)} | ${escapeHtml(member.email || translateFromEnglishText("No email"))}</div>
+          <div class="directory-select-subtitle">${escapeHtml(translateFromEnglishText("Personal No."))} ${escapeHtml(numberWithInitials)} | ${escapeHtml(member.email || translateFromEnglishText("No email"))}</div>
         </div>
         <span class="meta-pill role-pill-${member.role} directory-select-status">${escapeHtml(roleLabel)}</span>
       </div>
       <div class="directory-select-meta">
-        <span class="directory-select-meta-item"><span class="directory-select-meta-legend">Personal No:</span><span class="directory-select-meta-value">${escapeHtml(personalNumber)}</span></span>
+        <span class="directory-select-meta-item"><span class="directory-select-meta-legend">Personal No:</span><span class="directory-select-meta-value">${escapeHtml(numberWithInitials)}</span></span>
         <span class="directory-select-meta-item"><span class="directory-select-meta-legend">Role:</span><span class="directory-select-meta-value">${escapeHtml(roleLabel)}</span></span>
         <span class="directory-select-meta-item"><span class="directory-select-meta-legend">Telephone:</span><span class="directory-select-meta-value">${escapeHtml(member.tel || "No telephone")}</span></span>
         ${member.status === "archived" ? `<span class="directory-select-meta-item"><span class="directory-select-meta-legend">Status:</span><span class="directory-select-meta-value">Inactive</span></span>` : ""}
@@ -20196,10 +20330,6 @@ async function downloadBackupFile() {
 // The user picks a folder once; the app mirrors the workspace into it on
 // every change. The folder handle persists in IndexedDB across sessions;
 // the browser may ask once per session to re-allow access.
-let folderSyncHandle = null;
-let folderSyncStatus = 'off'; // 'off' | 'active' | 'paused' (needs permission)
-let folderSyncTimer = null;
-let folderSyncInFlight = false;
 let folderSyncQueued = false;
 let lastFolderSyncTime = null;
 
