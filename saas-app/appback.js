@@ -11549,10 +11549,10 @@ function renderClientDetail(client) {
       <div class="directory-detail-actions" id="client-detail-actions"></div>
     </div>
     <div class="directory-detail-meta">
-      <span class="meta-pill">Company: ${escapeHtml(client.company || "-")}</span>
-      <span class="meta-pill">UID: ${escapeHtml(client.uidNumber || "-")}</span>
-      <span class="meta-pill">Email: ${escapeHtml(client.email || "-")}</span>
-      <span class="meta-pill">Tel: ${escapeHtml(client.tel || "-")}</span>
+      <span class="meta-pill">${translateFromEnglishText("Company")}: ${escapeHtml(client.company || "-")}</span>
+      <span class="meta-pill">${translateFromEnglishText("UID")}: ${escapeHtml(client.uidNumber || "-")}</span>
+      <span class="meta-pill">${translateFromEnglishText("Email")}: ${escapeHtml(client.email || "-")}</span>
+      <span class="meta-pill">${translateFromEnglishText("Tel")}: ${escapeHtml(client.tel || "-")}</span>
     </div>
     <div class="directory-detail-grid">
       <section class="directory-detail-section">
@@ -11597,7 +11597,7 @@ function renderClientDetail(client) {
                 </button>
               `;
             }).join("")
-            : `<p class="muted">No projects linked to this client yet.</p>`}
+            : `<p class="muted">${translateFromEnglishText("No projects linked to this client yet.")}</p>`}
         </div>
       </section>
     </div>
@@ -14376,7 +14376,10 @@ function renderPlanner() {
     const suffix = plannerMode === "week"
       ? "Click a free team, then use a project card to create an assignment."
       : "Click a free team, then click a time slot to place it on the calendar.";
-    els.plannerSummary.textContent = `${teamRecords.length} teams, ${openProjectIds.size} open projects, ${periodAssignments.length} assignment${periodAssignments.length === 1 ? "" : "s"} in this ${plannerMode}. ${suffix}`;
+    // Built from translated fragments; the whole sentence can never be a
+    // dictionary key because the numbers change.
+    const t = translateFromEnglishText;
+    els.plannerSummary.textContent = `${teamRecords.length} ${t("teams")}, ${openProjectIds.size} ${t("open projects")}, ${periodAssignments.length} ${periodAssignments.length === 1 ? t("assignment") : t("assignments")} ${t("in this")} ${t(plannerMode)}. ${suffix}`;
   }
 
   renderPlannerSelectionBar();
