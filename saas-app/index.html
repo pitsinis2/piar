@@ -72,8 +72,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-170">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-170">
+  <link rel="stylesheet" href="stylesback.css?v=greek-171">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-171">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -95,7 +95,7 @@
           <span data-i18n="login.orgCode">Organization Code</span>
           <input
             type="text"
-            id="login-orgCode"
+            id="login-orgCode" inputmode="numeric" maxlength="12"
             class="login-input"
             placeholder="Organisation code"
             maxlength="20"
@@ -103,7 +103,7 @@
             required
             autofocus
           />
-          <small class="login-hint" data-i18n="login.orgCodeHint">8 digits (e.g., 28034222)</small>
+          <small class="login-hint" data-i18n="login.orgCodeHint">10 digits</small>
         </label>
 
         <!-- Username -->
@@ -1794,7 +1794,7 @@
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="translations.js?v=el-18"></script>
-  <script defer src="appback.js?v=greek-170"></script>
+  <script defer src="appback.js?v=greek-171"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

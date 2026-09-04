@@ -18469,13 +18469,12 @@ function ensureWorkspaceUserForLogin(member, loginPin) {
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
   orgCode = String(orgCode || "").trim().toUpperCase();
 
-  // If only digits provided, add P prefix
-  if (/^\d{8}$/.test(orgCode)) {
-    orgCode = 'P' + orgCode;
-  }
+  // Organisation codes are 10 digits. Older codes carried a P or D prefix;
+  // strip it so anyone still typing the old form is not locked out.
+  orgCode = orgCode.replace(/^[PD]/, "");
 
-  if (!/^[PD]\d{8}$/.test(orgCode)) {
-    throw new Error("Organization code must be 8 digits");
+  if (!/^\d{10}$/.test(orgCode)) {
+    throw new Error("Organization code must be 10 digits");
   }
   if (!/^\d{6}$/.test(pin)) {
     throw new Error("PIN must be 6 digits");
@@ -19740,7 +19739,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.title': 'Σύνδεση Project Manager',
       'login.subtitle': 'Εισάγετε τα διαπιστευτήριά σας για να συνεχίσετε',
       'login.orgCode': 'Κωδικός Οργανισμού',
-      'login.orgCodeHint': '8 ψηφία (π.χ. 28034222)',
+      'login.orgCodeHint': '10 ψηφία',
       'login.username': 'Όνομα χρήστη',
       'login.usernameHint': 'Μόνο αγγλικοί χαρακτήρες',
       'login.pin': 'PIN (6 ψηφία)',
@@ -19754,7 +19753,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.title': 'Project Manager Login',
       'login.subtitle': 'Enter your credentials to continue',
       'login.orgCode': 'Organization Code',
-      'login.orgCodeHint': '8 digits (e.g. 28034222)',
+      'login.orgCodeHint': '10 digits',
       'login.username': 'Username',
       'login.usernameHint': 'English characters only',
       'login.pin': 'PIN (6 digits)',
@@ -19819,7 +19818,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Form validation helpers
   function validateOrgCode(value) {
     const digits = String(value).replace(/\D+/g, '');
-    return digits.length === 8 ? digits : null;
+    return digits.length === 10 ? digits : null;
   }
 
   function validateUsername(value) {
@@ -19862,10 +19861,10 @@ document.addEventListener('DOMContentLoaded', async function() {
       const usernameInput = document.getElementById('login-username').value.trim();
       const pinInput = document.getElementById('login-pin').value.trim();
 
-      // Validate org code (8 digits only)
+      // Validate org code (10 digits only)
       const orgCode = validateOrgCode(orgCodeInput);
       if (!orgCode) {
-        showLoginError('Organization code must be 8 digits');
+        showLoginError('Organization code must be 10 digits');
         return;
       }
 

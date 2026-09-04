@@ -220,8 +220,9 @@ serve(async (req) => {
       const devUsername = String(body.devUsername || "developer").trim().toLowerCase();
       const devPin = String(body.devPin || "123456");
 
-      if (!/^[PD]\d{8}$/.test(orgCode)) {
-        return json({ error: "Code must be P or D + exactly 8 digits" }, 400);
+      // Organisation codes are 10 digits, no letter prefix.
+      if (!/^\d{10}$/.test(orgCode)) {
+        return json({ error: "Code must be exactly 10 digits" }, 400);
       }
       if (!name) return json({ error: "Organization name is required" }, 400);
       if (!/^\d{6}$/.test(pin)) return json({ error: "PIN must be 6 digits" }, 400);
@@ -301,6 +302,19 @@ serve(async (req) => {
     // ── DELETE entire org (all associated data) ─────────────────────────
     if (action === "deleteOrg") {
       if (!orgCode) return json({ error: "Missing orgCode" }, 400);
+
+      // Delete the login accounts first, while team_members still maps them.
+      // Without this every deleted org left its auth users behind forever,
+      // holding on to usernames and appearing in the dashboard as orphans.
+      const { data: doomedMembers } = await supabase
+        .from("team_members")
+        .select("supabase_user_id")
+        .eq("org_code", orgCode);
+      for (const member of doomedMembers ?? []) {
+        if (!member?.supabase_user_id) continue;
+        const { error: delErr } = await supabase.auth.admin.deleteUser(member.supabase_user_id);
+        if (delErr) console.error("auth user delete failed:", delErr.message);
+      }
 
       const tables = ["org_backups", "team_members", "org_state", "organizations", "org_codes"];
       for (const table of tables) {
