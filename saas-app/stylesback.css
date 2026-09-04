@@ -5333,6 +5333,18 @@ button.area-comment-preview-thumb:focus-visible,
   padding-bottom: 6px;
 }
 
+/* Wide permission tables scroll sideways inside their own box. The card around
+   them uses overflow:hidden for its rounded corners, which clipped the table
+   instead of letting it scroll. */
+.permission-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
+
 .permission-matrix-helper {
   margin: 0 0 12px;
 }
@@ -10701,5 +10713,27 @@ button.area-comment-preview-thumb:focus-visible,
 
   .login-label > span {
     font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Narrower columns so less scrolling is needed, but still readable. */
+  .permission-matrix-table {
+    min-width: 620px;
+    font-size: 0.82rem;
+    /* The base rule sets overflow:hidden for the rounded corners, which makes
+       the table its own scroll container and stops the sticky column working. */
+    overflow: visible;
+  }
+  .permission-matrix-table th,
+  .permission-matrix-table td {
+    padding: 8px 6px;
+  }
+  /* Keep the permission name in view while scrolling through the roles. */
+  .permission-matrix-table .permission-action-col {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--panel-strong, #fffdf8);
   }
 }

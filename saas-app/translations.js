@@ -978,6 +978,21 @@ window.APP_TRANSLATIONS = {
     "1 day": "1 ημέρα",
     "Selected day": "Επιλεγμένη ημέρα",
     "Not working day": "Μη εργάσιμη ημέρα",
+    // ---- Permissions matrix ----
+    "Create projects": "Δημιουργία έργων",
+    "Delete projects permanently": "Οριστική διαγραφή έργων",
+    "Member Permission Matrix": "Πίνακας δικαιωμάτων μελών",
+    "Show users in matrix": "Εμφάνιση χρηστών στον πίνακα",
+    "Current role locked": "Ο τρέχων ρόλος είναι κλειδωμένος",
+    "Your own permissions are locked.": "Τα δικά σας δικαιώματα είναι κλειδωμένα.",
+    "Expand to edit the default permissions for each role. Your current role template stays locked.":
+      "Αναπτύξτε για να επεξεργαστείτε τα προεπιλεγμένα δικαιώματα κάθε ρόλου. Το πρότυπο του τρέχοντος ρόλου σας παραμένει κλειδωμένο.",
+    "Choose the user type in the first row, then define the permissions below. Your own column stays locked.":
+      "Επιλέξτε τον τύπο χρήστη στην πρώτη γραμμή και μετά ορίστε τα δικαιώματα παρακάτω. Η δική σας στήλη παραμένει κλειδωμένη.",
+    "Only admins can edit the default permissions for each role.":
+      "Μόνο οι διαχειριστές μπορούν να επεξεργαστούν τα προεπιλεγμένα δικαιώματα κάθε ρόλου.",
+    "Admins can choose a user type first and then define the permissions below.":
+      "Οι διαχειριστές μπορούν πρώτα να επιλέξουν τύπο χρήστη και μετά να ορίσουν τα δικαιώματα παρακάτω.",
     // ---- Field placeholders (field name, not a sample value) ----
     "Organisation code": "Κωδικός Οργανισμού",
     "Username": "Όνομα χρήστη",

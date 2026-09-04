@@ -12429,8 +12429,18 @@ function renderRolePermissionDefaultsEditor(canEditMatrix = isAdmin()) {
     tbody.append(row);
   }
   table.append(tbody);
-  details.append(table);
+  details.append(wrapScrollableTable(table));
   return details;
+}
+
+// The permission tables are ~860px wide and the card that holds them has
+// overflow:hidden, so on a phone everything past the first column was clipped
+// with no way to reach it. Give each table its own horizontal scroller.
+function wrapScrollableTable(table) {
+  const scroller = document.createElement("div");
+  scroller.className = "permission-table-scroll";
+  scroller.append(table);
+  return scroller;
 }
 
 function renderUserPermissionMatrixEditor({
@@ -12453,7 +12463,7 @@ function renderUserPermissionMatrixEditor({
   if (helper) details.append(helper);
 
   if (table) {
-    details.append(table);
+    details.append(wrapScrollableTable(table));
   } else if (emptyMessage) {
     const emptyState = document.createElement("p");
     emptyState.className = "muted permission-matrix-empty";
