@@ -125,6 +125,13 @@
     <input class="login-input" type="password" id="adminPassword" placeholder="Password" autocomplete="current-password">
     <div class="login-error" id="loginErr"></div>
     <button class="login-btn" id="loginBtn" onclick="handleAdminLogin()">Log In →</button>
+    <!-- First-run convenience: creating the account here saves a trip to the
+         Supabase dashboard. Safe to expose, because signing up grants nothing
+         on its own - the server still checks the email against platform_admins. -->
+    <button class="login-btn" id="signupBtn" onclick="handleAdminSignup()"
+            style="background:transparent;color:var(--muted);border:1px solid var(--border2);margin-top:10px">
+      First time? Create my login
+    </button>
   </div>
 </div>
 
@@ -371,6 +378,43 @@ function saveSession(user) {
 async function getAccessToken() {
   const { data } = await sb.auth.getSession();
   return data?.session?.access_token || "";
+}
+
+async function handleAdminSignup() {
+  const err = document.getElementById("loginErr");
+  const btn = document.getElementById("signupBtn");
+  const email = document.getElementById("adminEmail").value.trim();
+  const pwd = document.getElementById("adminPassword").value;
+
+  if (!email || !pwd) { err.textContent = "Type the email and the password you want, then press this."; return; }
+  if (pwd.length < 8) { err.textContent = "Choose a password of at least 8 characters."; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Creating…";
+  err.textContent = "";
+  try {
+    const { error: signUpError } = await sb.auth.signUp({ email, password: pwd });
+    if (signUpError && !/already registered/i.test(signUpError.message)) {
+      err.textContent = signUpError.message;
+      btn.disabled = false;
+      btn.textContent = "First time? Create my login";
+      return;
+    }
+    // Some projects require an emailed confirmation before sign-in works.
+    const { error: signInError } = await sb.auth.signInWithPassword({ email, password: pwd });
+    if (signInError) {
+      err.textContent = "Account created. Confirm it from the email Supabase just sent, then log in.";
+      btn.disabled = false;
+      btn.textContent = "First time? Create my login";
+      return;
+    }
+    await handleAdminLogin();
+  } catch (error) {
+    err.textContent = "Could not reach the server: " + error.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "First time? Create my login";
+  }
 }
 
 async function handleAdminLogin() {
