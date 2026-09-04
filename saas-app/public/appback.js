@@ -5896,6 +5896,10 @@ if (els.appLanguageSelect) {
   });
   // Pick up an event that arrived before this script ran.
   if (window.__piarInstallPrompt) deferredInstallPrompt = window.__piarInstallPrompt;
+  // The bar's height changes with rotation and with the mobile browser's own
+  // chrome appearing and disappearing, so re-measure rather than assume.
+  window.visualViewport?.addEventListener("resize", syncMobileBottomNav);
+  window.addEventListener("orientationchange", () => setTimeout(syncMobileBottomNav, 150));
 }
 applyAppLanguage();
 renderProjectColorPalette();
@@ -10562,9 +10566,22 @@ function syncMobileBottomNav() {
   // isLoggedIn, which is only true for cloud sessions and would hide the bar
   // for anyone working against local state.
   const loginOpen = document.getElementById("login-modal")?.open === true;
-  const showBar = !loginOpen && window.innerWidth <= 1180;
+  // While the on-screen keyboard is up, a bottom-fixed bar floats into the
+  // middle of the screen on iOS and covers the field being typed into. Hide it
+  // until the keyboard closes, which is what it looks like everywhere else.
+  const viewport = window.visualViewport;
+  const keyboardOpen = Boolean(viewport) && (window.innerHeight - viewport.height) > 150;
+  const showBar = !loginOpen && !keyboardOpen && window.innerWidth <= 1180;
   nav?.classList.toggle("mobile-bottom-nav-visible", showBar);
   document.body.classList.toggle("mobile-bottom-nav-active", showBar);
+  // Publish the bar's real height. It is 58px plus the device's safe-area
+  // inset, so a hardcoded reservation left content stranded underneath it on
+  // phones with a home indicator. Everything that floats above the bar - the
+  // page padding, the AI button, the add button - is sized from this.
+  if (nav) {
+    const barHeight = showBar ? Math.round(nav.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty("--piar-bottom-nav-h", `${barHeight}px`);
+  }
   if (!showBar && nav) {
     const moreMenu = nav.querySelector("#mobile-more-menu");
     if (moreMenu instanceof HTMLDetailsElement) moreMenu.removeAttribute("open");

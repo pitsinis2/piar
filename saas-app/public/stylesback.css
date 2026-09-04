@@ -5921,8 +5921,12 @@ button.area-comment-preview-thumb:focus-visible,
   color: var(--accent-strong);
 }
 
+/* Reserve exactly the bar's real height. It was a fixed 78px, but the bar is
+   58px plus the safe-area inset, which is ~34px on a phone with a home
+   indicator - so the last of the content sat underneath it and could not be
+   reached. syncMobileBottomNav measures the bar and sets the variable. */
 .mobile-bottom-nav-active .main-area {
-  padding-bottom: 78px;
+  padding-bottom: calc(var(--piar-bottom-nav-h, 78px) + 12px);
 }
 
 /* Icon over a small label: Greek view names are long and would otherwise be
@@ -6869,10 +6873,7 @@ button.area-comment-preview-thumb:focus-visible,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    bottom: 146px;
-  }
-  .mobile-bottom-nav-active .mobile-fab:not(.hidden) {
-    bottom: 146px;
+    bottom: calc(var(--piar-bottom-nav-h, 58px) + 88px);
   }
   .mobile-bottom-nav {
     position: fixed;
@@ -10358,7 +10359,7 @@ button.area-comment-preview-thumb:focus-visible,
 
   .ai-floating-btn {
     right: 14px;
-    bottom: 72px;
+    bottom: calc(var(--piar-bottom-nav-h, 58px) + 14px);
   }
 
   .ai-chat-composer {
