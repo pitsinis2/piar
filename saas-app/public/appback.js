@@ -10951,7 +10951,6 @@ function populateProjectManagerSelect(project) {
 }
 
 function renderProjects() {
-  applyProjectPanelPlacement();
   const visibleProjects = getVisibleProjects(state, false);
   const baseProjects = showAssignedProjectsOnly
     ? visibleProjects.filter((project) => isAssignedToProject(project, state.currentUserId))
@@ -16728,22 +16727,6 @@ function applyProjectMetaCollapsed() {
   const label = translateFromEnglishText(english);
   toggle.setAttribute("aria-label", label);
   toggle.setAttribute("title", label);
-}
-
-// On phones the rail stacks above the project, so Completed and Archived sat
-// between the project list and the project itself. Move them below the project
-// there, and back into the rail on desktop where the rail is a side column.
-function applyProjectPanelPlacement() {
-  const layout = document.getElementById("projects-page-layout");
-  const rail = document.getElementById("projects-page-rail");
-  const completed = document.getElementById("completed-projects-panel");
-  const archived = document.getElementById("archived-projects-panel");
-  if (!layout || !rail || !completed || !archived) return;
-  const wantsBottom = isMobileProjectViewport();
-  const isAtBottom = completed.parentElement === layout;
-  if (wantsBottom === isAtBottom) return;
-  if (wantsBottom) layout.append(completed, archived);
-  else rail.append(completed, archived);
 }
 
 function toggleProjectMeta() {

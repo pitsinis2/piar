@@ -978,6 +978,22 @@ window.APP_TRANSLATIONS = {
     "1 day": "1 ημέρα",
     "Selected day": "Επιλεγμένη ημέρα",
     "Not working day": "Μη εργάσιμη ημέρα",
+    // ---- Field placeholders (field name, not a sample value) ----
+    "Organisation code": "Κωδικός Οργανισμού",
+    "Username": "Όνομα χρήστη",
+    "PIN": "PIN",
+    "Email": "Email",
+    "Telephone": "Τηλέφωνο",
+    "Name": "Όνομα",
+    "Surname": "Επώνυμο",
+    "Equipment name": "Όνομα εξοπλισμού",
+    "Category": "Κατηγορία",
+    "UID number": "ΑΦΜ",
+    "Title": "Τίτλος",
+    "Address": "Διεύθυνση",
+    "Room name": "Όνομα δωματίου",
+    "Map link": "Σύνδεσμος χάρτη",
+    "Viber invite link": "Σύνδεσμος πρόσκλησης Viber",
     // ---- Upload errors ----
     "Upload failed": "Η μεταφόρτωση απέτυχε",
     "That file is too large for the server (limit 10 MB).":

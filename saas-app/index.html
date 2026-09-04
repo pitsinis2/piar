@@ -60,8 +60,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-155">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-155">
+  <link rel="stylesheet" href="stylesback.css?v=greek-163">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-163">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -85,7 +85,7 @@
             type="text"
             id="login-orgCode"
             class="login-input"
-            placeholder="28034222"
+            placeholder="Organisation code"
             maxlength="20"
             autocomplete="off"
             required
@@ -101,7 +101,7 @@
             type="text"
             id="login-username"
             class="login-input"
-            placeholder="maria"
+            placeholder="Username"
             autocomplete="username"
             required
           />
@@ -116,7 +116,7 @@
               type="password"
               id="login-pin"
               class="login-input"
-              placeholder="••••••"
+              placeholder="PIN"
               maxlength="6"
               inputmode="numeric"
               required
@@ -343,6 +343,13 @@
             <section class="hero" id="workspace-hero">
               <div class="hero-main">
                 <div class="hero-title-row">
+                  <!-- Back to the project list. Sits with the project name so it
+                       is the first thing in the top-left, not buried in the tab
+                       bar further down. Shown only in the mobile detail pane. -->
+                  <button id="workspace-back-button" class="workspace-back-button" type="button" aria-label="Go back">
+                    <span class="workspace-back-icon" aria-hidden="true">&#8592;</span>
+                    <span class="workspace-back-label">Projects</span>
+                  </button>
                   <h2 id="workspace-title">Project Name</h2>
                   <button id="project-meta-toggle" class="project-meta-toggle" type="button"
                           aria-expanded="true" aria-controls="project-meta-bar"
@@ -376,10 +383,6 @@
             <section class="workspace-tabs-shell">
               <div class="workspace-tabbar">
                 <div class="workspace-tabbar-group">
-                  <button id="workspace-back-button" class="workspace-back-button" type="button" aria-label="Go back">
-                    <span class="workspace-back-icon" aria-hidden="true">&#8592;</span>
-                    <span class="workspace-back-label">Projects</span>
-                  </button>
                   <button id="folders-hub-tab" class="workspace-tab pinned active" type="button">Info</button>
                 </div>
                 <div id="folder-tab-list" class="workspace-tabbar-group"></div>
@@ -585,20 +588,20 @@
                 <button id="close-daily-work-btn" class="icon-btn" type="button" aria-label="Close daily work dialog">x</button>
               </div>
 
-              <label>Title<input id="daily-work-title" type="text" placeholder="Repair, inspection, emergency visit" required></label>
+              <label>Title<input id="daily-work-title" type="text" placeholder="Title" required></label>
               <div class="inline-form daily-work-time-row">
                 <label>Date<input id="daily-work-date" type="date" required></label>
                 <label>Start<input id="daily-work-start" type="time" step="900" required></label>
                 <label>End<input id="daily-work-end" type="time" step="900" required></label>
               </div>
               <div class="inline-form daily-work-meta-row">
-                <label>Last Name<input id="daily-work-last-name" type="text" placeholder="Brown" list="daily-work-contact-suggestions"></label>
-                <label>Name<input id="daily-work-first-name" type="text" placeholder="Peter" list="daily-work-contact-suggestions"></label>
+                <label>Last Name<input id="daily-work-last-name" type="text" placeholder="Surname" list="daily-work-contact-suggestions"></label>
+                <label>Name<input id="daily-work-first-name" type="text" placeholder="Name" list="daily-work-contact-suggestions"></label>
                 <label>Client / note<input id="daily-work-client" type="text" placeholder="Optional client or contact"></label>
                 <label class="daily-work-address-field">Address<input id="daily-work-address" type="text" placeholder="Optional address" list="daily-work-address-suggestions"></label>
-                <label>Telephone<input id="daily-work-phone" type="tel" placeholder="+43 ..." list="daily-work-contact-suggestions"></label>
+                <label>Telephone<input id="daily-work-phone" type="tel" placeholder="Telephone" list="daily-work-contact-suggestions"></label>
                 <div class="daily-work-map-field">
-                  <label>Google Maps link<input id="daily-work-map-link" type="url" placeholder="https://maps.google.com/..."></label>
+                  <label>Google Maps link<input id="daily-work-map-link" type="url" placeholder="Map link"></label>
                   <button id="daily-work-map-open-btn" class="ghost-btn" type="button">Go to</button>
                 </div>
               </div>
@@ -751,10 +754,10 @@
                   <label>Name<input id="client-name" type="text" placeholder="Julia"></label>
                   <label>Surname<input id="client-surname" type="text" placeholder="Mayer"></label>
                   <label>Company<input id="client-company" type="text" placeholder="Mayer Bau GmbH"></label>
-                  <label>UID Number<input id="client-uid" type="text" placeholder="ATU12345678"></label>
-                  <label>Address<textarea id="client-address" rows="3" placeholder="Street, ZIP, City"></textarea></label>
-                  <label>Email<input id="client-email" type="email" placeholder="office@example.com"></label>
-                  <label>Tel<input id="client-tel" type="text" placeholder="+43 ..."></label>
+                  <label>UID Number<input id="client-uid" type="text" placeholder="UID number"></label>
+                  <label>Address<textarea id="client-address" rows="3" placeholder="Address"></textarea></label>
+                  <label>Email<input id="client-email" type="email" placeholder="Email"></label>
+                  <label>Tel<input id="client-tel" type="text" placeholder="Telephone"></label>
                   <div class="panel-header"><h3>Responsible Persons</h3><button id="add-responsible-btn" class="secondary-btn" type="button">+</button></div>
                   <div id="responsible-list" class="responsible-list"></div>
                   <button id="client-save-btn" class="primary-btn" type="submit">Save client</button>
@@ -818,7 +821,7 @@
                 <section id="equipment-category-form-shell" class="equipment-category-form-shell popup-shell popup-shell-compact hidden">
                   <div class="panel-header"><h3 id="equipment-category-form-title">New Category</h3><button id="close-equipment-category-form-btn" class="icon-btn" type="button" aria-label="Close category form">x</button></div>
                   <form id="equipment-category-form" class="inline-form">
-                    <input id="equipment-category-name" type="text" placeholder="Plumbing tools" required>
+                    <input id="equipment-category-name" type="text" placeholder="Category" required>
                     <button id="equipment-category-save-btn" class="primary-btn" type="submit">Save category</button>
                   </form>
                 </section>
@@ -827,7 +830,7 @@
               <section id="equipment-form-shell" class="equipment-form-shell popup-shell hidden">
                 <div class="panel-header"><h3 id="equipment-form-title">New Equipment</h3><button id="close-equipment-form-btn" class="icon-btn" type="button" aria-label="Close equipment form">x</button></div>
                 <form id="equipment-form" class="stack-form">
-                  <label>Name<input id="equipment-name" type="text" placeholder="Pipe cutter" required></label>
+                  <label>Name<input id="equipment-name" type="text" placeholder="Equipment name" required></label>
                   <label>Category
                     <select id="equipment-category-select"></select>
                   </label>
@@ -1262,10 +1265,10 @@
           </select>
         </label>
         <label>Room link
-          <input id="viber-room-link" type="url" placeholder="https://invite.viber.com/...">
+          <input id="viber-room-link" type="url" placeholder="Viber invite link">
         </label>
         <label>Room id
-          <input id="viber-room-id" type="text" placeholder="VIBER-ROOM-...">
+          <input id="viber-room-id" type="text" placeholder="Room name">
         </label>
         <section class="link-box">
           <div class="speech-header"><h4>Member Phone Check</h4></div>
@@ -1706,8 +1709,8 @@
     <div class="responsible-card">
       <label>Name<input data-field="name" type="text" placeholder="Name"></label>
       <label>Surname<input data-field="surname" type="text" placeholder="Surname"></label>
-      <label>Tel<input data-field="tel" type="text" placeholder="+43 ..."></label>
-      <label>Email<input data-field="email" type="email" placeholder="person@example.com"></label>
+      <label>Tel<input data-field="tel" type="text" placeholder="Telephone"></label>
+      <label>Email<input data-field="email" type="email" placeholder="Email"></label>
       <button class="ghost-btn remove-responsible-btn" type="button">Remove</button>
     </div>
   </template>
@@ -1778,8 +1781,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="translations.js?v=el-16"></script>
-  <script defer src="appback.js?v=greek-155"></script>
+  <script src="translations.js?v=el-17"></script>
+  <script defer src="appback.js?v=greek-163"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");

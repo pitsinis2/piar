@@ -95,6 +95,15 @@ button { cursor: pointer; border: 0; }
   max-width: 260px;
 }
 
+/* Placeholders name the field (Username, Organisation code, PIN) rather than
+   showing a sample value like "maria", which reads as real data already typed
+   in. Lighter than the entered text so the difference is obvious. */
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 62%, transparent);
+  opacity: 1;              /* Firefox dims placeholders by default */
+}
+
 .panel, .modal-form {
   background: var(--panel);
   border: 1px solid color-mix(in srgb, var(--panel-outline-strong) 72%, white 28%);
@@ -822,6 +831,20 @@ body:has(.popup-shell.popup-shell-open) {
   align-items: center;
   gap: 8px;
   flex-wrap: nowrap;
+}
+
+/* Compact when it sits beside the project name rather than in the tab bar. */
+.hero-title-row .workspace-back-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  padding: 4px 10px;
+  gap: 6px;
+  align-self: center;
+}
+
+.hero-title-row .workspace-back-button.hidden {
+  display: none;
 }
 
 .hero-title-row #workspace-title {
@@ -6839,11 +6862,17 @@ button.area-comment-preview-thumb:focus-visible,
     border-radius: 12px;
   }
   .mobile-fab.hidden { display: none !important; }
+  /* The add button sat on top of the AI button - both were pinned to the same
+     corner within 14px of each other. Stack it clear above the AI button,
+     which itself sits just above the navigation bar. */
   .mobile-fab:not(.hidden) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    bottom: 82px;
+    bottom: 146px;
+  }
+  .mobile-bottom-nav-active .mobile-fab:not(.hidden) {
+    bottom: 146px;
   }
   .mobile-bottom-nav {
     position: fixed;
@@ -8506,6 +8535,85 @@ button.area-comment-preview-thumb:focus-visible,
   .planner-static-week-days {
     gap: 2px;
   }
+  /* ---- Directory pattern (projects, members, clients, equipment) ----
+     Same shape everywhere: compact search on top, a short scrollable list,
+     then the selected item. Sized so the start of the selected item is on the
+     first screen instead of a page-long list pushing it out of sight. */
+
+  /* A list row is name + role + meta. The meta stacked one item per line,
+     which alone made each row over 200px tall. */
+  .directory-select-meta {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+  }
+  .directory-select-meta-item {
+    font-size: 0.72rem;
+  }
+  .directory-select-meta-legend {
+    font-size: 0.68rem;
+  }
+  /* The role is already shown as a pill on the first line. */
+  .directory-select-row .meta-pill + .directory-select-meta .directory-select-meta-item.is-role {
+    display: none;
+  }
+  .directory-select-title-group {
+    gap: 2px;
+  }
+
+  /* The scroller is the master-list container, not the inner row wrapper.
+     ~3 rows: enough to show there is more, short enough to leave the start of
+     the selected item on the first screen. */
+  .member-master-list,
+  .client-master-list,
+  .equipment-master-list,
+  .project-list-scroll,
+  .project-list-scroll.compact {
+    max-height: 34vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-right: 4px;
+  }
+
+  /* Search and filters stay compact so they never own the screen. Stacked one
+     control per row they came to 225px, which pushed the selected item off the
+     first screen on their own. Two columns, search spanning the full width. */
+  .client-search-bar,
+  .member-search-bar,
+  .audit-search-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .client-search-bar input[type="search"],
+  .member-search-bar input[type="search"],
+  .audit-search-bar input[type="search"] {
+    grid-column: 1 / -1;
+  }
+  .client-search-bar button,
+  .member-search-bar button,
+  .audit-search-bar button {
+    min-height: 38px;
+  }
+  .client-search-bar select,
+  .member-search-bar select {
+    min-height: 38px;
+    font-size: 0.82rem;
+  }
+  /* The blurb under each page title costs ~50px on every directory screen. */
+  .section-intro,
+  #teams-members-tab-panel > .muted,
+  .wide-panel > .muted {
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+  }
+  .directory-detail-panel {
+    max-height: none;
+  }
+
   /* Daily Works: fit the chosen range on screen instead of scrolling.
      The columns carry min-width:150px, which overflowed the grid tracks no
      matter how narrow the template asked them to be. */
