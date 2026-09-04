@@ -768,6 +768,27 @@ a.top-quick-btn {
   text-decoration: underline;
 }
 
+/* The guide entry in the user menu is an <a> wearing the ghost-btn look, so it
+   needs the block layout and centring the real buttons get from their element. */
+.guide-menu-link {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+/* "Log out instead" on the forced PIN screen: a button that reads as a link. */
+.login-linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-strong);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .top-install-btn {
   color: #fff;
   background: var(--accent);
@@ -10407,7 +10428,8 @@ button.area-comment-preview-thumb:focus-visible,
    translate the dialog is centred on its own midpoint, so once it grows taller
    than the viewport its head and foot are pushed off-screen with no way to
    scroll to them. This keeps it inside the screen and scrolls internally. */
-#login-modal {
+#login-modal,
+#pin-change-modal {
   position: fixed;
   inset: 0;
   margin: auto;
@@ -10426,11 +10448,13 @@ button.area-comment-preview-thumb:focus-visible,
 
 /* dvh is not universal; vh keeps older browsers inside the screen too. */
 @supports not (height: 100dvh) {
-  #login-modal { max-height: calc(100vh - 24px); }
+  #login-modal,
+  #pin-change-modal { max-height: calc(100vh - 24px); }
 }
 
 @media (max-width: 480px) {
-  #login-modal {
+  #login-modal,
+  #pin-change-modal {
     padding: 1.1rem;
     border-radius: 12px;
     width: calc(100vw - 16px);
@@ -10438,23 +10462,27 @@ button.area-comment-preview-thumb:focus-visible,
   }
 }
 
-#login-modal::backdrop {
+#login-modal::backdrop,
+#pin-change-modal::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
-#login-modal h2 {
+#login-modal h2,
+#pin-change-modal h2 {
   margin: 0 0 1.5rem 0;
   color: var(--ink);
   font-size: 1.5rem;
 }
 
-#login-form {
+#login-form,
+#pin-change-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-#login-form label {
+#login-form label,
+#pin-change-form label {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -10462,7 +10490,8 @@ button.area-comment-preview-thumb:focus-visible,
   color: var(--ink);
 }
 
-#login-form input {
+#login-form input,
+#pin-change-form input {
   padding: 0.75rem;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -10470,13 +10499,15 @@ button.area-comment-preview-thumb:focus-visible,
   font-family: inherit;
 }
 
-#login-form input:focus {
+#login-form input:focus,
+#pin-change-form input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
-#login-form button {
+#login-form button,
+#pin-change-form button {
   padding: 0.75rem;
   background: var(--accent);
   color: white;
@@ -10488,7 +10519,8 @@ button.area-comment-preview-thumb:focus-visible,
   margin-top: 0.5rem;
 }
 
-#login-form button:hover {
+#login-form button:hover,
+#pin-change-form button:hover {
   background: var(--accent-strong);
 }
 
@@ -10498,7 +10530,8 @@ button.area-comment-preview-thumb:focus-visible,
   min-height: 1.2rem;
 }
 
-#login-modal .muted {
+#login-modal .muted,
+#pin-change-modal .muted {
   color: var(--muted);
 }
 

@@ -683,6 +683,13 @@ let folderSyncHandle = null;
 let folderSyncStatus = 'off'; // 'off' | 'active' | 'paused' (needs permission)
 let folderSyncTimer = null;
 let folderSyncInFlight = false;
+
+// The Greek user guide. One path, stamped with a version so a redeployed PDF
+// is never served from a stale browser cache - every link in the app points
+// here, so the reader always gets the current guide. Declared with the other
+// module state: setup stamps the links before the helpers below exist.
+const GUIDE_PDF_PATH = "/piAR-Odigos-Xrisis.pdf";
+const GUIDE_PDF_VERSION = "2026-09-04";
 let editingEquipmentId = null;
 let editingEquipmentCategoryId = null;
 let formValidationMessageLocked = false;
@@ -10686,6 +10693,9 @@ function renderViews() {
   els.appShell?.classList.toggle("user-mode", userMode);
   syncMobileGlobalSearchUi();
   syncMobileBottomNav();
+  // Re-assert the PIN gate on every render: nothing that redraws the app can
+  // leave a default-PIN account usable.
+  if (typeof enforcePinChange === "function") enforcePinChange();
 }
 
 function syncMobileBottomNav() {
@@ -13161,9 +13171,27 @@ function goToDailyWorksToday() {
   render();
 }
 
+// Admins, managers and developers plan the whole org, so they see every entry.
+// Everyone else sees the board as their own schedule.
+function canSeeAllDailyWorks() {
+  const role = getCurrentRole();
+  return role === "admin" || role === "manager" || role === "developer";
+}
+
+// A worker's daily work is the entries they are assigned to, plus anything they
+// created themselves so their own drafts never vanish on them.
+function isOwnDailyWork(work, userId) {
+  if (!work || !userId) return false;
+  if (Array.isArray(work.memberIds) && work.memberIds.includes(userId)) return true;
+  return work.createdByUserId === userId;
+}
+
 function getDailyWorksForDate(dateValue) {
+  const seeAll = canSeeAllDailyWorks();
+  const viewerId = state.currentUserId;
   return (state.dailyWorks || [])
     .filter((work) => work.date === dateValue)
+    .filter((work) => seeAll || isOwnDailyWork(work, viewerId))
     .sort((a, b) => {
       const byStart = timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime);
       if (byStart) return byStart;
@@ -19885,7 +19913,14 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.help': 'Πρώτη φορά; Ζητήστε τα διαπιστευτήριά σας από τον διαχειριστή σας.',
       'login.defaultPin': 'Προεπιλεγμένο PIN:',
       'login.guide': '📘 Κατεβάστε τον οδηγό χρήσης (PDF)',
-      'login.pinToggle': 'Εμφάνιση/απόκρυψη PIN'
+      'login.pinToggle': 'Εμφάνιση/απόκρυψη PIN',
+      'pinChange.title': 'Επιλέξτε το προσωπικό σας PIN',
+      'pinChange.subtitle': 'Συνδεθήκατε με το αρχικό PIN. Επιλέξτε το δικό σας PIN 6 ψηφίων για να συνεχίσετε.',
+      'pinChange.new': 'Νέο PIN (6 ψηφία)',
+      'pinChange.confirm': 'Επιβεβαίωση νέου PIN',
+      'pinChange.button': 'Αποθήκευση PIN',
+      'pinChange.help': 'Κανείς άλλος δεν βλέπει αυτό το PIN, ούτε ο διαχειριστής σας.',
+      'pinChange.logout': 'Αποσύνδεση'
     },
     en: {
       'login.title': 'Project Manager Login',
@@ -19900,7 +19935,14 @@ document.addEventListener('DOMContentLoaded', async function() {
       'login.help': 'First time? Ask your admin for your credentials.',
       'login.defaultPin': 'Default PIN:',
       'login.guide': '📘 Download the user guide (PDF)',
-      'login.pinToggle': 'Show/hide PIN'
+      'login.pinToggle': 'Show/hide PIN',
+      'pinChange.title': 'Choose your personal PIN',
+      'pinChange.subtitle': 'You signed in with the starting PIN. Pick your own 6-digit PIN to continue.',
+      'pinChange.new': 'New PIN (6 digits)',
+      'pinChange.confirm': 'Confirm new PIN',
+      'pinChange.button': 'Save PIN',
+      'pinChange.help': 'Nobody else can see this PIN, not even your admin.',
+      'pinChange.logout': 'Log out instead'
     }
   };
 
@@ -20035,9 +20077,48 @@ document.addEventListener('DOMContentLoaded', async function() {
         loginModal.close();
         updateAuthUI();
         render();
+        // Signed in with the shared starting PIN: nothing is usable until
+        // they pick their own.
+        enforcePinChange();
       } catch (error) {
         showLoginError(error.message || 'Login failed');
       }
+    });
+  }
+
+  // ---- forced PIN change ---------------------------------------------------
+  applyGuideLinks();
+
+  const pinChangeModal = document.getElementById('pin-change-modal');
+  const pinChangeForm = document.getElementById('pin-change-form');
+  if (pinChangeForm) {
+    pinChangeForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      submitForcedPinChange();
+    });
+  }
+  if (pinChangeModal) {
+    // Esc and backdrop clicks would otherwise dismiss it and leave the app
+    // open on a default PIN. Logging out is the only other way past it.
+    pinChangeModal.addEventListener('cancel', function(e) { e.preventDefault(); });
+  }
+  const pinChangeToggle = document.getElementById('pin-change-toggle');
+  if (pinChangeToggle) {
+    pinChangeToggle.addEventListener('click', function(e) {
+      e.preventDefault();
+      const input = document.getElementById('pin-change-new');
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      this.textContent = isPassword ? '🙈' : '👁';
+    });
+  }
+  const pinChangeLogout = document.getElementById('pin-change-logout');
+  if (pinChangeLogout) {
+    pinChangeLogout.addEventListener('click', async function() {
+      closeForcedPinChange();
+      await logout();
+      updateAuthUI();
+      render();
     });
   }
 
@@ -20059,7 +20140,132 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   // Update auth UI on page load
   updateAuthUI();
+  // A restored session can also be sitting on the starting PIN.
+  enforcePinChange();
 });
+
+// Points every guide link in the app at the same versioned URL, so a
+// redeployed PDF is never served from a stale cache.
+function applyGuideLinks() {
+  const href = `${GUIDE_PDF_PATH}?v=${encodeURIComponent(GUIDE_PDF_VERSION)}`;
+  for (const link of document.querySelectorAll("[data-guide-link]")) {
+    link.setAttribute("href", href);
+  }
+}
+
+// The workspace user behind the actual signed-in credential. Not the same as
+// getCurrentUser() while a developer is previewing someone else's view, which
+// swaps state.currentUserId.
+function getSignedInWorkspaceUser() {
+  if (!isLoggedIn || !Array.isArray(state.users)) return null;
+  const byAuthId = currentUserId
+    ? state.users.find((user) => user.authUserId === currentUserId)
+    : null;
+  if (byAuthId) return byAuthId;
+  if (!currentUsername) return null;
+  const wanted = normalizeUsername(currentUsername);
+  return state.users.find((user) => normalizeUsername(user.username || "") === wanted) || null;
+}
+
+// The starting PIN is the same for everyone, so an account still using it is
+// effectively open to anyone who knows the username. Block the app until the
+// member picks their own. Only ever asks about the signed-in account: a
+// developer previewing a worker must not be prompted to change that worker's
+// PIN, and could not change it anyway.
+function needsPinChange() {
+  if (developerPreviewSourceUserId) return false;
+  const user = getSignedInWorkspaceUser();
+  return !!(user && user.mustChangePin);
+}
+
+function showPinChangeError(message) {
+  const box = document.getElementById("pin-change-error");
+  if (box) box.textContent = message || "";
+}
+
+function openForcedPinChange() {
+  const modal = document.getElementById("pin-change-modal");
+  if (!modal || modal.open) return;
+  showPinChangeError("");
+  const newInput = document.getElementById("pin-change-new");
+  const confirmInput = document.getElementById("pin-change-confirm");
+  if (newInput) newInput.value = "";
+  if (confirmInput) confirmInput.value = "";
+  try { modal.showModal(); } catch (e) { /* already open */ }
+  newInput?.focus();
+}
+
+function closeForcedPinChange() {
+  const modal = document.getElementById("pin-change-modal");
+  if (modal?.open) modal.close();
+}
+
+// Opened after login and after every render, so there is no window in which
+// a default-PIN account can be used.
+function enforcePinChange() {
+  if (needsPinChange()) openForcedPinChange();
+  else closeForcedPinChange();
+}
+
+// Rejects the PINs that give no protection: the shared starting PIN, all-same
+// digits, and simple runs like 123456 or 987654.
+function isWeakPin(pin) {
+  if (pin === "123456" || pin === "000000") return true;
+  if (/^(\d)\1{5}$/.test(pin)) return true;
+  const digits = pin.split("").map(Number);
+  const ascending = digits.every((d, i) => i === 0 || d === digits[i - 1] + 1);
+  const descending = digits.every((d, i) => i === 0 || d === digits[i - 1] - 1);
+  return ascending || descending;
+}
+
+async function submitForcedPinChange() {
+  const newPin = normalizePin(document.getElementById("pin-change-new")?.value, "");
+  const confirmPin = normalizePin(document.getElementById("pin-change-confirm")?.value, "");
+  const submitBtn = document.getElementById("pin-change-submit");
+
+  if (!/^\d{6}$/.test(newPin)) {
+    showPinChangeError(translateFromEnglishText("PIN must be 6 digits"));
+    return;
+  }
+  if (isWeakPin(newPin)) {
+    showPinChangeError(translateFromEnglishText("Choose a less obvious PIN - not the starting PIN, repeated digits, or a simple run."));
+    return;
+  }
+  if (newPin !== confirmPin) {
+    showPinChangeError(translateFromEnglishText("The two PINs do not match"));
+    return;
+  }
+
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    // The PIN is the account password, so this is a real credential change.
+    const { error } = await supabase.auth.updateUser({ password: newPin });
+    if (error) throw error;
+
+    // Clear the flag on the signed-in account, not on whoever is being
+    // previewed, so the gate actually lifts.
+    const user = getSignedInWorkspaceUser();
+    if (user) {
+      user.pinCode = newPin;
+      user.mustChangePin = false;
+      notifyUser(user.id, {
+        title: "PIN changed",
+        body: "Your login PIN was changed successfully.",
+        fromUserId: user.id,
+      });
+    }
+    logAudit("PIN changed on first login", { objectType: "member", objectName: currentUsername || "" });
+    persist();
+    closeForcedPinChange();
+    showAppMessage(translateFromEnglishText("Your PIN is set. Use it the next time you sign in."), "success", translateFromEnglishText("PIN"));
+    render();
+  } catch (error) {
+    console.error("PIN change failed:", error);
+    showPinChangeError(error?.message || translateFromEnglishText("Could not save the new PIN. Please try again."));
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
 
 // Writes the signed-in organization into its own element. Called from
 // updateAuthUI and from every render, so the org line can never be left

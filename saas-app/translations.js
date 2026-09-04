@@ -1073,6 +1073,15 @@ window.APP_TRANSLATIONS = {
     // ---- Install as app / top bar ----
     "Install app": "Εγκατάσταση",
     "Guide": "Οδηγός",
+    "📘 User guide (PDF)": "📘 Οδηγός χρήσης (PDF)",
+    "Always the current version. Opens in a new tab.": "Πάντα η τρέχουσα έκδοση. Ανοίγει σε νέα καρτέλα.",
+    "The two PINs do not match": "Τα δύο PIN δεν ταιριάζουν",
+    "Choose a less obvious PIN - not the starting PIN, repeated digits, or a simple run.":
+      "Επιλέξτε ένα λιγότερο προφανές PIN - όχι το αρχικό PIN, ούτε ίδια ψηφία ή απλή σειρά.",
+    "Your PIN is set. Use it the next time you sign in.":
+      "Το PIN σας ορίστηκε. Χρησιμοποιήστε το στην επόμενη σύνδεση.",
+    "Could not save the new PIN. Please try again.":
+      "Δεν ήταν δυνατή η αποθήκευση του νέου PIN. Δοκιμάστε ξανά.",
     "Change language": "Αλλαγή γλώσσας",
     "On iPhone: tap Share, then \"Add to Home Screen\".":
       "Σε iPhone: πατήστε Κοινή χρήση και μετά «Προσθήκη στην αρχική οθόνη».",

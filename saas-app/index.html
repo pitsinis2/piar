@@ -72,8 +72,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stylesback.css?v=greek-181">
-  <link rel="stylesheet" href="styles-futuristic.css?v=greek-181">
+  <link rel="stylesheet" href="stylesback.css?v=greek-182">
+  <link rel="stylesheet" href="styles-futuristic.css?v=greek-182">
 </head>
 <body>
   <!-- Auth login modal - piAR Login v2 -->
@@ -165,8 +165,43 @@
       <!-- Help Footer -->
       <div class="login-footer">
         <p data-i18n="login.help">First time? Ask your admin for your credentials.</p>
-        <p><span data-i18n="login.defaultPin">Default PIN:</span> <strong>123456</strong></p>
-        <p><a class="login-guide-link" href="/piAR-Odigos-Xrisis.pdf" target="_blank" rel="noopener" download data-i18n="login.guide">📘 Download the user guide (PDF)</a></p>
+        <p><a class="login-guide-link" data-guide-link href="/piAR-Odigos-Xrisis.pdf" target="_blank" rel="noopener" download data-i18n="login.guide">📘 Download the user guide (PDF)</a></p>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Shown after logging in with the starting PIN. Cannot be dismissed: the
+       only ways out are setting a real PIN or logging back out. -->
+  <dialog id="pin-change-modal" class="modal login-modal-v2">
+    <div class="modal-content login-content">
+      <form id="pin-change-form" class="login-form-v2">
+        <h2 class="login-title" data-i18n="pinChange.title">Choose your personal PIN</h2>
+        <p class="login-subtitle" data-i18n="pinChange.subtitle">You signed in with the starting PIN. Pick your own 6-digit PIN to continue.</p>
+
+        <label class="login-label">
+          <span data-i18n="pinChange.new">New PIN (6 digits)</span>
+          <div class="login-pin-wrapper">
+            <input type="password" id="pin-change-new" class="login-input"
+              maxlength="6" inputmode="numeric" autocomplete="new-password" required />
+            <button type="button" class="login-pin-toggle" id="pin-change-toggle"
+              data-i18n-label="login.pinToggle" aria-label="Show/hide PIN" title="Show/hide PIN">👁</button>
+          </div>
+        </label>
+
+        <label class="login-label">
+          <span data-i18n="pinChange.confirm">Confirm new PIN</span>
+          <input type="password" id="pin-change-confirm" class="login-input"
+            maxlength="6" inputmode="numeric" autocomplete="new-password" required />
+        </label>
+
+        <div id="pin-change-error" class="login-error-message"></div>
+
+        <button type="submit" class="login-btn-primary" id="pin-change-submit" data-i18n="pinChange.button">Save PIN</button>
+      </form>
+
+      <div class="login-footer">
+        <p data-i18n="pinChange.help">Nobody else can see this PIN, not even your admin.</p>
+        <p><button type="button" class="login-linklike" id="pin-change-logout" data-i18n="pinChange.logout">Log out instead</button></p>
       </div>
     </div>
   </dialog>
@@ -177,7 +212,7 @@
     <button id="install-app-btn" class="top-quick-btn top-install-btn hidden" type="button">
       <span aria-hidden="true">⬇</span><span class="top-quick-label">Install app</span>
     </button>
-    <a id="user-guide-link" class="top-quick-btn" href="/piAR-Odigos-Xrisis.pdf" target="_blank" rel="noopener" download>
+    <a id="user-guide-link" class="top-quick-btn" data-guide-link href="/piAR-Odigos-Xrisis.pdf" target="_blank" rel="noopener" download>
       <span aria-hidden="true">📘</span><span class="top-quick-label">Guide</span>
     </a>
     <button id="app-language-toggle" class="top-quick-btn" type="button" aria-label="Change language">
@@ -201,6 +236,10 @@
       </div>
       <div id="current-org-summary" class="session-summary org-summary"></div>
       <div id="current-user-summary" class="session-summary muted"></div>
+      <div class="guide-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
+        <a class="ghost-btn guide-menu-link" data-guide-link href="/piAR-Odigos-Xrisis.pdf" target="_blank" rel="noopener" download>📘 User guide (PDF)</a>
+        <p class="muted guide-menu-note" style="font-size: 0.85em; margin-top: 0.5em; margin-bottom: 0;">Always the current version. Opens in a new tab.</p>
+      </div>
       <div class="backup-section" style="border-top: 1px solid #ddd; padding-top: 1em; margin-top: 1em;">
         <button id="download-backup-btn" class="primary-btn" type="button" style="width: 100%;">⬇ Download Backup</button>
         <button id="restore-backup-btn" class="ghost-btn" type="button" style="width: 100%; margin-top: 0.5em;">↩️ Restore Backup</button>
@@ -1800,8 +1839,8 @@
   </script>
   <script type="module" src="./supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="translations.js?v=el-25"></script>
-  <script defer src="appback.js?v=greek-181"></script>
+  <script src="translations.js?v=el-26"></script>
+  <script defer src="appback.js?v=greek-182"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const overviewBtn = document.getElementById("client-overview-btn");
