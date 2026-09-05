@@ -2220,7 +2220,7 @@ function getEquipmentCategoryById(categoryId) {
 }
 
 function formatEquipmentCategoryName(categoryId) {
-  return getEquipmentCategoryById(categoryId)?.name || "No category";
+  return getEquipmentCategoryById(categoryId)?.name || translateFromEnglishText("No category");
 }
 
 function getDefaultPermissionsForRole(role) {
@@ -9271,7 +9271,9 @@ async function deleteEquipmentCategory(categoryId) {
   const category = getEquipmentCategoryById(categoryId);
   if (!category) return;
   const confirmed = await showAppConfirm(
-    `Delete category "${category.name}"?\n\nAll equipment inside will move to "No category".`,
+    // Carries the category name, so the whole sentence can never be one
+    // dictionary key; built from translated halves instead.
+    `${translateFromEnglishText("Delete category")} "${category.name}"?\n\n${translateFromEnglishText("All equipment inside will move to \"No category\".")}`,
     "Delete Category",
     {
       eyebrow: "Equipment",
@@ -11770,12 +11772,12 @@ function renderEquipmentCategories() {
   allCard.className = `equipment-category-card filter-all-card${!selectedEquipmentCategoryFilterIds.size ? " active" : ""}`;
   allCard.innerHTML = `
     <div class="equipment-category-card-main">
-      <strong>All categories</strong>
+      <strong>${escapeHtml(translateFromEnglishText("All categories"))}</strong>
       <span class="muted">${activeItems.length} ${translateFromEnglishText("active equipment")}</span>
     </div>
     <div class="meta-row equipment-category-card-pills">
       <span class="meta-pill">${translateFromEnglishText("Active")}: ${activeItems.length}</span>
-      ${archivedItems.length ? `<span class="meta-pill status-pill-archived">Archived: ${archivedItems.length}</span>` : ""}
+      ${archivedItems.length ? `<span class="meta-pill status-pill-archived">${translateFromEnglishText("Archived")}: ${archivedItems.length}</span>` : ""}
     </div>
   `;
   allCard.addEventListener("click", () => {
@@ -11787,7 +11789,7 @@ function renderEquipmentCategories() {
   if (!categories.length) {
     const empty = document.createElement("p");
     empty.className = "muted";
-    empty.textContent = "No equipment categories yet.";
+    empty.textContent = translateFromEnglishText("No equipment categories yet.");
     els.equipmentCategoryList.append(empty);
     return;
   }
@@ -11803,14 +11805,31 @@ function renderEquipmentCategories() {
       </div>
       <div class="meta-row equipment-category-card-pills">
         <span class="meta-pill">${translateFromEnglishText("Active")}: ${activeCount}</span>
-        ${archivedCount ? `<span class="meta-pill status-pill-archived">Archived: ${archivedCount}</span>` : ""}
+        ${archivedCount ? `<span class="meta-pill status-pill-archived">${translateFromEnglishText("Archived")}: ${archivedCount}</span>` : ""}
       </div>
     `;
     card.addEventListener("click", (event) => {
       if (event.target.closest(".card-menu")) return;
+      if (event.target.closest(".equipment-category-delete")) return;
       closeEquipmentCreateForm();
       toggleEquipmentCategoryFilter(category.id);
     });
+    // Deleting was only reachable through the card menu, which is easy to miss.
+    // An x in the corner does the same thing, with the same confirmation.
+    if (isAdmin()) {
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "equipment-category-delete";
+      removeBtn.textContent = "×";
+      const removeLabel = `${translateFromEnglishText("Delete category")}: ${category.name}`;
+      removeBtn.setAttribute("aria-label", removeLabel);
+      removeBtn.title = removeLabel;
+      removeBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteEquipmentCategory(category.id);
+      });
+      card.append(removeBtn);
+    }
     if (canCreateEquipmentCategory()) {
       const actions = [
         {
@@ -11852,10 +11871,10 @@ function renderEquipmentDetail(item) {
       <div class="directory-detail-actions" id="equipment-detail-actions"></div>
     </div>
     <div class="directory-detail-meta">
-      <span class="meta-pill">Category: ${escapeHtml(categoryName)}</span>
-      ${item.reference ? `<span class="meta-pill">Ref: ${escapeHtml(item.reference)}</span>` : ""}
-      <span class="meta-pill">Created: ${escapeHtml(formatDateDisplay(item.createdAt))}</span>
-      ${creator ? `<span class="meta-pill">By: ${escapeHtml(getMemberDisplayName(creator))}</span>` : ""}
+      <span class="meta-pill">${translateFromEnglishText("Category")}: ${escapeHtml(categoryName)}</span>
+      ${item.reference ? `<span class="meta-pill">${translateFromEnglishText("Ref")}: ${escapeHtml(item.reference)}</span>` : ""}
+      <span class="meta-pill">${translateFromEnglishText("Created")}: ${escapeHtml(formatDateDisplay(item.createdAt))}</span>
+      ${creator ? `<span class="meta-pill">${translateFromEnglishText("By")}: ${escapeHtml(getMemberDisplayName(creator))}</span>` : ""}
     </div>
     <div class="directory-detail-grid">
       <section class="directory-detail-section full-width">
@@ -11898,7 +11917,16 @@ function renderEquipmentDetail(item) {
   }
 }
 
+// Filtering a category, expanding an item and the empty states all reach this
+// outside render(), which is what ends with the language pass. Wrapping the
+// body means every path - including the early returns - is translated, so the
+// cards can never come back in English.
 function renderEquipment() {
+  renderEquipmentContent();
+  applyLanguageToDocument(els.equipmentView);
+}
+
+function renderEquipmentContent() {
   if (!els.equipmentList) return;
   renderEquipmentFormState();
   renderEquipmentCategories();
@@ -11979,8 +12007,8 @@ function renderEquipment() {
         ${item.archivedAt ? '<span class="meta-pill status-pill-archived directory-select-status">Archived</span>' : ""}
       </div>
       <div class="directory-select-meta">
-        <span class="directory-select-meta-item"><span class="directory-select-meta-legend">Reference:</span><span class="directory-select-meta-value">${escapeHtml(item.reference || "No reference")}</span></span>
-        <span class="directory-select-meta-item"><span class="directory-select-meta-legend">Created:</span><span class="directory-select-meta-value">${escapeHtml(formatDateDisplay(item.createdAt))}</span></span>
+        <span class="directory-select-meta-item"><span class="directory-select-meta-legend">${translateFromEnglishText("Reference")}:</span><span class="directory-select-meta-value">${escapeHtml(item.reference || "No reference")}</span></span>
+        <span class="directory-select-meta-item"><span class="directory-select-meta-legend">${translateFromEnglishText("Created")}:</span><span class="directory-select-meta-value">${escapeHtml(formatDateDisplay(item.createdAt))}</span></span>
       </div>
     `;
     row.addEventListener("click", () => {

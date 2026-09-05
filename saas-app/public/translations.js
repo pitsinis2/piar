@@ -1075,6 +1075,13 @@ window.APP_TRANSLATIONS = {
     "Guide": "Οδηγός",
     "📘 User guide (PDF)": "📘 Οδηγός χρήσης (PDF)",
     "🔑 Change PIN": "🔑 Αλλαγή PIN",
+    "No equipment categories yet.": "Δεν υπάρχουν ακόμη κατηγορίες εξοπλισμού.",
+    "Delete category": "Διαγραφή κατηγορίας",
+    "Reference": "Κωδικός",
+    "Ref": "Κωδ.",
+    "By": "Από",
+    "All equipment inside will move to \"No category\".":
+      "Όλος ο εξοπλισμός μέσα θα μεταφερθεί σε «Χωρίς κατηγορία».",
     "PIN change required": "Απαιτείται αλλαγή PIN",
     "Resume Folder Sync": "Συνέχεια συγχρονισμού φακέλου",
     "Folder Sync: On (click to turn off)": "Συγχρονισμός φακέλου: Ενεργός (κλικ για απενεργοποίηση)",

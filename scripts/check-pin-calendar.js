@@ -325,13 +325,17 @@ const actAs = (who) => `
     const ev = new Event('cancel', { cancelable: true });
     modal.dispatchEvent(ev);
     return { open: modal.open, mode: pinChangeMode, prevented: ev.defaultPrevented,
-             currentHidden: document.getElementById('pin-change-current-row').hidden };
+             // Check what the user actually sees: the shared login styles give
+             // labels a display value that can outrank the [hidden] attribute.
+             currentHidden: document.getElementById('pin-change-current-row').getBoundingClientRect().height === 0,
+             logoutVisible: document.getElementById('pin-change-logout').getBoundingClientRect().height > 0 };
   })()`);
   ok("Forced mode still blocks and refuses Esc",
      forcedStillBlocks.open && forcedStillBlocks.mode === "forced" && forcedStillBlocks.prevented,
      JSON.stringify(forcedStillBlocks));
   ok("Forced mode does not ask for the current PIN",
-     forcedStillBlocks.currentHidden === true, "");
+     forcedStillBlocks.currentHidden === true, JSON.stringify(forcedStillBlocks));
+  ok("Forced mode offers Log out", forcedStillBlocks.logoutVisible === true, "");
 
   // ---- the guide links ------------------------------------------------------
   const guide = await page.evaluate(`(() => {
