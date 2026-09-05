@@ -241,20 +241,30 @@ const SEED = `
   // ---- untranslated text in Greek -------------------------------------
   const english = await page.evaluate(`(() => {
     const found = new Set();
-    for (const v of ['projects','teams','clients','planner','daily-works','equipment']) {
-      currentView = v; render();
+    const DATA = /Fotis|Pitsinis|Maria|Ioannou|Nikos|Dimou|Eleni|Papadaki|Papadakis|Anakainisi|Ydravlikoi|Banio|Ermou|Etairia|Test User|TESTORG|test\\.user|@x\\.gr|^\\d/;
+    // Greek text is the proof of translation. Requiring the whole string to be
+    // ASCII used to skip anything with an emoji in it, which hid real misses
+    // like "📁 Enable Folder Sync"; looking for Greek instead catches those.
+    const looksEnglish = (t) => /[A-Za-z]{4}/.test(t)
+      && !/[\\u0370-\\u03FF\\u1F00-\\u1FFF]/.test(t)
+      // Words Greek uses as-is; a label made only of these is correct.
+      && !/^(?:AI|EL|GB|GR|piAR|Email|PIN|CW|UID|Viber|Go|OK)[\\s:.\\-]*$/i.test(t)
+      && !DATA.test(t);
+    const scan = (root, label) => {
+      if (!root) return;
       const walk = (n) => { for (const c of n.childNodes) {
         if (c.nodeType === 3) { const t = c.nodeValue.trim();
-          const DATA = /Fotis|Pitsinis|Maria|Ioannou|Nikos|Dimou|Eleni|Papadaki|Papadakis|Anakainisi|Ydravlikoi|Banio|Ermou|Etairia|Test User|test\\.user|@x\\.gr|^\\d/;
-          if (t && /^[\\x20-\\x7E]+$/.test(t) && /[A-Za-z]{4}/.test(t)
-              // Words Greek uses as-is; a label made only of these is correct.
-              && !/^(?:AI|EL|GB|GR|piAR|Email|PIN|CW|UID|Viber|Go|OK)[\\s:.\\-]*$/i.test(t)
-              && !DATA.test(t)) found.add(v + ': ' + t.slice(0,40)); }
+          if (t && looksEnglish(t)) found.add(label + ': ' + t.slice(0,40)); }
         else if (c.nodeType === 1 && !['SCRIPT','STYLE'].includes(c.tagName)) walk(c); } };
-      const view = document.getElementById(v + '-view');
-      if (view) walk(view);
+      walk(root);
+    };
+    for (const v of ['projects','teams','clients','planner','daily-works','equipment']) {
+      currentView = v; render();
+      scan(document.getElementById(v + '-view'), v);
     }
-    return [...found].slice(0, 8);
+    // The user menu holds backup, folder sync, the guide and the PIN change.
+    scan(document.querySelector('.access-menu-panel'), 'menu');
+    return [...found].slice(0, 12);
   })()`);
   check("Language", "No untranslated English in Greek mode", english.length === 0, english.join(" | "));
 

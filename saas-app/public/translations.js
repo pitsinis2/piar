@@ -1074,6 +1074,16 @@ window.APP_TRANSLATIONS = {
     "Install app": "Εγκατάσταση",
     "Guide": "Οδηγός",
     "📘 User guide (PDF)": "📘 Οδηγός χρήσης (PDF)",
+    "🔑 Change PIN": "🔑 Αλλαγή PIN",
+    "PIN change required": "Απαιτείται αλλαγή PIN",
+    "Resume Folder Sync": "Συνέχεια συγχρονισμού φακέλου",
+    "Folder Sync: On (click to turn off)": "Συγχρονισμός φακέλου: Ενεργός (κλικ για απενεργοποίηση)",
+    "your folder": "τον φάκελό σας",
+    "last sync": "τελευταίος συγχρονισμός",
+    "Enter your current PIN": "Δώστε το τρέχον PIN σας",
+    "Current PIN is not correct": "Το τρέχον PIN δεν είναι σωστό",
+    "The new PIN must be different from the current one":
+      "Το νέο PIN πρέπει να διαφέρει από το τρέχον",
     "Always the current version. Opens in a new tab.": "Πάντα η τρέχουσα έκδοση. Ανοίγει σε νέα καρτέλα.",
     "The two PINs do not match": "Τα δύο PIN δεν ταιριάζουν",
     "Choose a less obvious PIN - not the starting PIN, repeated digits, or a simple run.":

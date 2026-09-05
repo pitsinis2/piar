@@ -690,6 +690,16 @@ let folderSyncInFlight = false;
 // module state: setup stamps the links before the helpers below exist.
 const GUIDE_PDF_PATH = "/piAR-Odigos-Xrisis.pdf";
 const GUIDE_PDF_VERSION = "2026-09-04";
+
+// How the PIN dialog is currently open: "forced" after signing in with the
+// starting PIN (blocking), "voluntary" from the user menu (dismissible), or
+// null when closed. render() consults this, so it lives with the module state.
+let pinChangeMode = null;
+
+// The login dictionary is built inside the DOMContentLoaded closure. Setup
+// publishes its lookup here so the PIN dialog can retitle itself from outside
+// that closure. Declared up top: render() can reach it before setup runs.
+let loginTextLookup = null;
 let editingEquipmentId = null;
 let editingEquipmentCategoryId = null;
 let formValidationMessageLocked = false;
@@ -12135,8 +12145,8 @@ function renderMemberDetail(member, project = getCurrentProject()) {
             <div class="member-card-row">
               <span class="label">Status</span>
               <span class="value">
-                ${member.loginEnabled === false ? '🔒 Disabled' : '✓ Enabled'}
-                ${member.mustChangePin ? ' • PIN change required' : ''}
+                ${member.loginEnabled === false ? `🔒 ${escapeHtml(translateFromEnglishText("Disabled"))}` : `✓ ${escapeHtml(translateFromEnglishText("Enabled"))}`}
+                ${member.mustChangePin ? ` • ${escapeHtml(translateFromEnglishText("PIN change required"))}` : ''}
               </span>
             </div>
           </div>
@@ -18631,6 +18641,13 @@ function ensureWorkspaceUserForLogin(member, loginPin) {
   state.currentUserId = workspaceUser.id;
 }
 
+// Members sign in with an org code and a username, not an email, so the auth
+// account is keyed by a synthetic address. One definition, used by both the
+// login and the re-authentication that guards a PIN change.
+function buildMemberAuthEmail(username, orgCode) {
+  return `${String(username || "").trim()}@${String(orgCode || "").trim().toLowerCase()}.internal`;
+}
+
 async function loginWithOrgCodeAndPin(orgCode, username, pin) {
   orgCode = String(orgCode || "").trim().toUpperCase();
 
@@ -18645,7 +18662,7 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
     throw new Error("PIN must be 6 digits");
   }
 
-  const syntheticEmail = `${username}@${orgCode.toLowerCase()}.internal`;
+  const syntheticEmail = buildMemberAuthEmail(username, orgCode);
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -19920,7 +19937,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       'pinChange.confirm': 'Επιβεβαίωση νέου PIN',
       'pinChange.button': 'Αποθήκευση PIN',
       'pinChange.help': 'Κανείς άλλος δεν βλέπει αυτό το PIN, ούτε ο διαχειριστής σας.',
-      'pinChange.logout': 'Αποσύνδεση'
+      'pinChange.logout': 'Αποσύνδεση',
+      'pinChange.titleVoluntary': 'Αλλαγή PIN',
+      'pinChange.subtitleVoluntary': 'Δώστε το τρέχον PIN σας και μετά το νέο PIN 6 ψηφίων.',
+      'pinChange.current': 'Τρέχον PIN',
+      'pinChange.cancel': 'Άκυρο'
     },
     en: {
       'login.title': 'Project Manager Login',
@@ -19942,7 +19963,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       'pinChange.confirm': 'Confirm new PIN',
       'pinChange.button': 'Save PIN',
       'pinChange.help': 'Nobody else can see this PIN, not even your admin.',
-      'pinChange.logout': 'Log out instead'
+      'pinChange.logout': 'Log out instead',
+      'pinChange.titleVoluntary': 'Change PIN',
+      'pinChange.subtitleVoluntary': 'Enter your current PIN, then your new 6-digit PIN.',
+      'pinChange.current': 'Current PIN',
+      'pinChange.cancel': 'Cancel'
     }
   };
 
@@ -19951,6 +19976,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   function getLoginText(key) {
     return loginTranslations[currentLoginLang]?.[key] || loginTranslations['en'][key] || key;
   }
+  // Let the PIN dialog, which lives outside this closure, retitle itself in
+  // whichever language the login screen is set to.
+  loginTextLookup = getLoginText;
 
   function updateLoginFormLabels() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -19963,6 +19991,9 @@ document.addEventListener('DOMContentLoaded', async function() {
       el.setAttribute('aria-label', text);
       el.setAttribute('title', text);
     });
+    // The loop above rewrote the PIN dialog's heading from its data-i18n
+    // default; put the wording for the open mode back.
+    if (pinChangeMode) applyPinChangeMode(pinChangeMode);
   }
 
   // Language selector for login
@@ -20098,9 +20129,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
   }
   if (pinChangeModal) {
-    // Esc and backdrop clicks would otherwise dismiss it and leave the app
-    // open on a default PIN. Logging out is the only other way past it.
-    pinChangeModal.addEventListener('cancel', function(e) { e.preventDefault(); });
+    // Esc would otherwise dismiss the forced dialog and leave the app open on
+    // a default PIN. A change the member started themselves may be escaped.
+    pinChangeModal.addEventListener('cancel', function(e) {
+      if (pinChangeMode === 'voluntary') { pinChangeMode = null; return; }
+      e.preventDefault();
+    });
+  }
+  const changePinBtn = document.getElementById('change-pin-btn');
+  if (changePinBtn) {
+    changePinBtn.addEventListener('click', function() { openVoluntaryPinChange(); });
+  }
+  const pinChangeCancel = document.getElementById('pin-change-cancel');
+  if (pinChangeCancel) {
+    pinChangeCancel.addEventListener('click', function() { closeForcedPinChange(); });
   }
   const pinChangeToggle = document.getElementById('pin-change-toggle');
   if (pinChangeToggle) {
@@ -20183,28 +20225,75 @@ function showPinChangeError(message) {
   if (box) box.textContent = message || "";
 }
 
-function openForcedPinChange() {
+// Reads the login dictionary, which is the one that follows the login language
+// switch. Falls back to the key so a missing entry is visible rather than blank.
+function getPinDialogText(key) {
+  return (loginTextLookup ? loginTextLookup(key) : null) || key;
+}
+
+// Dresses the one dialog for whichever job it is doing: a blocking first-login
+// change, or a change the member asked for from the menu.
+function applyPinChangeMode(mode) {
+  pinChangeMode = mode;
+  const voluntary = mode === "voluntary";
+  const setText = (id, key) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = getPinDialogText(key);
+  };
+  setText("pin-change-title", voluntary ? "pinChange.titleVoluntary" : "pinChange.title");
+  setText("pin-change-subtitle", voluntary ? "pinChange.subtitleVoluntary" : "pinChange.subtitle");
+
+  const currentRow = document.getElementById("pin-change-current-row");
+  if (currentRow) currentRow.hidden = !voluntary;
+  const logoutBtn = document.getElementById("pin-change-logout");
+  if (logoutBtn) logoutBtn.hidden = voluntary;
+  const cancelBtn = document.getElementById("pin-change-cancel");
+  if (cancelBtn) cancelBtn.hidden = !voluntary;
+}
+
+function openPinChange(mode) {
   const modal = document.getElementById("pin-change-modal");
-  if (!modal || modal.open) return;
+  if (!modal) return;
   showPinChangeError("");
-  const newInput = document.getElementById("pin-change-new");
-  const confirmInput = document.getElementById("pin-change-confirm");
-  if (newInput) newInput.value = "";
-  if (confirmInput) confirmInput.value = "";
-  try { modal.showModal(); } catch (e) { /* already open */ }
-  newInput?.focus();
+  for (const id of ["pin-change-current", "pin-change-new", "pin-change-confirm"]) {
+    const input = document.getElementById(id);
+    if (input) input.value = "";
+  }
+  applyPinChangeMode(mode);
+  if (!modal.open) {
+    try { modal.showModal(); } catch (e) { /* already open */ }
+  }
+  document.getElementById(mode === "voluntary" ? "pin-change-current" : "pin-change-new")?.focus();
+}
+
+function openForcedPinChange() {
+  openPinChange("forced");
+}
+
+// From the user menu. Closes the menu first so the dialog is not left behind an
+// open panel.
+function openVoluntaryPinChange() {
+  if (!isLoggedIn) return;
+  const menu = document.getElementById("access-menu");
+  if (menu) menu.open = false;
+  openPinChange("voluntary");
 }
 
 function closeForcedPinChange() {
   const modal = document.getElementById("pin-change-modal");
   if (modal?.open) modal.close();
+  pinChangeMode = null;
 }
 
-// Opened after login and after every render, so there is no window in which
-// a default-PIN account can be used.
+// Runs after login and after every render, so there is no window in which a
+// default-PIN account can be used. A dialog the member opened themselves is
+// left alone - only the forced one is opened and closed automatically.
 function enforcePinChange() {
-  if (needsPinChange()) openForcedPinChange();
-  else closeForcedPinChange();
+  if (needsPinChange()) {
+    if (pinChangeMode !== "voluntary") openForcedPinChange();
+    return;
+  }
+  if (pinChangeMode !== "voluntary") closeForcedPinChange();
 }
 
 // Rejects the PINs that give no protection: the shared starting PIN, all-same
@@ -20236,8 +20325,35 @@ async function submitForcedPinChange() {
     return;
   }
 
+  const voluntary = pinChangeMode === "voluntary";
+  const currentPin = normalizePin(document.getElementById("pin-change-current")?.value, "");
+  if (voluntary) {
+    if (!/^\d{6}$/.test(currentPin)) {
+      showPinChangeError(translateFromEnglishText("Enter your current PIN"));
+      return;
+    }
+    if (currentPin === newPin) {
+      showPinChangeError(translateFromEnglishText("The new PIN must be different from the current one"));
+      return;
+    }
+  }
+
   if (submitBtn) submitBtn.disabled = true;
   try {
+    // Someone changing their own PIN has to prove they know the old one -
+    // otherwise an unattended signed-in phone is enough to lock the owner out.
+    // A wrong PIN fails here and leaves the existing session untouched.
+    if (voluntary) {
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: buildMemberAuthEmail(currentUsername, currentOrgCode),
+        password: currentPin,
+      });
+      if (reauthError) {
+        showPinChangeError(translateFromEnglishText("Current PIN is not correct"));
+        return;
+      }
+    }
+
     // The PIN is the account password, so this is a real credential change.
     const { error } = await supabase.auth.updateUser({ password: newPin });
     if (error) throw error;
@@ -20254,7 +20370,8 @@ async function submitForcedPinChange() {
         fromUserId: user.id,
       });
     }
-    logAudit("PIN changed on first login", { objectType: "member", objectName: currentUsername || "" });
+    logAudit(voluntary ? "PIN changed" : "PIN changed on first login",
+      { objectType: "member", objectName: currentUsername || "" });
     persist();
     closeForcedPinChange();
     showAppMessage(translateFromEnglishText("Your PIN is set. Use it the next time you sign in."), "success", translateFromEnglishText("PIN"));
@@ -20291,6 +20408,10 @@ function updateAuthUI() {
   const loginModal = document.getElementById('login-modal');
 
   renderOrgSummary();
+
+  // Changing a PIN needs a session, so the button only exists once signed in.
+  const changePinBtn = document.getElementById('change-pin-btn');
+  if (changePinBtn) changePinBtn.style.display = isLoggedIn ? 'block' : 'none';
 
   if (isLoggedIn && logoutBtn && sessionSummary) {
     logoutBtn.style.display = 'block';
@@ -20744,17 +20865,20 @@ function updateFolderSyncUI() {
     return;
   }
   btn.style.display = 'block';
+  const t = translateFromEnglishText;
   if (folderSyncStatus === 'active') {
-    btn.textContent = '📁 Folder Sync: On (click to turn off)';
-    const folderName = folderSyncHandle?.name ? `"${folderSyncHandle.name}"` : 'your folder';
-    status.textContent = `Mirroring workspace into ${folderName}`
-      + (lastFolderSyncTime ? ` · last sync ${lastFolderSyncTime.toLocaleTimeString(getAppLocale())}` : '');
+    btn.textContent = `📁 ${t('Folder Sync: On (click to turn off)')}`;
+    const folderName = folderSyncHandle?.name ? `"${folderSyncHandle.name}"` : t('your folder');
+    // Built from translated fragments: the folder name and time are data, so
+    // the whole sentence can never be a dictionary key.
+    status.textContent = `${t('Mirroring workspace into')} ${folderName}`
+      + (lastFolderSyncTime ? ` · ${t('last sync')} ${lastFolderSyncTime.toLocaleTimeString(getAppLocale())}` : '');
   } else if (folderSyncStatus === 'paused') {
-    btn.textContent = '📁 Resume Folder Sync';
-    status.textContent = 'Click to allow access to your sync folder again.';
+    btn.textContent = `📁 ${t('Resume Folder Sync')}`;
+    status.textContent = t('Click to allow access to your sync folder again.');
   } else {
-    btn.textContent = '📁 Enable Folder Sync';
-    status.textContent = 'Mirror all projects into a folder on this computer.';
+    btn.textContent = `📁 ${t('Enable Folder Sync')}`;
+    status.textContent = t('Mirror all projects into a folder on this computer.');
   }
 }
 

@@ -52,15 +52,20 @@ const ok = (n, c, d) => results.push({ n, c, d: d || "" });
   }
 
   // ---- the two visible entry points to it ---------------------------------
-  const topGuide = await page.evaluate(`(() => {
-    const a = document.getElementById('user-guide-link');
+  // The guide lives in the user menu, not the top bar - one entry point inside
+  // the app, so the top bar stays down to Install and the language switch.
+  const menuGuide = await page.evaluate(`(() => {
+    document.getElementById('access-menu').open = true;
+    const a = document.querySelector('.guide-menu-link');
     if (!a) return null;
     const r = a.getBoundingClientRect();
     return { href: a.getAttribute('href'), visible: r.width > 0 && r.height > 0,
              label: (a.textContent||'').trim() };
   })()`);
-  ok("Top-bar guide button exists and is visible",
-     !!topGuide && topGuide.visible, topGuide ? topGuide.label : "missing");
+  ok("Guide link in the user menu exists and is visible",
+     !!menuGuide && menuGuide.visible, menuGuide ? menuGuide.label : "missing");
+  const noTopGuide = await page.evaluate(`!document.getElementById('user-guide-link')`);
+  ok("No duplicate guide button in the top bar", noTopGuide === true, "");
 
   const loginGuide = await page.evaluate(`(() => {
     const d = document.getElementById('login-modal');

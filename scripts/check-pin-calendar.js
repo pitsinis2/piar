@@ -229,12 +229,118 @@ const actAs = (who) => `
   ok("PIN messages are in Greek", /[Α-Ωα-ωίϊΐόάέύϋΰήώ]/.test(validation.short + validation.mismatch),
      validation.short + " / " + validation.mismatch);
 
+  // ---- voluntary PIN change from the user menu -----------------------------
+  // The login credential is a synthetic email; a change to how it is built
+  // would break every sign-in, so pin it down.
+  const authEmail = await page.evaluate(`({
+    normal: buildMemberAuthEmail('giannis', '2120002104'),
+    padded: buildMemberAuthEmail('  giannis  ', '  2120002104  '),
+    upper:  buildMemberAuthEmail('giannis', 'ABC1234567')
+  })`);
+  ok("Login email is still built the same way",
+     authEmail.normal === "giannis@2120002104.internal", authEmail.normal);
+  ok("Login email trims and lowercases like before",
+     authEmail.padded === "giannis@2120002104.internal" && authEmail.upper === "giannis@abc1234567.internal",
+     authEmail.padded + " / " + authEmail.upper);
+
+  const menuBtn = await page.evaluate(`(() => {
+    isLoggedIn = false; updateAuthUI();
+    const loggedOut = document.getElementById('change-pin-btn').style.display;
+    isLoggedIn = true; currentUsername = 'alice';
+    state.users.find(u => u.username === 'alice').mustChangePin = false;
+    updateAuthUI();
+    const loggedIn = document.getElementById('change-pin-btn').style.display;
+    return { loggedOut, loggedIn };
+  })()`);
+  ok("Change-PIN button is hidden when logged out", menuBtn.loggedOut === "none", JSON.stringify(menuBtn));
+  ok("Change-PIN button appears once signed in", menuBtn.loggedIn === "block", JSON.stringify(menuBtn));
+
+  const voluntary = await page.evaluate(`(() => {
+    document.getElementById('pin-change-modal').close();
+    openVoluntaryPinChange();
+    const modal = document.getElementById('pin-change-modal');
+    return {
+      open: modal.open,
+      mode: pinChangeMode,
+      currentShown: !document.getElementById('pin-change-current-row').hidden,
+      cancelShown: !document.getElementById('pin-change-cancel').hidden,
+      logoutShown: !document.getElementById('pin-change-logout').hidden,
+      title: document.getElementById('pin-change-title').textContent,
+      menuClosed: document.getElementById('access-menu').open === false
+    };
+  })()`);
+  ok("Menu opens the PIN dialog in voluntary mode",
+     voluntary.open && voluntary.mode === "voluntary", JSON.stringify(voluntary));
+  ok("Voluntary mode asks for the current PIN", voluntary.currentShown === true, "");
+  ok("Voluntary mode offers Cancel, not Log out",
+     voluntary.cancelShown === true && voluntary.logoutShown === false, "");
+  ok("Voluntary mode is titled for a change, in Greek",
+     /Αλλαγή/.test(voluntary.title), voluntary.title);
+  ok("Opening from the menu closes the menu", voluntary.menuClosed === true, "");
+
+  const voluntarySurvives = await page.evaluate(`(() => {
+    render();  // the forced gate must not close a dialog the user opened
+    const modal = document.getElementById('pin-change-modal');
+    return { stillOpen: modal.open, mode: pinChangeMode };
+  })()`);
+  ok("A render does not close the voluntary dialog",
+     voluntarySurvives.stillOpen === true, JSON.stringify(voluntarySurvives));
+
+  const voluntaryValidation = await page.evaluate(`(async () => {
+    const set = (id, v) => { document.getElementById(id).value = v; };
+    set('pin-change-current',''); set('pin-change-new','418902'); set('pin-change-confirm','418902');
+    await submitForcedPinChange();
+    const noCurrent = document.getElementById('pin-change-error').textContent;
+    set('pin-change-current','418902'); set('pin-change-new','418902'); set('pin-change-confirm','418902');
+    await submitForcedPinChange();
+    const same = document.getElementById('pin-change-error').textContent;
+    return { noCurrent, same };
+  })()`);
+  ok("Voluntary change requires the current PIN", !!voluntaryValidation.noCurrent, voluntaryValidation.noCurrent);
+  ok("Voluntary change refuses reusing the same PIN", !!voluntaryValidation.same, voluntaryValidation.same);
+
+  const escapable = await page.evaluate(`(() => {
+    const modal = document.getElementById('pin-change-modal');
+    const ev = new Event('cancel', { cancelable: true });
+    modal.dispatchEvent(ev);
+    return { prevented: ev.defaultPrevented, mode: pinChangeMode };
+  })()`);
+  ok("Esc CAN dismiss a voluntary change", escapable.prevented === false, JSON.stringify(escapable));
+
+  const cancelled = await page.evaluate(`(() => {
+    openVoluntaryPinChange();
+    closeForcedPinChange();
+    render();
+    const modal = document.getElementById('pin-change-modal');
+    return { open: modal.open, mode: pinChangeMode };
+  })()`);
+  ok("Cancelling closes it and it stays closed",
+     cancelled.open === false && cancelled.mode === null, JSON.stringify(cancelled));
+
+  // The blocking case must still block after all of the above.
+  const forcedStillBlocks = await page.evaluate(`(() => {
+    state.users.find(u => u.username === 'alice').mustChangePin = true;
+    render();
+    const modal = document.getElementById('pin-change-modal');
+    const ev = new Event('cancel', { cancelable: true });
+    modal.dispatchEvent(ev);
+    return { open: modal.open, mode: pinChangeMode, prevented: ev.defaultPrevented,
+             currentHidden: document.getElementById('pin-change-current-row').hidden };
+  })()`);
+  ok("Forced mode still blocks and refuses Esc",
+     forcedStillBlocks.open && forcedStillBlocks.mode === "forced" && forcedStillBlocks.prevented,
+     JSON.stringify(forcedStillBlocks));
+  ok("Forced mode does not ask for the current PIN",
+     forcedStillBlocks.currentHidden === true, "");
+
   // ---- the guide links ------------------------------------------------------
   const guide = await page.evaluate(`(() => {
     const links = Array.from(document.querySelectorAll('[data-guide-link]'));
     return links.map(a => ({ id: a.id || a.className, href: a.getAttribute('href') }));
   })()`);
-  ok("Three guide links exist", guide.length === 3, guide.map(g => g.id).join(" | "));
+  ok("Two guide links: login screen and user menu", guide.length === 2, guide.map(g => g.id).join(" | "));
+  const topBarGuide = await page.evaluate(`!!document.getElementById('user-guide-link')`);
+  ok("Guide button removed from the top bar", topBarGuide === false, "");
   ok("All guide links are versioned and identical",
      guide.length > 0 && guide.every(g => g.href === guide[0].href && /\?v=/.test(g.href)),
      guide[0] ? guide[0].href : "");
