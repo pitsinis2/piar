@@ -855,6 +855,15 @@ a.top-quick-btn {
   border: 1px solid var(--line);
   box-shadow: 0 20px 40px rgba(31, 42, 42, 0.14);
   isolation: isolate;
+  /* Without a ceiling the panel runs off the bottom of the screen and the
+     scroll goes to the page behind it, so Logout is unreachable. Stop short of
+     the bottom nav bar too, or the last button hides underneath it.
+     overscroll-behavior keeps the scroll inside the panel once it bottoms out. */
+  max-height: calc(100vh - 42px - var(--piar-bottom-nav-h, 0px));
+  max-height: calc(100dvh - 42px - var(--piar-bottom-nav-h, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .access-menu-panel .access-banner-copy {
@@ -7291,6 +7300,9 @@ button.area-comment-preview-thumb:focus-visible,
     right: 4px;
     width: min(280px, calc(100vw - 24px));
     padding: 12px;
+    /* Matches the smaller top offset above. */
+    max-height: calc(100vh - 40px - var(--piar-bottom-nav-h, 0px));
+    max-height: calc(100dvh - 40px - var(--piar-bottom-nav-h, 0px));
   }
   .inline-form { flex-direction: column; }
   .client-search-bar select,
