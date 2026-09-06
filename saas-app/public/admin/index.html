@@ -86,6 +86,31 @@
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
     .modal-overlay[hidden]{display:none}
     .modal{background:var(--surface);border:1px solid var(--border2);width:100%;max-width:480px;padding:32px;border-radius:8px}
+
+    /* Drag the bottom-right corner to resize. The tables inside can be wide,
+       so the default 680px is a starting size rather than a limit. */
+    .modal-resizable{
+      resize:both;overflow:auto;
+      width:680px;height:78vh;
+      min-width:340px;min-height:260px;
+      max-width:96vw;max-height:92vh;
+      padding-bottom:26px;      /* room for the grip, clear of the buttons */
+    }
+    /* The native handle is nearly invisible on a dark panel, so mark the
+       corner. pointer-events stays off it or it would swallow the drag. */
+    .modal-resizable::after{
+      content:"";position:sticky;bottom:-18px;left:100%;
+      display:block;width:14px;height:14px;margin-right:-8px;
+      pointer-events:none;
+      background:
+        linear-gradient(135deg,transparent 45%,var(--border2) 45%,var(--border2) 55%,transparent 55%),
+        linear-gradient(135deg,transparent 70%,var(--border2) 70%,var(--border2) 80%,transparent 80%);
+    }
+    @media (max-width:640px){
+      /* Not worth dragging on a phone; fill the screen instead. */
+      .modal-resizable{resize:none;width:100%;height:auto;padding-bottom:32px}
+      .modal-resizable::after{display:none}
+    }
     .modal-title{font-size:1.1rem;font-weight:700;margin-bottom:6px}
     .modal-sub{font-size:.83rem;color:var(--muted);margin-bottom:24px}
     .form-group{margin-bottom:16px}
@@ -287,7 +312,7 @@
 
 <!-- ORG DETAIL MODAL -->
 <div class="modal-overlay" id="editOrgModal" hidden>
-  <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+  <div class="modal modal-resizable" id="editOrgBox">
     <div class="modal-title">Organization Details</div>
     <div class="modal-sub">Code: <span class="code-pill" id="editOrgCodeLabel">—</span> &nbsp;(the code cannot be changed — all org data is linked to it)</div>
 
@@ -721,7 +746,41 @@ function openEditOrg(code) {
   document.getElementById("detailLogins").innerHTML = '<div class="empty-state" style="padding:16px">Loading…</div>';
   document.getElementById("detailUsers").innerHTML = '<div class="empty-state" style="padding:16px">Loading…</div>';
   document.getElementById("editOrgModal").removeAttribute("hidden");
+  restoreModalSize("editOrgBox");
   loadOrgDetail(code);
+}
+
+// Remember how big this window was dragged to, so it does not have to be
+// resized every single time it is opened. Per browser, like any window size.
+const MODAL_SIZE_KEY = "piar.admin.modalSize.";
+
+function restoreModalSize(id) {
+  const box = document.getElementById(id);
+  if (!box) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(MODAL_SIZE_KEY + id) || "null");
+    if (saved && saved.w > 300 && saved.h > 200) {
+      // Never restore something bigger than the screen it is opening on.
+      box.style.width = Math.min(saved.w, window.innerWidth - 24) + "px";
+      box.style.height = Math.min(saved.h, window.innerHeight - 24) + "px";
+    }
+  } catch (e) { /* storage unavailable or unreadable */ }
+
+  if (box.dataset.sizeWatched) return;
+  box.dataset.sizeWatched = "1";
+  if (typeof ResizeObserver === "undefined") return;
+  let timer = null;
+  new ResizeObserver(() => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      try {
+        localStorage.setItem(MODAL_SIZE_KEY + id, JSON.stringify({
+          w: Math.round(box.getBoundingClientRect().width),
+          h: Math.round(box.getBoundingClientRect().height),
+        }));
+      } catch (e) { /* storage unavailable */ }
+    }, 300);
+  }).observe(box);
 }
 
 async function loadOrgDetail(code) {
