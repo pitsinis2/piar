@@ -11199,7 +11199,15 @@ function populateProjectManagerSelect(project) {
   els.projectManagerUser.value = project?.projectManagerUserId || "";
 }
 
+// Selecting a row or switching a tab calls this directly, outside
+// render(), so the redrawn markup never met the language pass and came
+// back in English. The wrapper applies it on every path.
 function renderProjects() {
+  renderProjectsContent();
+  applyLanguageToDocument();
+}
+
+function renderProjectsContent() {
   const visibleProjects = getVisibleProjects(state, false);
   const baseProjects = showAssignedProjectsOnly
     ? visibleProjects.filter((project) => isAssignedToProject(project, state.currentUserId))
@@ -11684,8 +11692,8 @@ function renderClientDetail(client) {
               const statusIcon = isCompleted ? "&#10003;" : "&#9679;";
               const statusLabel = isCompleted ? "Completed" : "Active";
               const secondaryDate = isCompleted
-                ? `Finished: ${formatDateDisplay(project.endDate || project.startDate)}`
-                : `Start: ${formatDateDisplay(project.startDate)}`;
+                ? `${translateFromEnglishText("Finished")}: ${formatDateDisplay(project.endDate || project.startDate)}`
+                : `${translateFromEnglishText("Start")}: ${formatDateDisplay(project.startDate)}`;
               return `
                 <button class="client-project-shortcut" type="button" data-project-id="${escapeHtml(project.id)}">
                   <span class="client-project-shortcut-main">
@@ -11758,7 +11766,15 @@ function renderClientDetail(client) {
   }
 }
 
+// Selecting a row or switching a tab calls this directly, outside
+// render(), so the redrawn markup never met the language pass and came
+// back in English. The wrapper applies it on every path.
 function renderClients() {
+  renderClientsContent();
+  applyLanguageToDocument();
+}
+
+function renderClientsContent() {
   els.clientList.innerHTML = "";
   renderClientFormState();
   const activeClients = state.clients.filter((client) => !client.archivedAt);
@@ -12364,7 +12380,15 @@ function renderMemberDetail(member, project = getCurrentProject()) {
   }
 }
 
+// Selecting a row or switching a tab calls this directly, outside
+// render(), so the redrawn markup never met the language pass and came
+// back in English. The wrapper applies it on every path.
 function renderMembers() {
+  renderMembersContent();
+  applyLanguageToDocument();
+}
+
+function renderMembersContent() {
   const project = getCurrentProject();
   const initialSetupMode = IS_EMPTY_BOOTSTRAP && getActiveUsers().length === 0;
   els.memberList.innerHTML = "";
@@ -14301,7 +14325,7 @@ function buildPlannerWeekProjectCard(project, dateValue) {
         <strong>${escapeHtml(getProjectDisplayName(project))}</strong>
         <span>${escapeHtml(formatPlannerDate(project.startDate || dateValue, { day: "numeric", month: "short" }))}${project.endDate ? ` - ${escapeHtml(formatPlannerDate(project.endDate, { day: "numeric", month: "short" }))}` : ""}</span>
       </div>
-      <span class="meta-pill">${assignments.length} planned</span>
+      <span class="meta-pill">${assignments.length} ${translateFromEnglishText("planned")}</span>
     </div>
   `;
   card.append(body, footer);
@@ -14547,7 +14571,15 @@ function renderPlanner() {
   els.plannerBoard.append(board);
 }
 
+// Selecting a row or switching a tab calls this directly, outside
+// render(), so the redrawn markup never met the language pass and came
+// back in English. The wrapper applies it on every path.
 function renderWorkspace() {
+  renderWorkspaceContent();
+  applyLanguageToDocument();
+}
+
+function renderWorkspaceContent() {
   const project = getCurrentProject();
   if (!project) return;
   const draftLocked = isDraftProjectLocked(project);
@@ -16354,9 +16386,9 @@ function buildProjectDetailsTeamsSection(project, canManage, areaFilter = null) 
           teamId: team.id,
         } : {})).join("") || `<span class="meta-pill">No area linked</span>`}</div>
         <div class="meta-row">
-          <span class="meta-pill">Tasks: ${taskCount}</span>
-          <span class="meta-pill">Files: ${files.length}</span>
-          <span class="meta-pill">Pics: ${photos.length}</span>
+          <span class="meta-pill">${translateFromEnglishText("Tasks")}: ${taskCount}</span>
+          <span class="meta-pill">${translateFromEnglishText("Files")}: ${files.length}</span>
+          <span class="meta-pill">${translateFromEnglishText("Pics")}: ${photos.length}</span>
         </div>
         ${canSeeUploads
           ? `${previewFiles ? `<div class="meta-row">${previewFiles}</div>` : ""}${previewPhotos ? `<div class="progress-strip">${previewPhotos}</div>` : `<p class="muted">No team picture updates yet.</p>`}`

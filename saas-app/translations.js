@@ -1086,6 +1086,18 @@ window.APP_TRANSLATIONS = {
     "This account is no longer active. Contact your administrator.":
       "Ο λογαριασμός δεν είναι πλέον ενεργός. Επικοινωνήστε με τον διαχειριστή σας.",
     "Reference": "Κωδικός",
+    "Finished": "Ολοκληρώθηκε",
+    "planned": "προγραμματισμένα",
+    "No area linked": "Δεν έχει συνδεθεί χώρος",
+    "No team picture updates yet.": "Δεν υπάρχουν ακόμη φωτογραφίες ομάδας.",
+    "Add Pics": "Προσθήκη φωτογραφιών",
+    "My team": "Η ομάδα μου",
+    "Drag a team here": "Σύρετε μια ομάδα εδώ",
+    "Add notes for this area.": "Προσθέστε σημειώσεις για αυτόν τον χώρο.",
+    "Add files for this area.": "Προσθέστε αρχεία για αυτόν τον χώρο.",
+    "Add photos for this area.": "Προσθέστε φωτογραφίες για αυτόν τον χώρο.",
+    "Use the + button in the left Teams rail to create a new team. Open a team here to see members, linked areas, files, and progress.":
+      "Χρησιμοποιήστε το κουμπί + στη στήλη Ομάδων αριστερά για να δημιουργήσετε νέα ομάδα. Ανοίξτε μια ομάδα εδώ για να δείτε μέλη, χώρους, αρχεία και πρόοδο.",
     "Ref": "Κωδ.",
     "By": "Από",
     "All equipment inside will move to \"No category\".":
