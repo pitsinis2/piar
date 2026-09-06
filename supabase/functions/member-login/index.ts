@@ -49,7 +49,12 @@ serve(async (req) => {
       .eq("supabase_user_id", callerData.user.id)
       .maybeSingle();
     if (memberErr || !caller) return json({ error: "Caller is not a team member" }, 403);
-    if (caller.role !== "admin") return json({ error: "Only admins can manage member logins" }, 403);
+    // Authority comes from this row, never from a role the client claims: the
+    // browser could say anything. team_members only stores admin or worker, and
+    // an org's developers are provisioned on the admin side of that split.
+    if (caller.role !== "admin") {
+      return json({ error: "Only admins can manage member logins" }, 403);
+    }
 
     const orgCode = String(caller.org_code || "").toUpperCase();
     const body = await req.json();

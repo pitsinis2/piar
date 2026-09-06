@@ -2215,8 +2215,12 @@ function setCurrentNavViewOrder(order) {
   user.navViewOrder = normalizeNavViewOrder(order);
 }
 
+// Developer is a superset of admin: same permission set, plus the developer
+// preview. Every admin gate answers yes for it, so "developer" really is the
+// top role rather than a sidegrade that quietly loses admin-only screens.
 function isAdmin() {
-  return getCurrentRole() === "admin";
+  const role = getCurrentRole();
+  return role === "admin" || role === "developer";
 }
 
 function isDeveloper() {
@@ -2230,21 +2234,21 @@ function isManager() {
 function canManageProject(project = getCurrentProject()) {
   if (!project) return false;
   if (!hasPermission("manageProjectContent")) return false;
-  if (getCurrentRole() === "admin") return true;
+  if (isAdmin()) return true;
   return isAssignedToProject(project, state.currentUserId);
 }
 
 function canWorkInProject(project = getCurrentProject()) {
   if (!project) return false;
   if (hasPermission("manageProjectContent") || hasPermission("uploadFilesPhotos") || hasPermission("viewOwnAssignedTasks")) {
-    if (getCurrentRole() === "admin") return true;
+    if (isAdmin()) return true;
   }
   return isAssignedToProject(project, state.currentUserId);
 }
 
 function canAccessTeamFolder(folder = getSelectedFolder(), project = getCurrentProject()) {
   if (!folder || !project) return false;
-  if (getCurrentRole() === "admin" || canManageProject(project)) return true;
+  if (isAdmin() || canManageProject(project)) return true;
   return isUserInvolvedInTeam(folder);
 }
 
@@ -7486,7 +7490,7 @@ async function createMemberLoginAccount(user) {
         action: "create",
         username: user.username,
         pin: "123456",
-        role: user.role === "admin" ? "admin" : "user",
+        role: (user.role === "admin" || user.role === "developer") ? "admin" : "user",
       }),
     });
     let result = null;
