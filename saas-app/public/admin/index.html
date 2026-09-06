@@ -330,6 +330,9 @@
     <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 10px">App Users (inside workspace)</div>
     <div class="table-wrap" id="detailUsers"><div class="empty-state" style="padding:16px">Loading…</div></div>
 
+    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 10px">Login Activity</div>
+    <div class="table-wrap" id="detailSessions"><div class="empty-state" style="padding:16px">Loading…</div></div>
+
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="sendCredsByEmail()">✉ Send Credentials by Email</button>
       <button class="btn btn-ghost" onclick="closeEditOrg()" style="margin-left:auto">Close</button>
@@ -350,7 +353,7 @@
       </div>
       <div class="cred-item">
         <div class="cred-label">App URL</div>
-        <div class="cred-value">https://piar-jet.vercel.app</div>
+        <div class="cred-value" id="credAppUrl"></div>
       </div>
       <div class="cred-item">
         <div class="cred-label">Admin Username</div>
@@ -598,7 +601,14 @@ function showPage(id) {
   if (id === "dashboard") loadDashboard();
 }
 
+// The live app. This used to be spelled out as the old Vercel preview URL in
+// four separate places, so every credentials email pointed clients at the wrong
+// address. One constant now, used everywhere.
+const APP_URL = "https://piar.opexpi.com";
 let allOrgs = [];
+// The org detail currently loaded, so the credentials email can use the real
+// admin username instead of a hardcoded guess.
+let currentOrgDetail = null;
 
 async function loadOrgs() {
   const { data } = await sb.from("organizations").select("*").order("created_at", { ascending: false });
@@ -717,6 +727,7 @@ function openEditOrg(code) {
 async function loadOrgDetail(code) {
   try {
     const info = await adminFn({ action: "info", orgCode: code });
+    currentOrgDetail = info;
 
     // Usage cards + last activity
     const c = info.counts || {};
@@ -772,9 +783,17 @@ async function loadOrgDetail(code) {
           <td style="font-size:.76rem;color:${u.loginEnabled === false ? "var(--red)" : "var(--green)"}">${u.loginEnabled === false ? "✕ Off" : "✓ On"}</td>
           <td style="font-size:.76rem;color:${u.mustChangePin ? "var(--orange)" : "var(--green)"}">${u.mustChangePin ? "⚠ Default" : "✓ Changed"}</td>
           <td style="font-size:.76rem;color:var(--muted)">${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never"}</td>
-          <td><button class="btn btn-ghost btn-sm" onclick="resetInternalPin('${u.id}', '${u.name.replace(/'/g, "")}')">Reset PIN</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="resetInternalPin('${u.id}', '${u.name.replace(/'/g, "")}')">Reset PIN</button>
+            ${hasLogin(u, info.logins) ? "" :
+              `<button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="createLoginFor('${u.id}', '${(u.username || "").replace(/'/g, "")}', '${u.name.replace(/'/g, "")}')">+ Login</button>`}
+          </td>
         </tr>`).join("")}</tbody></table>`;
     }
+
+    // Login activity is fetched separately: it does an IP lookup per address,
+    // and a slow one should not hold up everything above.
+    loadOrgSessions(code);
   } catch (e) {
     document.getElementById("detailUsage").innerHTML = `<div class="empty-state" style="padding:16px">Could not load: ${e.message}</div>`;
     document.getElementById("detailLogins").innerHTML = "";
@@ -793,9 +812,77 @@ async function resetOrgLoginPin(username) {
     document.getElementById("credOrgCode").textContent = editingOrgCode;
     document.getElementById("credUsername").textContent = username;
     document.getElementById("credPin").textContent = newPin;
+    document.getElementById("credAppUrl").textContent = APP_URL;
     document.getElementById("credentialsModal").removeAttribute("hidden");
   } catch (e) {
     toast("Error: " + e.message, "error");
+  }
+}
+
+// An app user has a login when a login account carries the same username.
+function hasLogin(user, logins) {
+  const u = String(user.username || "").trim().toLowerCase();
+  if (!u) return false;
+  return (logins || []).some(l => String(l.username || "").trim().toLowerCase() === u);
+}
+
+// Grant a login to someone who was created in the app without one, or who had
+// theirs deleted. Same action the app uses when it provisions a member.
+async function createLoginFor(userId, username, name) {
+  if (!username) {
+    toast("This person has no username yet — set one in the app first", "error");
+    return;
+  }
+  const pin = prompt(
+    `Create a login for "${name}" with username "${username}".\n\n` +
+    `Enter their starting PIN (6 digits), or leave empty for 123456.\n` +
+    `They must replace it on first login.`
+  );
+  if (pin === null) return;
+  const newPin = pin.trim() || "123456";
+  if (!/^\d{6}$/.test(newPin)) { toast("PIN must be 6 digits", "error"); return; }
+  try {
+    await adminFn({ action: "createMemberLogin", orgCode: editingOrgCode, userId, username, pin: newPin });
+    toast(`✓ Login created — ${username} / ${newPin}`, "success");
+    loadOrgDetail(editingOrgCode);
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+function formatDuration(minutes) {
+  if (!minutes) return "—";
+  if (minutes < 60) return minutes + " min";
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  if (h < 24) return m ? `${h}h ${m}m` : `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d ${h % 24}h`;
+}
+
+async function loadOrgSessions(code) {
+  const el = document.getElementById("detailSessions");
+  try {
+    const { sessions } = await adminFn({ action: "sessions", orgCode: code });
+    if (!sessions?.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:16px">No active sessions. Signed-out sessions are not kept.</div>';
+      return;
+    }
+    el.innerHTML = `<table>
+      <thead><tr><th>Username</th><th>Signed in</th><th>Last seen</th><th>Duration</th><th>Where from</th><th>Device</th></tr></thead>
+      <tbody>${sessions.map(s => `<tr>
+        <td><span class="code-pill">${s.username}</span></td>
+        <td style="font-size:.78rem">${new Date(s.loginAt).toLocaleString()}</td>
+        <td style="font-size:.78rem;color:var(--muted)">${new Date(s.lastSeenAt).toLocaleString()}</td>
+        <td style="font-size:.78rem">${formatDuration(s.minutes)}</td>
+        <td style="font-size:.78rem">${s.place ? s.place + "<br>" : ""}<span style="color:var(--muted);font-family:monospace;font-size:.72rem">${s.ip || "—"}</span></td>
+        <td style="font-size:.78rem;color:var(--muted)">${s.device || "—"}</td>
+      </tr>`).join("")}</tbody></table>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:6px">
+        Duration is from sign-in to the last time the session was seen, so an open session keeps growing.
+        Location is estimated from the IP address and can be off, especially on mobile networks.
+      </div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state" style="padding:16px">Could not load: ${e.message}</div>`;
   }
 }
 
@@ -832,15 +919,29 @@ function sendCredsByEmail() {
   const org = allOrgs.find(o => o.code === editingOrgCode);
   const email = org?.contact_email || "";
   const name = org?.name || "";
+
+  // The username used to be hardcoded as "admin" and the PIN as "123456",
+  // which is wrong for every organisation now that both are chosen per client.
+  // The real admin username comes from the org's own login accounts; the PIN
+  // is never in here, because it is hashed and cannot be read back - and a
+  // username and its PIN should not travel in the same message anyway.
+  const admins = (currentOrgDetail?.logins || []).filter(l => l.role === "admin" && l.active !== false);
+  const adminUser = admins[0]?.username || "";
+  if (!adminUser) {
+    toast("No admin login found for this organisation", "error");
+    return;
+  }
+
   const subject = encodeURIComponent("piAR — Στοιχεία πρόσβασης / Access credentials");
   const body = encodeURIComponent(
     "Αγαπητέ συνεργάτη " + name + ",\n\n" +
     "Ο λογαριασμός σας στο piAR είναι έτοιμος. Τα στοιχεία σύνδεσης:\n\n" +
-    "Εφαρμογή:            https://piar-jet.vercel.app\n" +
+    "Εφαρμογή:            " + APP_URL + "\n" +
     "Κωδικός Οργανισμού:  " + editingOrgCode + "\n" +
-    "Όνομα χρήστη:        admin\n" +
-    "Προσωρινό PIN:       123456\n\n" +
-    "Παρακαλούμε αλλάξτε το PIN κατά την πρώτη σύνδεση.\n\n" +
+    "Όνομα χρήστη:        " + adminUser + "\n" +
+    "PIN:                 (σας δόθηκε ξεχωριστά)\n\n" +
+    "Θα σας ζητηθεί να ορίσετε το δικό σας PIN κατά την πρώτη σύνδεση.\n" +
+    "Οδηγός χρήσης: " + APP_URL + "/piAR-Odigos-Xrisis.pdf\n\n" +
     "Με εκτίμηση,\nFotis Pitsinis\npiAR"
   );
   window.location.href = "mailto:" + email + "?subject=" + subject + "&body=" + body;
@@ -943,6 +1044,7 @@ async function submitCreateOrg() {
     document.getElementById("credOrgCode").textContent = result.orgCode;
     document.getElementById("credUsername").textContent = result.username;
     document.getElementById("credPin").textContent = result.pin;
+    document.getElementById("credAppUrl").textContent = APP_URL;
     document.getElementById("credentialsModal").removeAttribute("hidden");
     toast("✓ Organization " + result.orgCode + " created", "success");
     loadDashboard();
@@ -958,7 +1060,7 @@ function copyCredentials() {
   const code = document.getElementById("credOrgCode").textContent;
   const user = document.getElementById("credUsername").textContent;
   const pin = document.getElementById("credPin").textContent;
-  const text = `Organization Code: ${code}\nApp URL: https://piar-jet.vercel.app\nAdmin Username: ${user}\nDefault PIN: ${pin}`;
+  const text = `Organization Code: ${code}\nApp URL: ${APP_URL}\nAdmin Username: ${user}\nDefault PIN: ${pin}`;
   navigator.clipboard.writeText(text).then(() => toast("✓ Copied to clipboard", "success"));
 }
 
@@ -973,7 +1075,7 @@ function emailCredentials() {
   const body = encodeURIComponent(
     "Αγαπητέ συνεργάτη " + name + ",\n\n" +
     "Ο λογαριασμός σας στο piAR είναι έτοιμος. Τα στοιχεία σύνδεσης:\n\n" +
-    "Εφαρμογή:            https://piar-jet.vercel.app\n" +
+    "Εφαρμογή:            " + APP_URL + "\n" +
     "Κωδικός Οργανισμού:  " + code + "\n" +
     "Όνομα χρήστη:        " + user + "\n" +
     "Προσωρινό PIN:       " + pin + "\n\n" +

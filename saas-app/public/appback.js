@@ -18666,6 +18666,11 @@ function ensureWorkspaceUserForLogin(member, loginPin) {
     workspaceUser.mustChangePin = (loginPin === "123456");
   }
 
+  // This is the only place a real sign-in passes through. It used to be set
+  // only by the local user switcher, so "Last login" read Never for everyone
+  // no matter how often they signed in.
+  workspaceUser.lastLoginAt = new Date().toISOString();
+
   state.currentUserId = workspaceUser.id;
 }
 

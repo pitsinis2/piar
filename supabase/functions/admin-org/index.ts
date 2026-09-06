@@ -36,6 +36,72 @@ function isAllowedUsername(username: string): boolean {
   return !RESERVED_USERNAMES.has(username);
 }
 
+// Points a workspace user's auth link at a value, or clears it. The app uses
+// this link to decide whether someone already has a login, so it has to track
+// what actually exists.
+// deno-lint-ignore no-explicit-any
+async function setWorkspaceAuthLink(supabase: any, orgCode: string, username: string, authUserId: string | null) {
+  const { data: stateRow } = await supabase
+    .from("org_state").select("state").eq("org_code", orgCode).maybeSingle();
+  if (!stateRow?.state) return;
+
+  const state = stateRow.state as Record<string, unknown>;
+  const users = Array.isArray(state.users) ? (state.users as any[]) : [];
+  const wanted = username.trim().toLowerCase();
+  let touched = false;
+  for (const u of users) {
+    if (String(u.username || "").trim().toLowerCase() !== wanted) continue;
+    if (authUserId) u.authUserId = authUserId;
+    else delete u.authUserId;
+    touched = true;
+  }
+  if (!touched) return;
+
+  await supabase.from("org_state")
+    .update({ state, updated_at: new Date().toISOString() })
+    .eq("org_code", orgCode);
+}
+
+// deno-lint-ignore no-explicit-any
+function clearWorkspaceAuthLink(supabase: any, orgCode: string, username: string) {
+  return setWorkspaceAuthLink(supabase, orgCode, username, null);
+}
+
+// City and country for an IP, best effort. A failed or slow lookup must never
+// hold up the panel, so anything unexpected just returns an empty label and the
+// address itself is still shown.
+async function lookupPlace(ip: string): Promise<string> {
+  if (!ip || ip === "127.0.0.1" || ip.startsWith("192.168.") || ip.startsWith("10.")) return "";
+  try {
+    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}?fields=success,city,country_code`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    if (!data?.success) return "";
+    return [data.city, data.country_code].filter(Boolean).join(", ");
+  } catch {
+    return "";
+  }
+}
+
+// A user agent string is unreadable in a table; this keeps the part that
+// answers "which machine was this?".
+function describeDevice(ua: string | null): string {
+  if (!ua) return "";
+  const os = /Windows/i.test(ua) ? "Windows"
+    : /Android/i.test(ua) ? "Android"
+    : /iPhone|iPad|iOS/i.test(ua) ? "iOS"
+    : /Mac OS X|Macintosh/i.test(ua) ? "Mac"
+    : /Linux/i.test(ua) ? "Linux" : "";
+  const browser = /Edg\//i.test(ua) ? "Edge"
+    : /OPR\/|Opera/i.test(ua) ? "Opera"
+    : /Chrome\//i.test(ua) ? "Chrome"
+    : /Firefox\//i.test(ua) ? "Firefox"
+    : /Safari\//i.test(ua) ? "Safari" : "";
+  return [os, browser].filter(Boolean).join(" · ");
+}
+
 function usernameRejectionReason(username: string): string {
   if (RESERVED_USERNAMES.has(username)) {
     return `"${username}" is too easy to guess - choose a name specific to the person`;
@@ -196,6 +262,41 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    // ── LOGIN ACTIVITY: when, from where, for how long ───────────────
+    if (action === "sessions") {
+      if (!orgCode) return json({ error: "Missing orgCode" }, 400);
+
+      const { data: rows, error: sessErr } = await supabase
+        .rpc("org_login_sessions", { p_org_code: orgCode });
+      if (sessErr) return json({ error: "sessions: " + sessErr.message }, 500);
+
+      const sessions = (rows ?? []) as Array<{
+        username: string; ip: string | null; user_agent: string | null;
+        login_at: string; last_seen_at: string;
+      }>;
+
+      // One lookup per distinct address, not per session.
+      const places = new Map<string, string>();
+      for (const ip of new Set(sessions.map((s) => s.ip).filter(Boolean) as string[])) {
+        places.set(ip, await lookupPlace(ip));
+      }
+
+      return json({
+        sessions: sessions.map((s) => ({
+          username: s.username,
+          ip: s.ip,
+          device: describeDevice(s.user_agent),
+          loginAt: s.login_at,
+          lastSeenAt: s.last_seen_at,
+          minutes: Math.max(
+            0,
+            Math.round((Date.parse(s.last_seen_at) - Date.parse(s.login_at)) / 60000),
+          ),
+          place: s.ip ? (places.get(s.ip) || "") : "",
+        })),
+      });
+    }
+
     // ── DELETE a login account (auth user + team_members row) ────────
     if (action === "deleteLogin") {
       const username = String(body.username || "").trim().toLowerCase();
@@ -237,6 +338,11 @@ serve(async (req) => {
         }
       }
 
+      // The workspace record still points at the account that just went away.
+      // Clearing the link is what lets a login be granted again later - the app
+      // treats "has a link" as "already has a login" and would skip them.
+      await clearWorkspaceAuthLink(supabase, orgCode, username);
+
       return json({ success: true, message: `Login "${username}" deleted` });
     }
 
@@ -273,6 +379,10 @@ serve(async (req) => {
         { onConflict: "org_code,username" }
       );
       if (memberErr) return json({ error: "team_members: " + memberErr.message }, 500);
+
+      // Link the workspace record to the new credential straight away, so the
+      // panel shows them as connected and the app does not create a second one.
+      await setWorkspaceAuthLink(supabase, orgCode, username, authUser.user.id);
 
       return json({ success: true, message: `Login created for ${username}` });
     }

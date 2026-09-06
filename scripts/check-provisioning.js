@@ -89,12 +89,55 @@ ok("deleteLogin removes the credential too, not just the row",
 ok("The panel asks before deleting a login",
    /deleteOrgLogin[\s\S]{0,400}confirm\(/.test(PANEL), "");
 
+// ---- granting a login after the fact ---------------------------------------
+const APP = fs.readFileSync(ROOT + "/saas-app/appback.js", "utf8");
+const extra = [];
+const ok2 = (n, c, d) => extra.push({ n, c, d: d || "" });
+
+ok2("Deleting a login clears the workspace link, so it can be granted again",
+   /clearWorkspaceAuthLink\(supabase, orgCode, username\)/.test(FN), "");
+ok2("Creating a login writes the link back",
+   /setWorkspaceAuthLink\(supabase, orgCode, username, authUser\.user\.id\)/.test(FN), "");
+ok2("The panel offers a +Login button for users without one",
+   /createLoginFor\(/.test(PANEL) && /hasLogin\(u, info\.logins\)/.test(PANEL), "");
+
+// ---- the credentials email -------------------------------------------------
+ok2("No old vercel address anywhere in the panel",
+   !/piar-jet\.vercel\.app/.test(PANEL), "");
+ok2("The app address is defined once", (PANEL.match(/const APP_URL = /g) || []).length === 1, "");
+ok2("The app address points at the live domain",
+   /const APP_URL = "https:\/\/piar\.opexpi\.com"/.test(PANEL), "");
+ok2("The email no longer hardcodes the username \"admin\"",
+   !/Όνομα χρήστη:\s*admin\n/.test(PANEL), "");
+ok2("The email no longer hardcodes PIN 123456",
+   !/Προσωρινό PIN:\s*123456\n/.test(PANEL), "");
+ok2("The email takes the username from the org's real admin login",
+   /currentOrgDetail\?\.logins/.test(PANEL), "");
+
+// ---- last login ------------------------------------------------------------
+ok2("A real sign-in records the last login",
+   /workspaceUser\.lastLoginAt = new Date\(\)\.toISOString\(\)/.test(APP), "");
+ok2("The sessions action exists", /action === "sessions"/.test(FN), "");
+ok2("Sessions report duration", /minutes: Math\.max\(/.test(FN), "");
+ok2("Sessions report where from", /lookupPlace\(ip\)/.test(FN), "");
+ok2("Sessions report the device", /describeDevice\(s\.user_agent\)/.test(FN), "");
+ok2("A slow location lookup cannot hang the panel",
+   /AbortSignal\.timeout\(\d+\)/.test(FN), "");
+ok2("Private addresses are not sent to the lookup service",
+   /192\.168\.|127\.0\.0\.1/.test(FN), "");
+ok2("The panel explains that duration and location are approximate",
+   /keeps growing/.test(PANEL) && /can be off/.test(PANEL), "");
+
 let pass = 0, fail = 0;
-console.log("\nACCOUNT PROVISIONING");
-for (const r of results) {
-  if (r.c) { pass++; console.log("  PASS  " + r.n + (r.d ? "  (" + r.d + ")" : "")); }
-  else { fail++; console.log("  FAIL  " + r.n + (r.d ? "\n          " + r.d : "")); }
-}
+const report = (title, list) => {
+  console.log("\n" + title);
+  for (const r of list) {
+    if (r.c) { pass++; console.log("  PASS  " + r.n + (r.d ? "  (" + r.d + ")" : "")); }
+    else { fail++; console.log("  FAIL  " + r.n + (r.d ? "\n          " + r.d : "")); }
+  }
+};
+report("ACCOUNT PROVISIONING", results);
+report("LOGINS, EMAIL AND LOGIN ACTIVITY", extra);
 console.log("\n====================================================");
 console.log(`  ${pass} passed, ${fail} failed, ${pass + fail} total\n`);
 process.exit(fail ? 1 : 0);
