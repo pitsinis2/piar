@@ -24,6 +24,25 @@ function getEnv(key: string): string {
   return value;
 }
 
+// Names anyone would try first. An org login is admin-level, and the org code
+// is not a secret, so a guessable username is most of the way into a tenant.
+const RESERVED_USERNAMES = new Set([
+  "admin", "administrator", "root", "superuser", "sysadmin",
+  "developer", "dev", "support", "test", "tester", "demo", "user", "guest",
+]);
+
+function isAllowedUsername(username: string): boolean {
+  if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) return false;
+  return !RESERVED_USERNAMES.has(username);
+}
+
+function usernameRejectionReason(username: string): string {
+  if (RESERVED_USERNAMES.has(username)) {
+    return `"${username}" is too easy to guess - choose a name specific to the person`;
+  }
+  return "Username must be 3-30 characters: letters, numbers, dot, dash or underscore";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("OK", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -177,12 +196,61 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    // ── DELETE a login account (auth user + team_members row) ────────
+    if (action === "deleteLogin") {
+      const username = String(body.username || "").trim().toLowerCase();
+      if (!orgCode || !username) return json({ error: "Missing orgCode or username" }, 400);
+
+      const { data: rows, error: listErr } = await supabase
+        .from("team_members")
+        .select("username, role, active, supabase_user_id")
+        .eq("org_code", orgCode);
+      if (listErr) return json({ error: "team_members: " + listErr.message }, 500);
+
+      const target = (rows ?? []).find((r) => r.username === username);
+      if (!target) return json({ error: "Login account not found" }, 404);
+
+      // Never leave an organisation with no way in.
+      const otherAdmins = (rows ?? []).filter(
+        (r) => r.username !== username && r.role === "admin" && r.active !== false,
+      );
+      if (target.role === "admin" && otherAdmins.length === 0) {
+        return json({
+          error: "This is the only admin login for the organisation - create another one first",
+        }, 409);
+      }
+
+      const { error: delMemberErr } = await supabase
+        .from("team_members")
+        .delete()
+        .eq("org_code", orgCode)
+        .eq("username", username);
+      if (delMemberErr) return json({ error: "team_members: " + delMemberErr.message }, 500);
+
+      // The credential itself, so the account cannot sign in again.
+      if (target.supabase_user_id) {
+        const { error: delAuthErr } = await supabase.auth.admin.deleteUser(target.supabase_user_id);
+        if (delAuthErr) {
+          return json({
+            error: "Login row removed, but the auth account remained: " + delAuthErr.message,
+          }, 500);
+        }
+      }
+
+      return json({ success: true, message: `Login "${username}" deleted` });
+    }
+
     // ── CREATE MEMBER LOGIN: add org-level login credentials for a workspace member
     if (action === "createMemberLogin") {
       const userId = String(body.userId || "");
       const username = String(body.username || "").trim().toLowerCase();
       const pin = String(body.pin || "123456");
       if (!orgCode || !userId || !username) return json({ error: "Missing orgCode, userId, or username" }, 400);
+      // Same naming rules as the org admin login: a member login is still a way
+      // into the tenant, so no guessable names here either.
+      if (!isAllowedUsername(username)) {
+        return json({ error: usernameRejectionReason(username) }, 400);
+      }
       if (!/^\d{6}$/.test(pin)) return json({ error: "PIN must be 6 digits" }, 400);
 
       const syntheticEmail = `${username}@${orgCode.toLowerCase()}.internal`;
@@ -215,16 +283,21 @@ serve(async (req) => {
       const type = body.type === "demo" ? "demo" : "production";
       const plan = String(body.plan || "standard");
       const contactEmail = String(body.contactEmail || "").trim() || null;
-      const username = String(body.username || "admin").trim().toLowerCase();
-      const pin = String(body.pin || "123456");
-      const devUsername = String(body.devUsername || "developer").trim().toLowerCase();
-      const devPin = String(body.devPin || "123456");
+      // No fallbacks here on purpose. These used to default to "admin" and
+      // "123456", which meant a guessable admin account could be created
+      // without anyone choosing one. The caller must state both.
+      const username = String(body.username || "").trim().toLowerCase();
+      const pin = String(body.pin || "");
 
       // Organisation codes are 10 digits, no letter prefix.
       if (!/^\d{10}$/.test(orgCode)) {
         return json({ error: "Code must be exactly 10 digits" }, 400);
       }
       if (!name) return json({ error: "Organization name is required" }, 400);
+      if (!username) return json({ error: "Admin username is required" }, 400);
+      if (!isAllowedUsername(username)) {
+        return json({ error: usernameRejectionReason(username) }, 400);
+      }
       if (!/^\d{6}$/.test(pin)) return json({ error: "PIN must be 6 digits" }, 400);
 
       const { data: existing } = await supabase
@@ -267,28 +340,12 @@ serve(async (req) => {
       ]);
       if (memberErr) return json({ error: "team_members: " + memberErr.message }, 500);
 
-      // 5. Create developer user for debugging (if devUsername provided)
-      if (devUsername && devPin) {
-        const devEmail = `${devUsername}@${orgCode.toLowerCase()}.internal`;
-        const { data: devAuthUser, error: devAuthErr } = await supabase.auth.admin.createUser({
-          email: devEmail,
-          password: devPin,
-          email_confirm: true,
-        });
-        if (!devAuthErr && devAuthUser) {
-          await supabase.from("team_members").insert([
-            {
-              org_code: orgCode,
-              supabase_user_id: devAuthUser.user.id,
-              username: devUsername,
-              email: null,
-              role: "admin",
-            },
-          ]);
-        }
-      }
+      // A second admin login called "developer" with PIN 123456 used to be
+      // created here on every organisation - not asked for, not shown in the
+      // credentials handed to the client, and guessable. Removed: an org gets
+      // exactly the one admin login named above, and nothing else.
 
-      // 6. Seed empty workspace state (first user created on first login)
+      // 5. Seed empty workspace state (first user created on first login)
       const now = new Date().toISOString();
       const { error: stateErr } = await supabase.from("org_state").upsert(
         [{ org_code: orgCode, state: { users: [] }, updated_at: now }],
@@ -296,7 +353,7 @@ serve(async (req) => {
       );
       if (stateErr) console.error("org_state seed failed:", stateErr.message);
 
-      return json({ success: true, orgCode, username, pin, devUsername, devPin });
+      return json({ success: true, orgCode, username, pin });
     }
 
     // ── DELETE entire org (all associated data) ─────────────────────────

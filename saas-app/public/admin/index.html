@@ -257,7 +257,7 @@
         <input class="form-input" type="text" id="newOrgCode" maxlength="10" inputmode="numeric" placeholder="1234567890" style="font-family:monospace;letter-spacing:.08em;text-transform:uppercase">
         <button class="btn btn-ghost" type="button" onclick="regenOrgCode()" title="Generate random code">↻</button>
       </div>
-      <div style="font-size:.72rem;color:var(--muted);margin-top:5px">P = production, D = demo. Example: P12345678</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Exactly 10 digits, no letters. Example: 1234567890</div>
     </div>
     <div class="form-group">
       <label class="form-label">Organization Name *</label>
@@ -269,11 +269,13 @@
     </div>
     <div class="form-group">
       <label class="form-label">Admin Username *</label>
-      <input class="form-input" type="text" id="newOrgAdminUser" placeholder="e.g. admin" value="admin">
+      <input class="form-input" type="text" id="newOrgAdminUser" placeholder="e.g. g.papadopoulos" autocomplete="off">
+      <div style="font-size:.72rem;color:var(--muted);margin-top:4px">Name it after the person. Generic names (admin, developer, test…) are refused.</div>
     </div>
     <div class="form-group">
-      <label class="form-label">Default PIN (6 digits)</label>
-      <input class="form-input" type="text" id="newOrgAdminPin" placeholder="123456" maxlength="6" value="123456">
+      <label class="form-label">Starting PIN * (6 digits)</label>
+      <input class="form-input" type="text" id="newOrgAdminPin" placeholder="6 digits" maxlength="6" inputmode="numeric" autocomplete="off">
+      <div style="font-size:.72rem;color:var(--muted);margin-top:4px">They must replace it on first login. Don't reuse it across clients.</div>
     </div>
     <div class="form-error" id="createOrgError"></div>
     <div class="modal-actions">
@@ -748,7 +750,10 @@ async function loadOrgDetail(code) {
           <td style="color:var(--muted)">${l.role || "—"}</td>
           <td><span class="badge badge-${l.active ? "active" : "inactive"}">${l.active ? "Active" : "Inactive"}</span></td>
           <td style="color:var(--muted);font-size:.78rem">${l.created_at ? new Date(l.created_at).toLocaleDateString() : "—"}</td>
-          <td><button class="btn btn-ghost btn-sm" onclick="resetOrgLoginPin('${l.username}')">Reset PIN</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="resetOrgLoginPin('${l.username}')">Reset PIN</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteOrgLogin('${l.username}')">Delete</button>
+          </td>
         </tr>`).join("")}</tbody></table>`;
     }
 
@@ -789,6 +794,21 @@ async function resetOrgLoginPin(username) {
     document.getElementById("credUsername").textContent = username;
     document.getElementById("credPin").textContent = newPin;
     document.getElementById("credentialsModal").removeAttribute("hidden");
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function deleteOrgLogin(username) {
+  if (!confirm(
+    `Delete the login "${username}" for org ${editingOrgCode}?\n\n` +
+    `The account will no longer be able to sign in. This cannot be undone.\n` +
+    `Their workspace record and data stay untouched.`
+  )) return;
+  try {
+    const res = await adminFn({ action: "deleteLogin", orgCode: editingOrgCode, username });
+    toast("✓ " + (res.message || "Login deleted"), "success");
+    loadOrgDetail(editingOrgCode);
   } catch (e) {
     toast("Error: " + e.message, "error");
   }
@@ -863,19 +883,42 @@ function closeCredentials() {
   document.getElementById("credentialsModal").setAttribute("hidden", "");
 }
 
+// Mirrors the same rules in the admin-org function, so the panel says no before
+// the round trip. The server check is the one that actually enforces it.
+const RESERVED_USERNAMES = new Set([
+  "admin", "administrator", "root", "superuser", "sysadmin",
+  "developer", "dev", "support", "test", "tester", "demo", "user", "guest",
+]);
+
+function isAllowedUsername(username) {
+  if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) return false;
+  return !RESERVED_USERNAMES.has(username);
+}
+
+function usernameRejectionReason(username) {
+  if (RESERVED_USERNAMES.has(username)) {
+    return `"${username}" is too easy to guess — choose a name specific to the person`;
+  }
+  return "Username must be 3–30 characters: letters, numbers, dot, dash or underscore";
+}
+
 async function submitCreateOrg() {
   const name = document.getElementById("newOrgName").value.trim();
   const type = document.getElementById("newOrgType").value;
   const plan = document.getElementById("newOrgPlan").value;
   const email = document.getElementById("newOrgEmail").value.trim();
-  const adminUser = document.getElementById("newOrgAdminUser").value.trim() || "admin";
-  const adminPin = document.getElementById("newOrgAdminPin").value.trim() || "123456";
+  // No fallbacks: both used to default to "admin" / "123456", which is how a
+  // guessable admin account got created without anyone choosing one.
+  const adminUser = document.getElementById("newOrgAdminUser").value.trim().toLowerCase();
+  const adminPin = document.getElementById("newOrgAdminPin").value.trim();
   const errEl = document.getElementById("createOrgError");
   const btn = document.getElementById("createOrgBtn");
 
   const orgCode = document.getElementById("newOrgCode").value.trim().toUpperCase();
 
   if (!name) { errEl.textContent = "Organization name is required"; return; }
+  if (!adminUser) { errEl.textContent = "Admin username is required"; return; }
+  if (!isAllowedUsername(adminUser)) { errEl.textContent = usernameRejectionReason(adminUser); return; }
   if (!/^\d{6}$/.test(adminPin)) { errEl.textContent = "PIN must be exactly 6 digits"; return; }
   if (!/^\d{10}$/.test(orgCode)) {
     errEl.textContent = "Code must be exactly 10 digits, e.g. 1234567890";
