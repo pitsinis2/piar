@@ -218,6 +218,9 @@ function getStoredLanguage() {
 const initialState = {
   clients: [],
   dailyWorks: [],
+  // Names of members who were deleted, kept so their past work still says who
+  // did it. Keyed by the user id that the old records still reference.
+  deletedUsers: {},
   equipmentCategories: [],
   equipmentItems: [],
   plannerAssignments: [],
@@ -1769,6 +1772,9 @@ function normalizeState(rawState) {
     ? nextState.aiConversationDrafts.map(normalizeAiConversationDraft).filter((entry) => entry.title || entry.content || entry.chatHistory.length)
     : [];
   ensureEquipmentCategories(nextState);
+  nextState.deletedUsers = (nextState.deletedUsers && typeof nextState.deletedUsers === "object")
+    ? nextState.deletedUsers
+    : {};
   nextState.rolePermissionDefaults = normalizeRolePermissionDefaults(nextState.rolePermissionDefaults);
   nextState.themeSettings = normalizeThemeSettings(nextState.themeSettings);
   nextState.driveSyncSettings = normalizeDriveSyncSettings(nextState.driveSyncSettings);
@@ -2153,7 +2159,46 @@ function getCurrentUser() {
 }
 
 function getUserById(userId) {
-  return state.users.find((user) => user.id === userId) || null;
+  const user = state.users.find((entry) => entry.id === userId);
+  if (user) return user;
+  // Deleted members are not in state.users any more, so member lists and
+  // pickers never show them - but old records still carry their id, and those
+  // should read "Maria Ioannou", not blank. This resolves the name only.
+  return getDeletedUserRecord(userId);
+}
+
+// A read-only stand-in for someone who was deleted. Marked archived and
+// login-disabled so anything that treats it as a live member still does the
+// safe thing.
+function getDeletedUserRecord(userId) {
+  const remembered = state.deletedUsers?.[userId];
+  if (!remembered) return null;
+  return {
+    id: userId,
+    name: remembered.name || "",
+    surname: remembered.surname || "",
+    username: remembered.username || "",
+    initials: remembered.initials || "",
+    personalNumber: remembered.personalNumber || "",
+    role: "user",
+    status: "archived",
+    isDeleted: true,
+    loginEnabled: false,
+    archivedAt: remembered.deletedAt || null,
+  };
+}
+
+function rememberDeletedMember(member) {
+  if (!member?.id) return;
+  if (!state.deletedUsers || typeof state.deletedUsers !== "object") state.deletedUsers = {};
+  state.deletedUsers[member.id] = {
+    name: member.name || "",
+    surname: member.surname || "",
+    username: member.username || "",
+    initials: member.initials || "",
+    personalNumber: member.personalNumber || "",
+    deletedAt: new Date().toISOString(),
+  };
 }
 
 function getCurrentRole() {
@@ -7393,6 +7438,37 @@ function onWorkspaceClientChange() {
   });
   persist();
   render();
+}
+
+// Deactivating or deleting a member in the workspace has to reach the login
+// account too, or they simply sign in again and the app rebuilds them. Returns
+// an error message on failure so the caller can refuse to proceed rather than
+// leave the two halves disagreeing.
+async function setMemberLoginState(user, action) {
+  if (!user?.username) return null;
+  if (!isLoggedIn || !MEMBER_LOGIN_URL || typeof supabase === "undefined") {
+    return "Not connected - cannot change this member's login right now.";
+  }
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return "Session expired - please sign in again.";
+
+    const response = await fetch(MEMBER_LOGIN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, username: user.username }),
+    });
+    let result = null;
+    try { result = await response.json(); } catch (error) { /* non-JSON error body */ }
+    if (!response.ok || result?.error) {
+      return result?.error || `HTTP ${response.status}`;
+    }
+    if (action === "delete") user.authUserId = null;
+    return null;
+  } catch (error) {
+    return error?.message || "Could not reach the login service.";
+  }
 }
 
 async function createMemberLoginAccount(user) {
@@ -17587,7 +17663,7 @@ async function permanentlyDeleteEquipment(equipmentId) {
   render();
 }
 
-function archiveMember(memberId) {
+async function archiveMember(memberId) {
   const member = getUserById(memberId);
   const needsAdminDeleteRight = member?.role === "admin";
   if (!requirePermission(hasPermission("deleteMembers") && (!needsAdminDeleteRight || hasPermission("deleteAdmin")), "You do not have permission to deactivate this member.")) return;
@@ -17596,7 +17672,19 @@ function archiveMember(memberId) {
     showAppMessage("You cannot deactivate your own account.", "warning", "Member");
     return;
   }
-  if (!window.confirm("Deactivate this member?")) return;
+  if (!window.confirm("Deactivate this member? They will no longer be able to sign in.")) return;
+
+  // Revoke the login first. If that fails, stop: marking them inactive here
+  // while they can still sign in is worse than doing nothing, because it looks
+  // like their access was removed.
+  const loginError = await setMemberLoginState(member, "disable");
+  if (loginError) {
+    showAppMessage(
+      `${translateFromEnglishText("Could not revoke this member's login, so nothing was changed.")} ${loginError}`,
+      "warning", translateFromEnglishText("Member"));
+    return;
+  }
+
   member.status = "archived";
   archiveEntity(member);
   logAudit("Member Deactivated", { objectType: "member", objectName: getMemberDisplayName(member) });
@@ -17606,10 +17694,20 @@ function archiveMember(memberId) {
   render();
 }
 
-function restoreMember(memberId) {
+async function restoreMember(memberId) {
   if (!requirePermission(hasPermission("deleteMembers"), "You do not have permission to restore members.")) return;
   const member = getUserById(memberId);
   if (!member) return;
+
+  // Give their sign-in back at the same time, so "active" means active.
+  const loginError = await setMemberLoginState(member, "enable");
+  if (loginError) {
+    showAppMessage(
+      `${translateFromEnglishText("Could not restore this member's login, so nothing was changed.")} ${loginError}`,
+      "warning", translateFromEnglishText("Member"));
+    return;
+  }
+
   member.status = "active";
   restoreEntity(member);
   logAudit("Member Restored", { objectType: "member", objectName: getMemberDisplayName(member) });
@@ -17633,10 +17731,35 @@ async function permanentlyDeleteMember(memberId) {
     tone: "warning",
   });
   if (!confirmed) return;
+
+  // Destroy the credential first. Without this the person simply signs in
+  // again and the app rebuilds them as a brand new user, so "deleted" would
+  // not mean deleted.
+  const loginError = await setMemberLoginState(member, "delete");
+  if (loginError) {
+    showAppMessage(
+      `${translateFromEnglishText("Could not remove this member's login, so nothing was deleted.")} ${loginError}`,
+      "warning", translateFromEnglishText("Member"));
+    return;
+  }
+
+  // Keep the name against their past work. Everything they created still
+  // points at this id, and without this the audit trail and every "created by"
+  // would go blank.
+  rememberDeletedMember(member);
+
   state.users = state.users.filter((user) => user.id !== memberId);
   for (const project of state.projects) {
     project.memberIds = (project.memberIds || []).filter((id) => id !== memberId);
     if (project.projectManagerUserId === memberId) project.projectManagerUserId = "";
+    // Service teams live inside the project and were never cleaned, so a
+    // deleted member stayed in team lists as an id nothing could resolve.
+    for (const folder of project.folders || []) {
+      folder.memberIds = (folder.memberIds || []).filter((id) => id !== memberId);
+    }
+  }
+  for (const work of state.dailyWorks || []) {
+    work.memberIds = (work.memberIds || []).filter((id) => id !== memberId);
   }
   logAudit("Member Permanently Deleted", { objectType: "member", objectName: getMemberDisplayName(member) });
   state.currentUserId = ensureValidCurrentUser(state);
@@ -18712,11 +18835,16 @@ async function loginWithOrgCodeAndPin(orgCode, username, pin) {
       .eq('org_code', orgCode)
       .eq('username', username)
       .eq('supabase_user_id', user.id)
+      // A deactivated member must not get in. neq rather than eq(true) so a row
+      // where the column was never set is still treated as active.
+      .neq('active', false)
       .single();
 
     if (memberError || !member) {
+      // Signing out matters: the password was correct, so a session exists.
+      // Leaving it would let a deactivated member linger in a signed-in state.
       await supabase.auth.signOut();
-      throw new Error("Member not found or org code mismatch");
+      throw new Error("This account is no longer active. Contact your administrator.");
     }
 
     currentUserId = user.id;

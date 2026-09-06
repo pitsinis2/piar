@@ -1077,6 +1077,14 @@ window.APP_TRANSLATIONS = {
     "🔑 Change PIN": "🔑 Αλλαγή PIN",
     "No equipment categories yet.": "Δεν υπάρχουν ακόμη κατηγορίες εξοπλισμού.",
     "Delete category": "Διαγραφή κατηγορίας",
+    "Could not revoke this member's login, so nothing was changed.":
+      "Δεν ήταν δυνατή η ανάκληση της πρόσβασης του μέλους, οπότε δεν άλλαξε τίποτα.",
+    "Could not restore this member's login, so nothing was changed.":
+      "Δεν ήταν δυνατή η επαναφορά της πρόσβασης του μέλους, οπότε δεν άλλαξε τίποτα.",
+    "Could not remove this member's login, so nothing was deleted.":
+      "Δεν ήταν δυνατή η αφαίρεση της πρόσβασης του μέλους, οπότε δεν διαγράφηκε τίποτα.",
+    "This account is no longer active. Contact your administrator.":
+      "Ο λογαριασμός δεν είναι πλέον ενεργός. Επικοινωνήστε με τον διαχειριστή σας.",
     "Reference": "Κωδικός",
     "Ref": "Κωδ.",
     "By": "Από",

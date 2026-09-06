@@ -109,6 +109,79 @@ serve(async (req) => {
       return json({ success: true, username, supabaseUserId: authUser.user.id });
     }
 
+    // Everything below changes an existing login, so work out what is being
+    // targeted and refuse the two ways an org can lock itself out.
+    const { data: target } = await supabase
+      .from("team_members")
+      .select("username, role, active, supabase_user_id")
+      .eq("org_code", orgCode)
+      .eq("username", username)
+      .maybeSingle();
+
+    if (action === "disable" || action === "delete") {
+      if (!target) {
+        // Nothing to revoke. Deleting something already gone is a success, not
+        // an error - the caller wanted it absent and it is.
+        return json({ success: true, username, alreadyGone: true });
+      }
+      if (target.supabase_user_id === callerData.user.id) {
+        return json({ error: "You cannot remove your own login" }, 409);
+      }
+      if (target.role === "admin") {
+        const { data: admins } = await supabase
+          .from("team_members")
+          .select("username")
+          .eq("org_code", orgCode)
+          .eq("role", "admin")
+          .neq("active", false)
+          .neq("username", username);
+        if (!admins?.length) {
+          return json({ error: "This is the organisation's only admin login" }, 409);
+        }
+      }
+    }
+
+    // Deactivate: the login stays, but it can no longer sign in. Reversible.
+    if (action === "disable") {
+      const { error } = await supabase
+        .from("team_members")
+        .update({ active: false })
+        .eq("org_code", orgCode)
+        .eq("username", username);
+      if (error) return json({ error: "team_members: " + error.message }, 500);
+      return json({ success: true, username, active: false });
+    }
+
+    // Reactivate someone who was deactivated.
+    if (action === "enable") {
+      if (!target) return json({ error: "No login account for this member" }, 404);
+      const { error } = await supabase
+        .from("team_members")
+        .update({ active: true })
+        .eq("org_code", orgCode)
+        .eq("username", username);
+      if (error) return json({ error: "team_members: " + error.message }, 500);
+      return json({ success: true, username, active: true });
+    }
+
+    // Delete: the credential itself goes, so the account cannot come back.
+    if (action === "delete") {
+      const { error: delErr } = await supabase
+        .from("team_members")
+        .delete()
+        .eq("org_code", orgCode)
+        .eq("username", username);
+      if (delErr) return json({ error: "team_members: " + delErr.message }, 500);
+
+      if (target?.supabase_user_id) {
+        const { error: authErr } = await supabase.auth.admin.deleteUser(target.supabase_user_id);
+        if (authErr) {
+          return json({ error: "Login removed, but the credential remained: " + authErr.message }, 500);
+        }
+      }
+      return json({ success: true, username, deleted: true });
+    }
+
     return json({ error: "Unknown action" }, 400);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
